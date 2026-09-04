@@ -8,7 +8,7 @@
  * `time` from a large alternation, and both used to over-fire — body parts and
  * direction words became places, adverbs and conjunctions became time.
  *
- * Negatives are the strings a user reported on a real AMERICA card log
+ * Negatives are the strings misfiled in an earlier round; the words below are rewritten examples
  * (2026-09-04). Positives are hand-written ground truth. Exits non-zero when any
  * negative is still accepted, or when a gated positive is lost.
  */
