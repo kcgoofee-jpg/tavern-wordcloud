@@ -104,3 +104,12 @@
   .board-n { grid-area: n; }
   .board-ci { grid-area: ci; }
 }
+
+/* Endpoint panel on a phone: the provider marks take their own line above the address,
+   and every box spans the sheet. */
+@media (max-width: 640px) {
+  .ai-line-url { row-gap: var(--ctl-gap); }
+  .ai-line-url .ai-presets { flex: 0 0 100%; }
+  .ai-line-url .ai-url { flex: 1 1 100%; }
+  .ai-line-key .ai-key { flex: 1 1 auto; }
+}

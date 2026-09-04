@@ -112,6 +112,10 @@ const P = {
   equals: <><path d="M4 6c5 0 5 6 9.5 6H19" /><path d="M4 18c5 0 5-6 9.5-6" /><path d="m16 9 3 3-3 3" /></>,
   /** Priority words: a line pinned to the top, arrow rising into it */
   pinTop: <><path d="M4 4h16" /><path d="M12 20V8.5" /><path d="m7.5 13 4.5-4.5 4.5 4.5" /></>,
+  /** Reveal the key: an open eye */
+  eye: <><path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.8" /></>,
+  /** Hide the key: the same eye, struck through */
+  eyeOff: <><path d="M4 4.5 20 20" /><path d="M9.6 6.4A8.4 8.4 0 0 1 12 6c6 0 9.5 6 9.5 6a16 16 0 0 1-3 3.5" /><path d="M17.6 17.4A9.4 9.4 0 0 1 12 18c-6 0-9.5-6-9.5-6a16 16 0 0 1 4-4.3" /><path d="M10 10.1a2.8 2.8 0 0 0 3.9 3.9" /></>,
   /** Site notice: a bell */
   bell: <><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.4 2.1H4.6L6 16.5Z" /><path d="M10 21.2a2.3 2.3 0 0 0 4 0" /></>,
 } satisfies Record<string, React.ReactNode>;

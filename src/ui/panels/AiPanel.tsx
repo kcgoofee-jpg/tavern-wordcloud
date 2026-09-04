@@ -47,6 +47,8 @@ export function AiPanel({
   const [models, setModels] = useState<string[] | null>(null);
   /** Endpoint has no /models list: let the user type the name. */
   const [manual, setManual] = useState(false);
+  /** Key box reads as dots until the eye is pressed. */
+  const [showKey, setShowKey] = useState(false);
 
   /**
    * One button does everything: probe the endpoint, then — if it answered — fill the
@@ -103,8 +105,8 @@ export function AiPanel({
 
   return (
     <>
-      {/* One line: provider marks, address, key. No headings — the placeholders say what each box is. */}
-      <div className="ai-line">
+      {/* Address line: provider marks then the address, which takes the rest of the row. */}
+      <div className="ai-line ai-line-url">
         <span className="ai-presets">
           {PROVIDER_PRESETS.map((p) => (
             <button key={p.id} type="button" className={`ai-preset${preset?.id === p.id ? ' on' : ''}`}
@@ -118,14 +120,23 @@ export function AiPanel({
         <input className="ai-url" type="url" ref={endpointRef} placeholder="https://…/v1" aria-label={t('地址')}
           title={t('地址')}
           value={ai.endpoint} onChange={(e) => { setResult(null); setModels(null); setAi({ ...ai, endpoint: e.target.value }); }} />
-        <input className="ai-key" type="password" ref={keyRef} aria-label={t('密钥')}
+      </div>
+
+      {/* Key line: the box fills the row, the eye sits at its end. */}
+      <div className="ai-line ai-line-key">
+        <input className="ai-key" type={showKey ? 'text' : 'password'} ref={keyRef} aria-label={t('密钥')}
           title={t('密钥只存在你自己的浏览器里')}
           placeholder={preset && !preset.needsKey ? t('本地不用填') : 'sk-…'}
           value={ai.apiKey} onChange={(e) => { setResult(null); setAi({ ...ai, apiKey: e.target.value }); }} />
+        <button type="button" className="ai-eye" aria-pressed={showKey}
+          title={showKey ? t('隐藏密钥') : t('显示密钥')} aria-label={showKey ? t('隐藏密钥') : t('显示密钥')}
+          onClick={() => setShowKey((v) => !v)}>
+          <Icon name={showKey ? 'eyeOff' : 'eye'} size={16} />
+        </button>
       </div>
 
-      {/* Second line: test, then the model box the test fills. */}
-      <div className="ai-line">
+      {/* Third line: test, then the model box the test fills. */}
+      <div className="ai-line ai-line-test">
         <button type="button" className={`more ai-test${result?.ok ? ' ok' : ''}`}
           ref={testRef} disabled={!ai.endpoint.trim() || testing} onClick={() => void test()}>
           {testing ? t('正在试…') : result?.ok ? <><Icon name="check" size={15} />{t('已连通')}</> : t('测试连接')}

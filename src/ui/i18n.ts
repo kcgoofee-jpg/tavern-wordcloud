@@ -410,6 +410,8 @@ const EN: Record<string, string> = {
   // ── Panel: endpoint ──
   '地址': 'Endpoint URL',
   '密钥': 'API key',
+  '显示密钥': 'Show the key',
+  '隐藏密钥': 'Hide the key',
   '测试连接': 'Test connection',
   '正在试…': 'Testing…',
   '已连通': 'Connected',

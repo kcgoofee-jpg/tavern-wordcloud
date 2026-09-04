@@ -19,6 +19,13 @@
   --fg-dim: #6b5c48;
   --accent: #8c6344;
   --r: 16px;
+  /* One height / radius / resting fill for every panel control (input, select, button),
+     so the endpoint panel and the filter panel read as the same window. */
+  --ctl-h: 32px;
+  --ctl-r: 9px;
+  --ctl-bg: color-mix(in srgb, var(--fg) 6%, transparent);
+  --ctl-bg-hover: color-mix(in srgb, var(--fg) 9%, transparent);
+  --ctl-gap: 8px;
   --tap: 44px;
   /* Serif face for headings and legal prose; one definition, used by 34-landing and 36-legal */
   --serif: Palatino, "Palatino Linotype", "Songti SC", "Noto Serif CJK SC", Georgia, serif;
