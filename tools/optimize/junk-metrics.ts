@@ -10,7 +10,7 @@ const run = (file: string) => {
 };
 const fixture = path.join(process.cwd(), 'fixtures', 'ceo-zh.jsonl');
 const out: Record<string, unknown> = { fixture: fs.existsSync(fixture) ? run(fixture).length : null };
-const ROOTS = ['/Users/gaofei/Documents/st-lab/data'];
+const ROOTS = localCorpusRoots();
 const real: number[] = [];
 for (const root of ROOTS) {
   const dir = path.join(root, 'default-user/chats');

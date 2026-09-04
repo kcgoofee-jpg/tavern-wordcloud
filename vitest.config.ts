@@ -1,4 +1,9 @@
 import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
+
+// .env.local holds machine-local paths (WC_LOCAL_CORPUS, sample files). Tests read them from
+// process.env and skip themselves when unset, so nothing personal has to live in the repository.
+Object.assign(process.env, loadEnv('', process.cwd(), 'WC_'));
 
 export default defineConfig({
   test: {

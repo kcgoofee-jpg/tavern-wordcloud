@@ -19,6 +19,7 @@ import type { AiTokenizerConfig } from '../../src/core/aiTokenizer';
 import { detectEntities } from '../../src/core/entities';
 import { DECOYS, GROUND_TRUTH } from './groundtruth';
 import { mcnemar, wilson } from './stats';
+import { localCorpusRoots } from '../../tools/localCorpus';
 
 /* ---------- Providers ---------- */
 const env = Object.fromEntries(
@@ -48,8 +49,7 @@ export const PROVIDERS: Record<string, Omit<AiTokenizerConfig, 'enabled'>> = {
 
 /* ---------- Evaluation set ---------- */
 const ROOTS = [
-  '/Users/gaofei/Documents/st-lab/data',
-  '/Users/gaofei/Documents/st-lab-废弃-1847/data',
+  ...localCorpusRoots(),
 ];
 
 export function corpusSentences(): string[] {

@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { analyze, DEFAULT_ANALYZE_OPTIONS } from '../src/core/analyze';
 import { buildStopwords } from '../src/core/stopwords';
 import { JUNK, NOT_JUNK, junkRate } from '../tools/eval/junk';
+import { localCorpusRoots } from '../tools/localCorpus';
 
 const stop = buildStopwords([], true, true);
 
@@ -63,7 +64,7 @@ describe.skipIf(!fs.existsSync(FIXTURE))('junk rate on the fixture corpus', () =
 });
 
 /** Real logs, when the local SillyTavern data directory exists (same roots as test/corpus.test.ts). */
-const ROOTS = ['/Users/gaofei/Documents/st-lab/data', '/Users/gaofei/Documents/st-lab-废弃-1847/data'];
+const ROOTS = localCorpusRoots();
 const real: string[] = [];
 for (const r of ROOTS) {
   const dir = path.join(r, 'default-user/chats');

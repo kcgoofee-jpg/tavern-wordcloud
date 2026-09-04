@@ -18,12 +18,13 @@ import { fileURLToPath } from 'node:url';
 import { corpusSentences } from './run';
 import { GROUND_TRUTH } from './groundtruth';
 import { detectEntities } from '../../src/core/entities';
+import { localCorpusRoots } from '../../tools/localCorpus';
 
 /* ---------- Positives ---------- */
 
 /** Character-card folder names from the local export. Names only, never log text. */
 function cardFolders(): string[] {
-  const dir = '/Users/gaofei/Documents/st-lab/data/default-user/chats';
+  const dir = (localCorpusRoots()[0] ?? '') + '/default-user/chats';
   let e: fs.Dirent[];
   try { e = fs.readdirSync(dir, { withFileTypes: true }); } catch { return []; }
   return e.filter((x) => x.isDirectory() && /[一-鿿]/.test(x.name)).map((x) => x.name);

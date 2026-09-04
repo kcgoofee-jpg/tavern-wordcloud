@@ -4,15 +4,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseChatFile, collectNames } from '../src/core/parse';
 import { tokenizeCorpus } from '../src/core/tokenize';
+import { localCorpusRoots } from '../tools/localCorpus';
 
-const ROOTS = [
-  '/Users/gaofei/Documents/st-lab/data',
-  '/Users/gaofei/Documents/claude test1/tavern-observer/st-data',
-  '/Users/gaofei/Documents/st-lab-废弃-1847/data',
-  // This log carries full HTML pages and bare CSS/JS inside messages
-  '/Users/gaofei/Documents/st-test/data',
-  '/Users/gaofei/Documents/st-verify/data',
-];
+const ROOTS = localCorpusRoots();
 
 function walk(dir: string, out: string[] = []): string[] {
   let entries: fs.Dirent[];

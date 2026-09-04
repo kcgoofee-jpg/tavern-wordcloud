@@ -5,10 +5,13 @@ import fs from 'node:fs';
 import { detectFormat } from '../src/core/formats';
 import { parseChatFile } from '../src/core/parse';
 import { readDataBundle } from '../src/core/bundle';
+import { localSample } from '../tools/localCorpus';
 
-const TXT = '/Users/gaofei/Downloads/AMERICA v1.3.1 - 2026-09-02@18h56m55s069ms.txt';
-const JSONL = '/Users/gaofei/Downloads/AMERICA v1.3.1 - 2026-09-02@18h56m55s069ms.jsonl';
-const ZIP = '/Users/gaofei/Downloads/default-user-20260902-202923.zip';
+// Real exports stay on the machine that has them: WC_LOCAL_SAMPLE_* point at them, and the
+// cases below skip themselves when unset. Hard-coding the paths published the chat file names.
+const TXT = localSample('WC_LOCAL_SAMPLE_TXT') ?? '';
+const JSONL = localSample('WC_LOCAL_SAMPLE_JSONL') ?? '';
+const ZIP = localSample('WC_LOCAL_SAMPLE_ZIP') ?? '';
 
 describe('format detection', () => {
   it('jsonl: the first line is complete JSON', () => {
