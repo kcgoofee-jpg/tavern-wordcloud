@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useT } from '../i18n';
 import { segmentChunk, listModels, PROVIDER_PRESETS, type AiTokenizerConfig } from '../../core/aiTokenizer';
+import { labelKinds, labelPayload, labelChars } from '../../core/labelKinds';
+import type { EntityKind } from '../../core/entities';
+import { classifyError } from '../../core/errors';
+import { tx, txv } from '../i18n';
 import Icon, { type IconName } from '../Icons';
 import Note from '../Note';
 import Slider from './Slider';
@@ -13,7 +17,12 @@ const PRESET_ICON: Record<string, IconName> = {
 
 export function AiPanel({
   ai, setAi, canRun, busy, onRun, relay, onProposeRules, proposing, focus,
+  labelWords, onLabeled,
 }: {
+  /** Words the user can ask the model to file into kinds. Only these are ever sent. */
+  labelWords?: string[];
+  /** Receives word -> kind; the caller writes it into settings.overrides. */
+  onLabeled?: (kinds: Record<string, EntityKind>) => void;
   /** Field to put the cursor in when the panel opens because that field is empty. */
   focus?: 'endpoint' | 'model' | 'key';
   /** Ask the model for cleaning rules; undefined when no files are loaded. */
@@ -100,6 +109,27 @@ export function AiPanel({
     else say(e || t('没见过的错误'));
   };
 
+  /** null: idle. 'preview': the confirmation is up. */
+  const [labelStage, setLabelStage] = useState<null | 'preview' | 'running'>(null);
+  const [labelMsg, setLabelMsg] = useState<string | null>(null);
+  const toSend = labelPayload(labelWords ?? []);
+
+  const runLabel = async () => {
+    setLabelStage('running');
+    setLabelMsg(null);
+    const res = await labelKinds(toSend, ai, (relay ? relayFetch : fetch) as typeof fetch);
+    setLabelStage(null);
+    if ('error' in res) {
+      const err = classifyError(new Error(res.error));
+      setLabelMsg([txv(err.titleTpl ?? err.title), err.hintTpl ? txv(err.hintTpl) : err.hint ? tx(err.hint) : '']
+        .filter(Boolean).join(' — '));
+      return;
+    }
+    const n = Object.keys(res.kinds).length;
+    onLabeled?.(res.kinds);
+    setLabelMsg(t('已标注 {n} 个词，去「检查」面板可以逐个改', { n }));
+  };
+
   const ready = ai.endpoint.trim().length > 0 && ai.model.trim().length > 0;
   const preset = PROVIDER_PRESETS.find((p) => p.endpoint === ai.endpoint && p.model === ai.model);
 
@@ -181,6 +211,39 @@ export function AiPanel({
         onChange={(v) => setAi({ ...ai, chunkChars: v })} />
       <Slider label={t("同时发几个请求")} value={ai.concurrency} min={1} max={8}
         onChange={(v) => setAi({ ...ai, concurrency: v })} />
+
+      {/* Kind labelling: word list only, never chat text. The preview says exactly what goes out. */}
+      {!!toSend.length && (
+        <div className="ai-line">
+          <button type="button" className="more" disabled={!ready || labelStage === 'running'}
+            title={t('只把词表发给上面的接口，不发聊天正文')}
+            aria-label={t('让模型分类')}
+            onClick={() => { setLabelMsg(null); setLabelStage('preview'); }}>
+            <Icon name="list" size={15} />{labelStage === 'running' ? t('正在分类…') : t('让模型分类')}
+          </button>
+        </div>
+      )}
+      {labelStage === 'preview' && (
+        <div className="confirm-veil" onClick={(e) => { if (e.target === e.currentTarget) setLabelStage(null); }}>
+          <div className="confirm-card" role="dialog" aria-modal="true" aria-label={t('让模型分类')}>
+            <div className="confirm-head">
+              <span className="confirm-title">{t('让模型分类')}</span>
+              <button type="button" className="sheet-close" title={t('取消')} onClick={() => setLabelStage(null)}>
+                <Icon name="close" size={17} />
+              </button>
+            </div>
+            <div className="confirm-body">
+              <p className="note">{t('将发送 {n} 个词，约 {m} 字符，不含聊天正文', { n: toSend.length, m: labelChars(toSend) })}</p>
+            </div>
+            <div className="confirm-foot">
+              <button type="button" className="confirm-btn" onClick={() => setLabelStage(null)}>{t('取消')}</button>
+              <button type="button" className="confirm-btn primary"
+                onClick={() => { setLabelStage(null); void runLabel(); }}>{t('发送')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {labelMsg && <p className="ai-err">{labelMsg}</p>}
 
       {/* The (i) sits beside the button, never inside it: a button inside a button is invalid. */}
       <div className="ai-line">

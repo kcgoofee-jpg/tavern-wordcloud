@@ -108,8 +108,4 @@ This repository is a read-only mirror of the private development repository; iss
 
 ## License
 
-MIT
-
-## License
-
 MIT — see [LICENSE](LICENSE). The hosted instance is run by the author; the code here is what you deploy yourself.

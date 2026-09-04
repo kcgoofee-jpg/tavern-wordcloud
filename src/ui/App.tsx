@@ -1057,6 +1057,16 @@ export default function App() {
                 canRun={!!result && options.ai.enabled && !!options.ai.endpoint && !!options.ai.model}
                 busy={busy} onRun={() => void runAiTokenize()} relay={!!health?.ok}
                 onProposeRules={hasFiles ? () => void proposeRules() : undefined} proposing={proposing}
+                labelWords={(result?.allWords ?? words).map((w) => w.text)}
+                onLabeled={(kinds) => setSettings((s) => {
+                  const next = { ...s.overrides };
+                  // Override keys are lowercase (see applyOverrides).
+                  for (const [w, kind] of Object.entries(kinds)) {
+                    const k = w.toLowerCase();
+                    next[k] = { ...next[k], kind };
+                  }
+                  return { ...s, overrides: next };
+                })}
                 focus={aiMissing ?? undefined} />
             )}
           </div>
