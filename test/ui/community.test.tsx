@@ -188,3 +188,21 @@ describe('CommunityPanel claimed cards', () => {
     expect(container.querySelector('.claimed-cards a')).toBeNull();
   });
 });
+
+describe('CommunityPanel import composition', () => {
+  it('renders nothing when the operator has not published the numbers', () => {
+    view();
+    expect(screen.queryByText('大家导入了什么')).toBeNull();
+  });
+
+  it('shows the shares and averages, with no card, preset or world-info name', () => {
+    view({ ...STATS, cardStats: { reports: 20, withCards: 0.6, withWorlds: 0.25, withPreset: 0.5, avgCards: 1.5, avgWorlds: 0.4 } });
+    expect(screen.getByText('大家导入了什么')).toBeTruthy();
+    expect(screen.getByText('带角色卡')).toBeTruthy();
+    expect(screen.getByText('带世界书')).toBeTruthy();
+    expect(screen.getByText('带预设')).toBeTruthy();
+    expect(screen.getByText('60%')).toBeTruthy();
+    expect(screen.getByText('只统计数量，不记录任何卡名、预设名或世界书名。共 20 份。')).toBeTruthy();
+    expect(screen.getByText('平均每份 1.5 张卡 · 0.4 本世界书')).toBeTruthy();
+  });
+});

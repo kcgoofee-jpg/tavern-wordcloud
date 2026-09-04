@@ -43,6 +43,9 @@ import type { WorkerProgress } from '../worker/analyze.worker';
 import type { DataBundle } from '../core/bundle';
 import './styles/index.css';
 
+/** Hand-edited word count as a coarse bucket: a number would be far more identifying. */
+export const overrideBucket = (n: number): '0' | '1-10' | '11+' => (n === 0 ? '0' : n <= 10 ? '1-10' : '11+');
+
 type PanelId = 'theme' | 'font' | 'filter' | 'advanced' | 'words' | 'review' | 'ai' | 'export' | 'community';
 
 /** Panel -> title + reset scope. Panels without a scope have no reset button. A function of `t` so titles are literal `t('…')` calls. */
@@ -715,9 +718,25 @@ export default function App() {
       avgGenMs: result.meta?.avgGenSeconds != null ? Math.round(result.meta.avgGenSeconds * 1000) : undefined,
       // Word counts per category, for the community's person / place / time split.
       kinds: (result.entities?.byKind ?? []).map((k) => ({ kind: k.kind, words: k.words })),
+      // Interface preferences, identifiers only. An imported font is reported as the
+      // literal 'custom' so its family or file name never leaves the browser; hand-edited
+      // words are reported as a bucket, not a count. Admin-only: not on the public board.
+      prefs: {
+        themeId: settings.themeId,
+        colorVision: settings.colorVision,
+        fontId: settings.font.custom ? 'custom' : settings.font.cloud,
+        usedPriority: settings.priority.trim().length > 0,
+        overrideCount: overrideBucket(Object.keys(settings.overrides).length),
+        traditional: settings.traditional,
+      },
+      // How much of an export was imported: counts only, never a card / preset / world name.
+      cardCount: bundle?.characterCards ?? 0,
+      worldCount: bundle?.worlds.length ?? 0,
+      hasPreset: !!bundle?.presetName,
     };
     void fetch('/api/contribute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
-  }, [result, settings.contribute, settings.options.ai.model, settings.options.ai.endpoint, health?.ok]);
+  }, [result, settings.contribute, settings.options.ai.model, settings.options.ai.endpoint, health?.ok,
+    settings.themeId, settings.colorVision, settings.font, settings.priority, settings.overrides, settings.traditional, bundle]);
 
   const copyLink = useCallback(async () => {
     if (!share) return;

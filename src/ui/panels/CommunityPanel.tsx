@@ -22,6 +22,11 @@ export interface CommunityStats {
   kinds: { kind: string; words: number; share: number }[];
   /** Median generation time in ms, when logs carried timings. */
   genMs: number | null;
+  /**
+   * How much of a data export people import, as shares and averages. Present only while
+   * the operator publishes it; counts only, never a card / preset / world-book name.
+   */
+  cardStats?: { reports: number; withCards: number; withWorlds: number; withPreset: number; avgCards: number; avgWorlds: number };
   /** Card names an approved author claim vouched for. Names only — no links, no submitter. */
   claimedCards?: string[];
   updated: number;
@@ -272,6 +277,7 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
   // A server one deploy behind returns none of the leaderboard fields; render the rest.
   const models = stats.models ?? [], endpoints = stats.endpoints ?? [], kinds = foldKinds(stats.kinds ?? []);
   const claimed = stats.claimedCards ?? [];
+  const cardStats = stats.cardStats;
   return (
     <>
       <section className="community-sec">
@@ -329,6 +335,18 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
       <p className="note">{peak === null ? t('还没有数据') : t('按小时（北京时间），最活跃是 {h} 点', { h: peak })}</p>
       <p className="stat-line">{peak === null ? t('还没有数据') : t('{h} 点最热闹，占全天 {p}%', { h: peak, p: peakShare })}</p>
       </section>
+      {cardStats && (
+      <section className="community-sec">
+      <div className="group-label">{t('大家导入了什么')}</div>
+      <ul className="found">
+        <li><b>{pct(cardStats.withCards)}%</b> {t('带角色卡')}</li>
+        <li><b>{pct(cardStats.withWorlds)}%</b> {t('带世界书')}</li>
+        <li><b>{pct(cardStats.withPreset)}%</b> {t('带预设')}</li>
+      </ul>
+      <p className="note">{t('只统计数量，不记录任何卡名、预设名或世界书名。共 {n} 份。', { n: cardStats.reports })}</p>
+      <p className="stat-line">{t('平均每份 {c} 张卡 · {w} 本世界书', { c: cardStats.avgCards.toFixed(1), w: cardStats.avgWorlds.toFixed(1) })}</p>
+      </section>
+      )}
       {claimed.length > 0 && (
       <section className="community-sec">
       <div className="group-label">{t('已认领的角色卡')}</div>
