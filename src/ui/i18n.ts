@@ -752,6 +752,7 @@ const EN: Record<string, string> = {
   '服务器返回': 'The server returned',
   '服务器没有返回流': 'The server returned no stream',
   '服务器没有返回结果': 'The server returned no result',
+  '请求体解压失败': 'Failed to decompress the request body',
 
   // LLM endpoint errors (core/aiTokenizer, core/curate)
   '回复里没有内容': 'The reply had no content',

@@ -18,7 +18,12 @@ const SSE = [
   '',
 ].join('\n');
 
-const bigFile = { name: 'a.jsonl', content: 'x'.repeat(400_000) };
+// Random (not repeated or cyclic) so gzip cannot shrink it below one upload
+// chunk — the streamed-body test below needs several progress reports.
+const bigFile = {
+  name: 'a.jsonl',
+  content: require('node:crypto').randomBytes(300_000).toString('base64'),
+};
 const opts = {} as never;
 
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -83,11 +88,13 @@ class FakeXHR {
   responseText = '';
   aborted = false;
   body = SSE;
+  sentBytes: number | null = null;
   open() { /* noop */ }
   setRequestHeader() { /* noop */ }
   abort() { this.aborted = true; this.onabort?.(); }
   send(bytes: Uint8Array) {
     FakeXHR.last = this;
+    this.sentBytes = bytes.byteLength;
     const total = bytes.byteLength;
     queueMicrotask(() => {
       if (this.aborted) return;
@@ -124,5 +131,65 @@ describe('analyzeOnServer — XMLHttpRequest fallback (Safari, Firefox)', () => 
     const p = analyzeOnServer(bigFile, opts, () => { ac.abort(); }, ac.signal, false);
     await expect(p).rejects.toThrow();
     expect(FakeXHR.last?.aborted).toBe(true);
+  });
+});
+
+describe('gzip request compression', () => {
+  // Very compressible on purpose: the point of these tests is to see the body shrink.
+  const compressible = { name: 'a.jsonl', content: '{"mes":"甲乙丙"}\n'.repeat(20_000) };
+  const plainBytes = () => new TextEncoder().encode(JSON.stringify({ ...compressible, options: opts })).byteLength;
+
+  it('streamed path: sends Content-Encoding: gzip and a smaller body when CompressionStream exists', async () => {
+    let seenHeaders: Headers | undefined;
+    let sentBytes = 0;
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      seenHeaders = new Headers(init.headers);
+      const reader = (init.body as ReadableStream<Uint8Array>).getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        sentBytes += value!.byteLength;
+      }
+      return new Response(SSE, { status: 200 });
+    });
+    await analyzeOnServer(compressible, opts, () => {}, undefined, true);
+    expect(seenHeaders?.get('Content-Encoding')).toBe('gzip');
+    expect(sentBytes).toBeLessThan(plainBytes());
+  });
+
+  it('XHR path: sets Content-Encoding: gzip and sends a smaller body when CompressionStream exists', async () => {
+    vi.stubGlobal('XMLHttpRequest', FakeXHR);
+    let encodingHeader: string | undefined;
+    const orig = FakeXHR.prototype.setRequestHeader;
+    FakeXHR.prototype.setRequestHeader = function (name: string, value: string) {
+      if (name === 'Content-Encoding') encodingHeader = value;
+      return orig.call(this, name, value);
+    };
+    try {
+      await analyzeOnServer(compressible, opts, () => {}, undefined, false);
+    } finally {
+      FakeXHR.prototype.setRequestHeader = orig;
+    }
+    expect(encodingHeader).toBe('gzip');
+    expect(FakeXHR.last!.sentBytes!).toBeLessThan(plainBytes());
+  });
+
+  it('falls back to a plain body with no Content-Encoding when CompressionStream is unavailable', async () => {
+    vi.stubGlobal('CompressionStream', undefined);
+    let seenHeaders: Headers | undefined;
+    let sentBytes = 0;
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      seenHeaders = new Headers(init.headers);
+      const reader = (init.body as ReadableStream<Uint8Array>).getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        sentBytes += value!.byteLength;
+      }
+      return new Response(SSE, { status: 200 });
+    });
+    await analyzeOnServer(compressible, opts, () => {}, undefined, true);
+    expect(seenHeaders?.has('Content-Encoding')).toBe(false);
+    expect(sentBytes).toBe(plainBytes());
   });
 });

@@ -169,8 +169,14 @@ async function postSSE(
   signal?: AbortSignal,
   useStream = supportsRequestStreams(),
 ): Promise<void> {
-  const bytes = new TextEncoder().encode(JSON.stringify(body));
+  const jsonBytes = new TextEncoder().encode(JSON.stringify(body));
+  const gzipped = await maybeGzip(jsonBytes);
+  // Progress is reported against what actually goes over the wire, so the bar
+  // doesn't jump when compression finishes ahead of the upload.
+  const bytes = gzipped ?? jsonBytes;
   const total = bytes.byteLength;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (gzipped) headers['Content-Encoding'] = 'gzip';
 
   if (useStream) {
     let sent = 0;
@@ -185,7 +191,7 @@ async function postSSE(
     });
     const res = await fetch(path, {
       method: 'POST', signal,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: stream,
       duplex: 'half',
     } as RequestInit & { duplex: 'half' });
@@ -209,6 +215,7 @@ async function postSSE(
     const onAbort = () => xhr.abort();
     xhr.open('POST', path);
     xhr.setRequestHeader('Content-Type', 'application/json');
+    if (gzipped) xhr.setRequestHeader('Content-Encoding', 'gzip');
     xhr.upload.onprogress = (e: ProgressEvent) => onUpload(e.loaded, e.total || total);
     xhr.upload.onload = () => onUpload(total, total);
     xhr.onprogress = drain;
@@ -229,8 +236,29 @@ async function postSSE(
       if (signal.aborted) { xhr.abort(); return; }
       signal.addEventListener('abort', onAbort, { once: true });
     }
-    xhr.send(bytes);
+    xhr.send(bytes as unknown as ArrayBuffer);
   });
+}
+
+/**
+ * Whether this browser can gzip a request body before sending it. Chrome,
+ * Safari and Firefox all have `CompressionStream`; when it is missing the
+ * request goes out uncompressed instead of failing.
+ */
+export function supportsGzipUpload(): boolean {
+  return typeof CompressionStream !== 'undefined' && typeof Blob !== 'undefined' && typeof Response !== 'undefined';
+}
+
+/** Gzip `bytes` with `CompressionStream`, or return null if unsupported/failed (caller sends plain). */
+async function maybeGzip(bytes: Uint8Array): Promise<Uint8Array | null> {
+  if (!supportsGzipUpload()) return null;
+  try {
+    const stream = new Blob([bytes as unknown as BlobPart]).stream().pipeThrough(new CompressionStream('gzip'));
+    const buf = await new Response(stream).arrayBuffer();
+    return new Uint8Array(buf);
+  } catch {
+    return null;
+  }
 }
 
 /** Bytes as MB with one decimal, for the upload label. */
