@@ -48,6 +48,8 @@ export interface ServerHealth {
   relay: boolean;
   /** Current server load. Older servers do not send it; treat a missing value as `ok`. */
   load?: 'ok' | 'busy' | 'full';
+  /** Build identifier that changes on deploy. Older servers do not send it. */
+  version?: string;
 }
 
 /** Whether a server exists behind this page. Static hosting has none. */

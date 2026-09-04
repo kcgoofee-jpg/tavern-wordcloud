@@ -1,0 +1,44 @@
+/* ---------- Deploy update: dot in the top-right group + its card ---------- */
+.version-quick {
+  position: absolute; top: 14px; right: calc(14px + (var(--tap) + 6px) * 4);
+  width: var(--tap); height: var(--tap); border-radius: 50%; z-index: 6;
+  display: grid; place-items: center; color: var(--fg-dim);
+  background: color-mix(in srgb, var(--surface2) 84%, transparent);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: 0 8px 30px -14px rgb(0 0 0 / .38);
+  transition: color .18s var(--ease), background .18s var(--ease), transform .24s var(--spring);
+}
+.version-quick:hover { color: var(--fg); }
+.version-quick:hover svg { transform: scale(1.16); }
+.version-quick svg { transition: transform .22s var(--spring); }
+.version-quick:active { transform: scale(.9); }
+.version-quick.on { color: var(--surface); background: var(--accent); }
+
+/* Unread mark: one small dot, no count (an update is always "unread" until reloaded) */
+.version-quick .dot {
+  position: absolute; top: 9px; right: 9px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface2) 84%, transparent);
+}
+.version-quick.on .dot { background: var(--surface); }
+
+.version-pop {
+  position: absolute; z-index: 60;
+  top: calc(14px + var(--tap) + 8px); right: 14px;
+  width: max-content; max-width: min(320px, calc(100vw - 28px));
+  padding: 12px 14px; border-radius: 14px;
+  font-size: var(--t-xs); line-height: 1.62; color: var(--fg-dim); text-align: left;
+  background: color-mix(in srgb, var(--surface2) 98%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 14px 40px -16px rgb(0 0 0 / .5);
+  animation: card-in .26s var(--spring) backwards;
+}
+.version-pop p { margin: 0 0 10px; color: var(--fg); }
+.version-reload {
+  padding: 7px 14px; border-radius: 10px; font-size: var(--t-xs); font-weight: 600;
+  color: var(--surface); background: var(--accent);
+  transition: transform .18s var(--spring);
+}
+.version-reload:hover { transform: scale(1.04); }
+.version-reload:active { transform: scale(.94); }

@@ -81,9 +81,7 @@ export default function App() {
   const { send, progress, pct, setProgress, progressLog, setProgressLog, applyNetProgress } =
     useAnalyzeWorker(onWorkerError, workerDown);
   // Panel / card / confirm-dialog exclusivity, sample view and click-outside handling live in the hook
-  const { panel, cardOpen, openPanel, openCard, closeAll, confirm, askConfirm, closeConfirm, sampleOpen, openSample, closeSample, communityCloud, cycleCommunity, noticeOpen, toggleNotice } = useOverlay<PanelId>();
-  /** Site notice from the server. The single-file build has none, so the bell stays hidden. */
-  const { notice: siteNotice, unread: noticeUnread } = useNotice(noticeOpen);
+  const { panel, cardOpen, openPanel, openCard, closeAll, confirm, askConfirm, closeConfirm, sampleOpen, openSample, closeSample, communityCloud, cycleCommunity, noticeOpen, toggleNotice, versionOpen, toggleVersion } = useOverlay<PanelId>();
   // Enter starts whatever primary action is on screen (import "开始", keyword-mode "hero" run) —
   // but never while the user is typing in a text control (textarea/input/select/contenteditable).
   /** Legal page route from `#/…` hashes; null on the main page and on `#c=…` share links. */
@@ -97,6 +95,8 @@ export default function App() {
   const [copied, flashCopied] = useFlash(1800);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** Site notice from the server. The single-file build has none, so the bell stays hidden. */
+  const { notice: siteNotice, unread: noticeUnread, updateAvailable } = useNotice(noticeOpen, busy);
   /** Progress overlay is delayed 300 ms so quick local recomputes do not flash it. */
   const [showProgress, setShowProgress] = useState(false);
   /** Whether a server exists behind this page. Static hosting has none. */
@@ -909,6 +909,24 @@ export default function App() {
         <div className="notice-pop" role="note" aria-label={t('站内通知')}>
           <p>{siteNotice.text}</p>
           <time dateTime={new Date(siteNotice.updatedAt).toISOString()}>{new Date(siteNotice.updatedAt).toLocaleString()}</time>
+        </div>
+      )}
+
+      {/* Deploy update: only shown once a version change was detected and no analysis is running */}
+      {!showLanding && updateAvailable && (
+      <button
+        type="button" className={`version-quick${versionOpen ? ' on' : ''}`}
+        title={t('网站更新了')} aria-pressed={versionOpen}
+        onClick={toggleVersion}
+      >
+        <Icon name="reset" size={19} />
+        <span className="dot" />
+      </button>
+      )}
+      {versionOpen && updateAvailable && (
+        <div className="version-pop" role="note" aria-label={t('网站更新了')}>
+          <p>{t('网站更新了，刷新一下用新版；不刷新也能继续用，正在算的结果不受影响')}</p>
+          <button type="button" className="version-reload" onClick={() => location.reload()}>{t('刷新')}</button>
         </div>
       )}
 

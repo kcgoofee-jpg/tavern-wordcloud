@@ -45,6 +45,7 @@
 @import './43-priority.css';
 @import './44-mobile-hint.css';
 @import './45-notice.css';
+@import './46-version.css';
 @import './46-board.css';
 /* Mobile overrides must stay last: media queries do not add specificity. */
 @import './37-mobile-overrides.css';

@@ -66,8 +66,8 @@
 
   /* Round buttons move down to avoid the mode switch */
   .cloudmode { top: 10px; }
-  .mode-quick, .lang-quick, .community-quick, .notice-quick { top: calc(10px + var(--tap) + 8px); }
-  .notice-pop { top: calc(10px + var(--tap) * 2 + 16px); }
+  .mode-quick, .lang-quick, .community-quick, .notice-quick, .version-quick { top: calc(10px + var(--tap) + 8px); }
+  .notice-pop, .version-pop { top: calc(10px + var(--tap) * 2 + 16px); }
   /* The community page starts below the mode switch and the round buttons */
   .community-page { inset: 120px 8px 8px 8px; }
 

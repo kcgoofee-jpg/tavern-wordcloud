@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** Clicks inside these areas do not count as outside clicks. */
-const KEEP = '.sheet, .community-page, .community-quick, .cardinfo, .rail, .dock, .note-pop, .notice-pop, .notice-quick, .toast, .import-veil, .confirm-veil';
+const KEEP = '.sheet, .community-page, .community-quick, .cardinfo, .rail, .dock, .note-pop, .notice-pop, .notice-quick, .version-pop, .version-quick, .toast, .import-veil, .confirm-veil';
 
 export function useOverlay<P extends string>() {
   const [panel, setPanel] = useState<P | null>(null);
@@ -15,23 +15,32 @@ export function useOverlay<P extends string>() {
   const [communityCloud, setCommunityCloud] = useState(false);
   /** Site-notice popover behind the bell. */
   const [noticeOpen, setNoticeOpen] = useState(false);
+  /** Deploy-update popover behind the refresh dot. */
+  const [versionOpen, setVersionOpen] = useState(false);
 
   const openPanel = useCallback((id: P | null) => {
     setPanel(id);
-    if (id) { setCardOpen(false); setNoticeOpen(false); }
+    if (id) { setCardOpen(false); setNoticeOpen(false); setVersionOpen(false); }
   }, []);
   const openCard = useCallback((v: boolean) => {
     setCardOpen(v);
-    if (v) { setPanel(null); setNoticeOpen(false); }
+    if (v) { setPanel(null); setNoticeOpen(false); setVersionOpen(false); }
   }, []);
   /** Bell: the notice popover is exclusive with the panels and the card view, like everything else here. */
   const toggleNotice = useCallback(() => {
     setNoticeOpen((v) => {
-      if (!v) { setPanel(null); setCardOpen(false); }
+      if (!v) { setPanel(null); setCardOpen(false); setVersionOpen(false); }
       return !v;
     });
   }, []);
-  const closeAll = useCallback(() => { setPanel(null); setCardOpen(false); setSampleOpen(false); setCommunityCloud(false); setNoticeOpen(false); }, []);
+  /** Same exclusivity as the notice bell. */
+  const toggleVersion = useCallback(() => {
+    setVersionOpen((v) => {
+      if (!v) { setPanel(null); setCardOpen(false); setNoticeOpen(false); }
+      return !v;
+    });
+  }, []);
+  const closeAll = useCallback(() => { setPanel(null); setCardOpen(false); setSampleOpen(false); setCommunityCloud(false); setNoticeOpen(false); setVersionOpen(false); }, []);
   /**
    * Community button: off → stats page (canvas shows the aggregate cloud) → aggregate cloud only → off.
    * `community` must be one of the panel ids of the caller.
@@ -48,16 +57,16 @@ export function useOverlay<P extends string>() {
       setPanel(null); setCommunityCloud(true); return;
     }
     if (communityCloud) { setCommunityCloud(false); if (sampleBehindCommunity.current) setSampleOpen(true); return; }
-    setCardOpen(false); setCommunityCloud(false); setNoticeOpen(false); setPanel(id);
+    setCardOpen(false); setCommunityCloud(false); setNoticeOpen(false); setVersionOpen(false); setPanel(id);
   }, [panel, communityCloud, sampleOpen]);
   const askConfirm = useCallback((c: { word: string; snippets: string[] }) => setConfirm(c), []);
   const closeConfirm = useCallback(() => setConfirm(null), []);
-  const openSample = useCallback(() => { setPanel(null); setCardOpen(false); setNoticeOpen(false); setSampleOpen(true); }, []);
+  const openSample = useCallback(() => { setPanel(null); setCardOpen(false); setNoticeOpen(false); setVersionOpen(false); setSampleOpen(true); }, []);
   const closeSample = useCallback(() => setSampleOpen(false), []);
 
   /** Capture-phase pointerdown, since some panel buttons stop propagation. */
   useEffect(() => {
-    if (!panel && !cardOpen && !noticeOpen) return;
+    if (!panel && !cardOpen && !noticeOpen && !versionOpen) return;
     const onDown = (e: PointerEvent) => {
       const el = e.target as Element | null;
       if (el?.closest?.(KEEP)) return;
@@ -70,7 +79,7 @@ export function useOverlay<P extends string>() {
       document.removeEventListener('pointerdown', onDown, true);
       document.removeEventListener('keydown', onKey);
     };
-  }, [panel, cardOpen, noticeOpen, closeAll]);
+  }, [panel, cardOpen, noticeOpen, versionOpen, closeAll]);
 
-  return { panel, cardOpen, openPanel, openCard, closeAll, confirm, askConfirm, closeConfirm, sampleOpen, openSample, closeSample, communityCloud, cycleCommunity, noticeOpen, toggleNotice };
+  return { panel, cardOpen, openPanel, openCard, closeAll, confirm, askConfirm, closeConfirm, sampleOpen, openSample, closeSample, communityCloud, cycleCommunity, noticeOpen, toggleNotice, versionOpen, toggleVersion };
 }
