@@ -57,6 +57,11 @@ export function loadSettings(): Settings {
     options: {
       ...DEFAULT_SETTINGS.options,
       ...saved.options,
+      // Nested objects used to replace the default wholesale, so a save from
+      // before `mergeEnglishForms` / `chunkChars` landed dropped those fields.
+      clean: { ...DEFAULT_SETTINGS.options.clean, ...saved.options?.clean },
+      tokenize: { ...DEFAULT_SETTINGS.options.tokenize, ...saved.options?.tokenize },
+      ai: { ...DEFAULT_SETTINGS.options.ai, ...saved.options?.ai },
       // System messages are UI notices, not chat content; drop a stale selection from old saves
       roles: (saved.options?.roles ?? DEFAULT_SETTINGS.options.roles).filter((r) => r !== 'system'),
       // Old saves used two booleans (hide / only); migrate to the three-state mode

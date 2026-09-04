@@ -32,10 +32,16 @@ const ENTITIES: Record<string, string> = {
   '&ldquo;': '“', '&rdquo;': '”', '&lsquo;': '‘', '&rsquo;': '’',
 };
 
+function codePoint(n: number): string {
+  if (!Number.isInteger(n) || n < 0 || n > 0x10ffff) return ' ';
+  try { return String.fromCodePoint(n); } catch { return ' '; }
+}
+
 function decodeEntities(s: string): string {
   return s
-    .replace(/&[a-zA-Z#0-9]+;/g, (m) => ENTITIES[m] ?? ENTITIES[m.toLowerCase()] ?? ' ')
-    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)));
+    .replace(/&#x([0-9a-fA-F]+);/gi, (_, h: string) => codePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d: string) => codePoint(Number(d)))
+    .replace(/&[a-zA-Z][a-zA-Z0-9]*;/g, (m) => ENTITIES[m] ?? ENTITIES[m.toLowerCase()] ?? ' ');
 }
 
 /** Paired custom tags may nest; repeat until stable, with an iteration cap. */
@@ -119,20 +125,31 @@ function looksLikeCode(line: string): boolean {
  * Bare JSON blocks written into message text without any tag.
  * A balanced `{`/`[` region that `JSON.parse` accepts is removed as a whole.
  */
-function stripJsonBlocks(text: string): string {
+export function stripJsonBlocks(text: string): string {
   if (!/[[{]\s*[{"[]/.test(text)) return text;
   let out = '';
   let i = 0;
+  /**
+   * Every opening bracket used to start its own full scan, so a wall of `[[[[…`
+   * cost O(n²) — 200 k brackets froze the tab. When a scan fails without the
+   * nesting depth ever decreasing, no later start inside what it covered can
+   * balance either (depth never revisits an earlier value), so the whole scanned
+   * span is skipped. Failures that did see the depth come back down are not
+   * memoized, so a real `[[ {…} ]` is still found.
+   */
+  let skipUntil = -1;
   while (i < text.length) {
     const ch = text[i];
-    if ((ch === '{' || ch === '[') && /[{"[]/.test(text.slice(i + 1, i + 4).trim()[0] ?? '')) {
-      const end = matchBracket(text, i);
-      if (end > i + 20) {
-        const slice = text.slice(i, end + 1);
+    if (i > skipUntil && (ch === '{' || ch === '[') && /[{"[]/.test(text.slice(i + 1, i + 4).trim()[0] ?? '')) {
+      const m = matchBracket(text, i);
+      if (m.end > i + 20) {
+        const slice = text.slice(i, m.end + 1);
         try {
           const v = JSON.parse(slice) as unknown;
-          if (v && typeof v === 'object') { out += ' '; i = end + 1; continue; }
+          if (v && typeof v === 'object') { out += ' '; i = m.end + 1; continue; }
         } catch { /* not JSON; keep */ }
+      } else if (m.end < 0 && m.monotonic) {
+        skipUntil = m.scannedTo;
       }
     }
     out += ch; i++;
@@ -140,18 +157,27 @@ function stripJsonBlocks(text: string): string {
   return out;
 }
 
-/** Index of the bracket matching text[start], or -1. Skips brackets inside strings. */
-function matchBracket(text: string, start: number): number {
-  let depth = 0, inStr = false;
-  for (let i = start; i < text.length; i++) {
+/**
+ * Index of the bracket matching text[start] as `end` (-1 when there is none).
+ * Brackets inside strings are skipped. `scannedTo` is how far the scan got and
+ * `monotonic` says the depth never decreased — see the memo in `stripJsonBlocks`.
+ */
+function matchBracket(text: string, start: number): { end: number; scannedTo: number; monotonic: boolean } {
+  let depth = 0, inStr = false, monotonic = true;
+  let i = start;
+  for (; i < text.length; i++) {
     const c = text[i];
     if (inStr) { if (c === '\\') i++; else if (c === '"') inStr = false; continue; }
     if (c === '"') inStr = true;
     else if (c === '{' || c === '[') depth++;
-    else if (c === '}' || c === ']') { depth--; if (depth === 0) return i; }
-    if (i - start > 200_000) return -1;
+    else if (c === '}' || c === ']') {
+      monotonic = false;
+      depth--;
+      if (depth === 0) return { end: i, scannedTo: i, monotonic: false };
+    }
+    if (i - start > 200_000) return { end: -1, scannedTo: i, monotonic };
   }
-  return -1;
+  return { end: -1, scannedTo: i, monotonic };
 }
 
 function stripCodeBlocks(text: string): string {

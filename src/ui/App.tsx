@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { copyText } from './clipboard';
 import { endpointKind } from './endpointKind';
 import { LangContext, tx, txv, type UserText } from './i18n';
-import { probeServer, analyzeOnServer, type ServerHealth } from '../net/server';
+import { probeServer, analyzeOnServer, shouldAnalyzeOnServer, type ServerHealth } from '../net/server';
 import CardInfo from './CardInfo';
 import CloudCanvas, { type CloudApi } from './CloudCanvas';
 import Icon, { type IconName } from './Icons';
@@ -234,7 +234,12 @@ export default function App() {
   const [pendingImport, setPendingImport] = useState<File[] | null>(null);
   const ingest = useCallback(async (list: File[], replace = false) => {
     if (!replace && (filesRef.current.length > 0 || result || sharedWords)) { setPendingImport(list); return; }
-    if (replace) { filesRef.current = []; setHasFiles(false); setResult(null); setSharedWords(null); setShare(null); setBundle(null); }
+    if (replace) {
+      filesRef.current = [];
+      setHasFiles(false); setResult(null); setSharedWords(null); setShare(null); setBundle(null);
+      // Regex from the previous zip/script must not leak into the next chat.
+      setOptions((o) => (o.clean.customRules?.length ? { ...o, clean: { ...o.clean, customRules: [] } } : o));
+    }
     // Inputs: single chat (jsonl/json), plain-text export (txt), full export (zip),
     // and cloud PNGs, which carry their word table
     const pngs = list.filter((f) => /\.png$/i.test(f.name));
@@ -284,6 +289,7 @@ export default function App() {
         const buf = await z.arrayBuffer();
         const res = await send({ kind: 'loadBundle', data: buf, name: z.name });
         if (res.ok && res.kind === 'bundle') {
+          filesRef.current = res.files;
           setBundle(res.bundle);
           setSharedWords(null);
           if (res.bundle.regexScripts?.length) setOptions((o) => ({ ...o, clean: { ...o.clean, customRules: mergeRules(o.clean.customRules, res.bundle.regexScripts) } }));
@@ -395,8 +401,14 @@ export default function App() {
     // Not named `t`: that is the translation function
     const timer = window.setTimeout(() => {
       setBusy(true);
-      // Server path: text is uploaded and analyzed with the same core
-      if (onServer && filesRef.current[0]) {
+      // Server path: one raw jsonl, no zip extras, no regex scripts. Anything else
+      // stays in the worker so world-info keys and customRules still apply, and so
+      // later files are not silently dropped.
+      if (onServer && shouldAnalyzeOnServer({
+        fileCount: filesRef.current.length,
+        hasCustomRules: !!options.clean.customRules?.length,
+        fromZip: !!bundle,
+      }) && filesRef.current[0]) {
         netAbort.current?.abort();
         netAbort.current = new AbortController();
         void analyzeOnServer(filesRef.current[0], options, applyNetProgress, netAbort.current.signal)
@@ -418,7 +430,7 @@ export default function App() {
     // Excluded from deps: including it would re-run analysis on every notice.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [analyzeKey, hasFiles, loadSeq, send, onServer, apiBlocked]);
+  }, [analyzeKey, hasFiles, loadSeq, send, onServer, apiBlocked, bundle]);
 
   /** Progress overlay: appears after 300 ms and stays at least 500 ms once shown. */
   const shownAt = useRef(0);

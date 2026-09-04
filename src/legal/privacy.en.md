@@ -21,7 +21,7 @@ Effective date: September 4, 2026 ｜ Last updated: September 4, 2026
 ### 2.1 Chat text you upload
 
 - **Web edition:** the text is transmitted to the server, **processed in memory only, and discarded immediately after processing**. It is not written to disk and not written to logs.
-- **Offline single-file edition:** all processing takes place inside your own browser; nothing leaves your device.
+- **Offline single-file edition** (the local edition): all processing takes place inside your own browser; nothing leaves your device.
 - **Keyword mode and LLM tokenisation:** cleaned text is sent only to an endpoint **you** designated (possibly relayed through the Service's server, transiting memory only and not recorded). The Service does not provide any model key of its own. That provider's own privacy policy governs such transmission.
 
 ### 2.2 Access logs

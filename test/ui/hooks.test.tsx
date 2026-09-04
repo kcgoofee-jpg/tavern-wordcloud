@@ -155,6 +155,20 @@ describe('loadSettings', () => {
     expect(s.options.roles).not.toContain('system');   // Stale system-message selection is cleared
   });
 
+  it('a partial nested options object does not drop newer tokenize/ai fields', () => {
+    localStorage.setItem('tw-settings', JSON.stringify({
+      options: { tokenize: { maxWords: 50 }, ai: { model: 'x' } },
+    }));
+    const s = loadSettings();
+    expect(s.options.tokenize.maxWords).toBe(50);
+    expect(s.options.tokenize.minLength).toBe(DEFAULT_SETTINGS.options.tokenize.minLength);
+    expect(s.options.tokenize.mergeEnglishForms).toBe(DEFAULT_SETTINGS.options.tokenize.mergeEnglishForms);
+    expect(s.options.ai.model).toBe('x');
+    expect(s.options.ai.chunkChars).toBe(DEFAULT_SETTINGS.options.ai.chunkChars);
+    expect(s.options.ai.enabled).toBe(false);
+    expect(s.options.clean.stripCustomTags).toBe(true);
+  });
+
   it('corrupt saves fall back to defaults', () => {
     localStorage.setItem('tw-settings', '{not json');
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);

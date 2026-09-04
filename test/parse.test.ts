@@ -77,6 +77,50 @@ describe('parsing', () => {
     expect(roles).toEqual(['user', 'char', 'system', 'char']);
   });
 
+  it('/sys narrator (extra.type, is_system false) is a system line, not the character', () => {
+    const recs = [
+      meta,
+      msg({ name: 'System', is_user: false, is_system: false, mes: '夜幕降临。', extra: { type: 'narrator' } }),
+      msg({ name: '林先生', is_user: false, mes: '嗯' }),
+      msg({ name: '林先生', is_user: false, mes: '嗯嗯' }),
+    ].join('\n');
+    const chat = parseChatFile('a.jsonl', recs);
+    expect(chat.messages.map((m) => m.role)).toEqual(['system', 'char', 'char']);
+    expect(chat.charName).toBe('林先生');
+  });
+
+  it('/comment is a system line', () => {
+    const recs = [
+      msg({ name: 'Note', is_user: false, is_system: true, mes: 'OOC：先停一下', extra: { type: 'comment' } }),
+      msg({ name: '林先生', is_user: false, mes: '正文' }),
+    ].join('\n');
+    expect(parseChatFile('a.jsonl', recs).messages.map((m) => m.role)).toEqual(['system', 'char']);
+  });
+
+  it('a hidden group member keeps char, not system', () => {
+    const recs = [
+      msg({ name: 'Alice', is_user: false, mes: '可见的 Alice' }),
+      msg({ name: 'Alice', is_user: false, is_system: true, mes: '藏起来的 Alice' }),
+      msg({ name: 'Bob', is_user: false, mes: 'Bob 1' }),
+      msg({ name: 'Bob', is_user: false, mes: 'Bob 2' }),
+      msg({ name: 'Bob', is_user: false, mes: 'Bob 3' }),
+    ].join('\n');
+    const chat = parseChatFile('group.jsonl', recs);
+    expect(chat.charName).toBe('Bob');
+    expect(chat.messages.map((m) => [m.name, m.role])).toEqual([
+      ['Alice', 'char'],
+      ['Alice', 'char'],
+      ['Bob', 'char'],
+      ['Bob', 'char'],
+      ['Bob', 'char'],
+    ]);
+  });
+
+  it('prefers extra.display_text over mes (what the UI showed)', () => {
+    const rec = msg({ name: 'a', mes: '<status>123</status>原文', extra: { display_text: '她笑了。' } });
+    expect(parseChatFile('a.jsonl', rec).messages[0].raw).toBe('她笑了。');
+  });
+
   it('empty files and unknown formats warn readably', () => {
     expect(toZh(parseChatFile('a.jsonl', '  ').warnings[0])).toMatch(/空的/);
     expect(toZh(parseChatFile('a.jsonl', '这不是聊天记录').warnings[0])).toMatch(/认不出格式/);

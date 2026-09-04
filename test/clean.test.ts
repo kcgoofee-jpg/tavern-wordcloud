@@ -27,6 +27,14 @@ describe('cleaning', () => {
     expect(clean('他<b>很快</b>就走了')).not.toContain('<b>');
   });
 
+  it('numeric entities decode; out-of-range values do not throw', () => {
+    expect(clean('A&#65;B')).toContain('AAB');
+    expect(clean('&#x4e16;界')).toContain('世界');
+    expect(() => clean('&#999999999;还在')).not.toThrow();
+    expect(clean('&#999999999;还在')).toContain('还在');
+    expect(() => clean('&#x110000;还在')).not.toThrow();
+  });
+
   it('an unclosed custom tag is cut to the end', () => {
     // A real log had </fate_ui> misspelled as </fite_ui>, defeating pair matching
     const out = clean('正文在这里。\n<fate_ui>\n一大堆状态数据\n没有闭合标签');

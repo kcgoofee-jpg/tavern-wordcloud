@@ -11,7 +11,13 @@ export { zh, type TextTpl, type UserText };
 
 export type Lang = 'zh' | 'en';
 
-/** Chinese -> English. Plain language; costs (network, money, waiting time) stated explicitly. */
+/**
+ * Chinese → English. Plain language; costs (network, money, waiting time) stated
+ * explicitly. Same Chinese concept, same English term:
+ *   网页版 web edition · 本地版 local edition · 世界书 world info ·
+ *   角色卡 character card · 聊天记录 chat log · 词云 word cloud ·
+ *   词频表 word table · 接口 endpoint · 筛选与分词 Filters & tokenizing.
+ */
 const EN: Record<string, string> = {
   // ── Entry ──
   '添加聊天记录': 'Add a chat log',
@@ -47,7 +53,7 @@ const EN: Record<string, string> = {
     'By importing you confirm you may use these logs for analysis. Everything is processed on this computer, never online; results are indicative only.',
   '剥掉思维链与状态栏': 'Strips reasoning and status blocks',
   '大模型挑出故事题眼': 'A model picks the story motifs',
-  '本地版单文件、可离线跑': 'Single-file local build, runs offline',
+  '本地版单文件、可离线跑': 'Single-file local edition, runs offline',
   '示例词云 · 点任意位置开始导入': 'Sample cloud · click anywhere to start importing',
 
   // ── Modes ──
@@ -200,10 +206,10 @@ const EN: Record<string, string> = {
   '分类': 'Categories',
   '收起分类': 'Hide categories',
   '正常叙事里也常见，或只含一个敏感字，可能误判': 'Also common in ordinary narration, or contains just one sensitive character — may be a false positive',
-  '露骨词类别。在「筛选」里决定这一类算不算露骨': 'Explicit-word category. Decide in “Filter” whether this category counts',
+  '露骨词类别。在「筛选」里决定这一类算不算露骨': 'Explicit-word category. Decide in “Filters” whether this category counts',
   '（被它们过滤掉的词会回到词云）': '(words they removed come back)',
   '禁词表过滤了 {n} 个词': 'Blocklist removed {n} words',
-  '社区排行榜只在网页版有：它要从服务器取所有人的统计。': 'The community board exists only on the web version: it pulls everyone’s stats from the server.',
+  '社区排行榜只在网页版有：它要从服务器取所有人的统计。': 'The community board exists only on the web edition: it pulls everyone’s stats from the server.',
   '社区数据暂时取不到，稍后再试。': 'Community data is unavailable right now; try again later.',
   '匿名统计（高频词、条数字数，不含正文、不含角色卡名）会计入社区排行榜。请仅在您有权分享这份记录的统计时参与；不想参与，在「社区排行榜」面板里关掉。': 'Anonymous statistics (frequent words, message and character counts; no text, no card names) feed the community board. Take part only if you are entitled to share statistics of this log; opt out in the “Community board” panel.',
   '每天打开次数，最近 30 天': 'Page views per day, last 30 days',
@@ -333,13 +339,13 @@ const EN: Record<string, string> = {
   '内容政策': 'Content Policy',
   '执法配合政策': 'Law Enforcement Policy',
   '使用手册': 'User manual',
-  '下载本地版': 'Download the local version',
+  '下载本地版': 'Download the local edition',
   '现在访问的人多，分析要排队；下载本地版可以立刻算':
-    'A lot of people are here right now and analysis has to queue; the local version computes instantly',
+    'A lot of people are here right now and analysis has to queue; the local edition computes instantly',
   '网站正在维护，暂时只能下载本地版；请稍后再来。':
-    'The site is under maintenance — only the local-version download is available. Please come back later.',
+    'The site is under maintenance — only the local-edition download is available. Please come back later.',
   '现在访问的人多，分析要排队。下载本地版可以立刻算，而且不用上传。':
-    'A lot of people are here right now, so analysis has to queue. The local version runs instantly and uploads nothing.',
+    'A lot of people are here right now, so analysis has to queue. The local edition runs instantly and uploads nothing.',
   '站点链接': 'Site links',
   '链接': 'Links',
   '© {y} 酒馆词云 · 与 SillyTavern 官方无关的同人工具': '© {y} Tavern WordCloud · a fan-made tool, not affiliated with SillyTavern',
@@ -351,14 +357,14 @@ const EN: Record<string, string> = {
 
   // ── Import panel ──
   '导入': 'Import',
-  '读到了这些': "Here's what I found",
+  '读到了这些': 'What was found',
   '份聊天记录': 'chat logs',
   '张角色卡': 'character cards',
   '万字': '×10k characters',
-  '本世界书': 'lorebooks',
+  '本世界书': 'world-info files',
   '其中的 {n} 个关键词将用作专名词典': '{n} of its keywords will be used as a proper-noun dictionary',
   '预设': 'Preset',
-  '这个包里没有世界书': 'No lorebooks in this export',
+  '这个包里没有世界书': 'No world info in this export',
   '统计谁的话': 'Whose words to count',
   '我说的': 'Mine',
   '角色说的': 'The character’s',
@@ -375,10 +381,10 @@ const EN: Record<string, string> = {
   '回到全部合并': 'Back to all combined',
   '当前这张': 'This one',
   '系统提示词': 'System prompt',
-  '世界书库': 'Lorebooks',
+  '世界书库': 'World info',
   '模型': 'Model',
   '接口': 'Endpoint',
-  '世界书': 'Lorebook',
+  '世界书': 'World info',
   '作者注': "Author's note",
   '消息': 'Messages',
   '字数': 'Characters',
@@ -387,9 +393,9 @@ const EN: Record<string, string> = {
   '开始于': 'Started',
   '最后一条': 'Last message',
   '来自整包导出。世界书关键词已用作专名词典。':
-    'From a full export. Lorebook keywords are being used as a proper-noun dictionary.',
+    'From a full export. World-info keywords are being used as a proper-noun dictionary.',
   '预设和世界书不在单个聊天文件里，传整包 .zip 才有。':
-    'Presets and lorebooks are not stored in a single chat file — upload the full .zip to see them.',
+    'Presets and world info are not stored in a single chat file — upload the full .zip to see them.',
 
   // ── Panels: palette / font ──
   '自定义': 'Custom',
@@ -505,7 +511,7 @@ const EN: Record<string, string> = {
   '还没填接口地址——点一下去配': 'No endpoint URL yet — click to set it up',
   '还没选模型——点一下去配': 'No model chosen yet — click to set it up',
   '还没填密钥——点一下去配': 'No API key yet — click to set it up',
-  '这份记录超过服务器 10 MB 的上限，网页版算不了。下载本地版可以在你自己的电脑上算，多大都行。': 'This log is over the 10 MB server limit, so the web version cannot process it. The local edition runs on your own computer with no size limit.',
+  '这份记录超过服务器 10 MB 的上限，网页版算不了。下载本地版可以在你自己的电脑上算，多大都行。': 'This log is over the 10 MB server limit, so the web edition cannot process it. The local edition runs on your own computer with no size limit.',
   '榜单只统计词，不显示角色卡名。若您是某张卡的作者、希望它出现在榜单上：请在您公开发布这张卡的页面（角色卡站、频道帖）里临时加一行本站给的校验串，再把该页面链接贴到 issue。只需要公开链接，不要发身份证件、聊天记录或卡文件。': 'The board counts words only and never shows character-card names. To have a card you wrote listed: add the verification string this site gives you to the public page where you published the card, then post that link in an issue. A public link is all that is needed — never send ID documents, chat logs or the card file.',
   'GitHub Issues': 'GitHub Issues',
   '已有一份分析': 'A result is already open',
@@ -523,7 +529,7 @@ const EN: Record<string, string> = {
   '【页面】{url}': '[PAGE] {url}',
   '【报错】{title}': '[ERROR] {title}',
   '【背景】酒馆词云（tavern-wordcloud）：读 SillyTavern 导出的聊天记录，分词后画词云。网页版正文上传到服务器处理、处理完即丢；「大模型分词/关键词」走用户自己填的接口。':
-    'Background: tavern-wordcloud reads SillyTavern chat exports, segments them and draws a word cloud. The web version uploads the text to the server for processing and discards it afterwards; LLM segmentation / keywords call the endpoint the user configured.',
+    'Background: Tavern WordCloud reads SillyTavern chat exports, tokenizes them and draws a word cloud. The web edition uploads the text to the server for processing and discards it afterwards; model tokenizing / keywords call the endpoint the user configured.',
   '还是默认值': 'Already at defaults',
   '统计了 {kept} 条消息，共 {all} 条': '{kept} of {all} messages counted',
   '清洗掉的插件内容占原文的比例': 'Share of the raw text removed as plugin output',
@@ -666,7 +672,7 @@ const EN: Record<string, string> = {
   '文件是空的': 'The file is empty',
   '认不出格式，既不是 JSON 也不是 JSONL。确认这是聊天记录文件？': 'Unrecognized format — neither JSON nor JSONL. Is this a chat log?',
   '有 {n} 行不是合法 JSON，已跳过': '{n} lines were not valid JSON and were skipped',
-  '解析成功但一条消息都没有（确认这是聊天记录，不是角色卡或世界书？）': 'Parsed, but no messages inside — is this a chat log, not a character card or lorebook?',
+  '解析成功但一条消息都没有（确认这是聊天记录，不是角色卡或世界书？）': 'Parsed, but no messages inside — is this a chat log, not a character card or world info?',
   '认不出纯文本聊天记录的格式（应该是「说话人: 正文」）': 'Unrecognized plain-text chat format (expected "speaker: text")',
   '这是纯文本导出，只有正文——没有时间、模型、重生记录，发言人身份是猜的。想要完整统计请导出 .jsonl': 'Plain-text export: text only — no timestamps, models or rerolls, and speakers are guessed. Export .jsonl for full stats',
   '正在读取': 'Reading',
@@ -678,7 +684,7 @@ const EN: Record<string, string> = {
   '包里的文件加起来超过 256 MB，后面的跳过': 'the archive exceeds 256 MB in total — the rest was skipped',
   '解压失败：{msg}': 'Unzip failed: {msg}',
   'settings.json 解析失败，拿不到预设名': 'settings.json failed to parse; the preset name is unavailable',
-  '{chats} 份聊天 · {worlds} 本世界书 · {cards} 张角色卡': '{chats} chats · {worlds} lorebooks · {cards} character cards',
+  '{chats} 份聊天 · {worlds} 本世界书 · {cards} 张角色卡': '{chats} chats · {worlds} world-info files · {cards} character cards',
   '这个压缩包里没找到聊天记录（应该在 chats/<角色卡名>/ 下）': 'No chat logs found in this archive (expected under chats/<card name>/)',
 
   // Worker / server progress
@@ -714,6 +720,7 @@ const EN: Record<string, string> = {
   '共 {f}/{n} 块退回了本地分词': '{f} of {n} chunks fell back to local tokenizing',
   '开始解析 {n} 个文件': 'Parsing {n} files',
   '正在分词 {done}/{total} 千字': 'Tokenizing {done}k/{total}k characters',
+  '正在分词 {done}/{total} 条': 'Tokenizing message {done} of {total}',
   '正在上传 {a}/{b} MB': 'Uploading {a}/{b} MB',
   '{a}/{b} MB · 约 {s} 秒': '{a}/{b} MB · about {s}s left',
   '服务器收到了，正在解析': 'The server has it — parsing',
@@ -726,7 +733,7 @@ const EN: Record<string, string> = {
   '要 .jsonl 或 .json。在酒馆数据目录的 default-user/chats/<角色名>/ 里找。': 'Expecting .jsonl or .json. Look in default-user/chats/<character>/ inside the SillyTavern data directory.',
   '换一个有内容的聊天记录。': 'Try a chat log with content.',
   '文件能读，但里面没有消息': 'The file reads, but there are no messages inside',
-  '这可能是角色卡或世界书——它们也是 .json，但结构不一样。': 'This may be a character card or lorebook — also .json, but a different structure.',
+  '这可能是角色卡或世界书——它们也是 .json，但结构不一样。': 'This may be a character card or world info — also .json, but a different structure.',
   '浏览器不让复制': 'The browser blocked copying',
   '手动选中，或直接截图二维码。': 'Select it manually, or screenshot the QR code.',
   '后台线程没起来': 'The background worker failed to start',
@@ -739,7 +746,7 @@ const EN: Record<string, string> = {
   '接口限流或余额不足': 'Rate limited or out of credit',
   '等一会儿再试，或换一家接口。': 'Wait a bit, or switch to another endpoint.',
   '连不上这个接口': 'Cannot reach that endpoint',
-  '网页版会经服务器中转；本地版遇到不开跨域的供应商会失败，换网页版或换一家。': 'The web version relays through the server; the local version fails with providers that block CORS — use the web version or another provider.',
+  '网页版会经服务器中转；本地版遇到不开跨域的供应商会失败，换网页版或换一家。': 'The web edition relays through the server; the local edition fails with providers that block CORS — use the web edition or another provider.',
   '文件太大，浏览器扛不住了': 'The file is too big for the browser',
   '少拖几个，或把「最多显示几个词」调小。': 'Drop fewer files, or lower “How many words”.',
   '出了个没见过的问题': 'Something unexpected went wrong',
@@ -765,6 +772,9 @@ const EN: Record<string, string> = {
   '服务器没有返回流': 'The server returned no stream',
   '服务器没有返回结果': 'The server returned no result',
   '请求体解压失败': 'Failed to decompress the request body',
+  '请求体读取超时': 'Timed out reading the request body',
+  '请求体没读完连接就断了': 'The connection dropped before the request body was complete',
+  '中转跳转次数太多': 'Too many redirects to relay',
 
   // LLM endpoint errors (core/aiTokenizer, core/curate)
   '回复里没有内容': 'The reply had no content',

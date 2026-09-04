@@ -28,7 +28,7 @@ Effective date: September 4, 2026 ｜ Last updated: September 4, 2026
 
 ## 3. User Content and Licence
 
-3.1 "User Content" means any file or data you upload, submit, or have processed by the Service, including without limitation chat logs, character cards, lorebooks, regular-expression scripts, and any feedback snippets you deliberately send.
+3.1 "User Content" means any file or data you upload, submit, or have processed by the Service, including without limitation chat logs, character cards, world info (lorebooks), regular-expression scripts, and any feedback snippets you deliberately send.
 
 3.2 **You retain all rights in your User Content.** You grant the Operator only a limited, non-exclusive, royalty-free right to process User Content transiently in server memory, for the sole purpose of returning analysis results to you. Feedback snippets you expressly confirm and anonymous community statistics are handled as described in Sections 2.4 and 2.5 of the [Privacy Policy](#/privacy).
 

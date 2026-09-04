@@ -4,14 +4,53 @@ import { detectFormat, parseTxtChat } from './formats';
 import { zh } from './zh';
 
 /**
- * `is_system` is set both by real system notices and by `/hide` (a message hidden from the
- * model but still part of the story). A hidden message keeps its speaker: the user's own
- * lines stay `user`, the character's lines stay `char`; only other names are system notices.
+ * SillyTavern `extra.type` values that are UI / narrator / comments, not story speech.
+ * `/sys` writes `narrator` with `is_system: false`; `/comment` writes `comment`.
+ * `/hide` only flips `is_system` and does not set `type`.
  */
-function roleOf(m: RawMessage, charName: string | undefined): Role {
+const SYSTEM_EXTRA_TYPES = new Set([
+  'narrator', 'comment', 'help', 'welcome', 'empty', 'generic',
+  'slash_commands', 'formatting', 'hotkeys', 'macros',
+  'welcome_prompt', 'assistant_note', 'assistant_message',
+]);
+
+function extraOf(m: RawMessage): Record<string, unknown> {
+  const e = m.extra;
+  return e && !Array.isArray(e) ? (e as Record<string, unknown>) : {};
+}
+
+/** SillyTavern's small system-message marker. */
+function isSmallSys(m: RawMessage): boolean {
+  return extraOf(m).isSmallSys === true;
+}
+
+function isSystemNotice(m: RawMessage): boolean {
+  if (isSmallSys(m)) return true;
+  const t = extraOf(m).type;
+  return typeof t === 'string' && SYSTEM_EXTRA_TYPES.has(t);
+}
+
+/**
+ * `is_system` is set both by real system notices and by `/hide` (a message hidden from the
+ * model but still part of the story). `/hide` keeps the original speaker (`is_user` / `name`)
+ * and does not set `extra.type`. Group-chat members who also have visible lines stay `char`
+ * even when their name is not the file's primary card name.
+ */
+function roleOf(m: RawMessage, charName: string | undefined, storySpeakers: ReadonlySet<string>): Role {
+  if (isSystemNotice(m)) return 'system';
   if (m.is_user === true) return 'user';
-  if (m.is_system === true) return charName && m.name === charName ? 'char' : 'system';
+  if (m.is_system === true) {
+    if (typeof m.name === 'string' && (m.name === charName || storySpeakers.has(m.name))) return 'char';
+    return 'system';
+  }
   return 'char';
+}
+
+/** What the user saw: regex display output, else the raw `mes`. */
+function messageBody(m: RawMessage): string {
+  const display = extraOf(m).display_text;
+  if (typeof display === 'string' && display.trim()) return display;
+  return m.mes ?? '';
 }
 
 /** Metadata line: has chat_metadata / user_name but no mes. */
@@ -25,13 +64,6 @@ function looksLikeMessage(o: unknown): o is RawMessage {
   return !!o && typeof o === 'object' && typeof (o as RawMessage).mes === 'string';
 }
 
-/** SillyTavern's small system-message marker. */
-function isSmallSys(m: RawMessage): boolean {
-  const e = m.extra;
-  if (!e || Array.isArray(e)) return false;
-  return (e as Record<string, unknown>).isSmallSys === true;
-}
-
 export interface ParseOptions {
   clean: CleanOptions;
   /** Include unselected swipes. Off by default to avoid double counting. */
@@ -42,11 +74,6 @@ export const DEFAULT_PARSE_OPTIONS: ParseOptions = {
   clean: DEFAULT_CLEAN_OPTIONS,
   includeAllSwipes: false,
 };
-
-function extraOf(m: RawMessage): Record<string, unknown> {
-  const e = m.extra;
-  return e && !Array.isArray(e) ? (e as Record<string, unknown>) : {};
-}
 
 function genSeconds(m: RawMessage): number | undefined {
   const a = Date.parse(String((m as Record<string, unknown>).gen_started ?? ''));
@@ -60,20 +87,21 @@ function pushMessage(
   m: RawMessage,
   index: number,
   opts: ParseOptions,
-  charName?: string,
+  charName: string | undefined,
+  storySpeakers: ReadonlySet<string>,
 ): void {
   const texts: string[] = [];
   if (opts.includeAllSwipes && Array.isArray(m.swipes) && m.swipes.length > 1) {
     for (const s of m.swipes) if (typeof s === 'string') texts.push(s);
   } else {
-    texts.push(m.mes ?? '');
+    texts.push(messageBody(m));
   }
   const raw = texts.join('\n');
   const ex = extraOf(m);
   out.push({
     index,
     name: typeof m.name === 'string' ? m.name : zh('(未知)'),
-    role: isSmallSys(m) ? 'system' : roleOf(m, charName),
+    role: roleOf(m, charName, storySpeakers),
     raw,
     text: cleanMessageText(raw, opts.clean),
     date: m.send_date != null ? String(m.send_date) : undefined,
@@ -162,12 +190,23 @@ export function parseChatFile(
     if (m?.[1].trim()) return m[1].trim();
     // Neither: the most frequent non-user speaker
     const tally = new Map<string, number>();
-    // Only visible character lines vote: a speaker who exists solely as is_system lines is a system notice, not the character
-    for (const rec of records) if (looksLikeMessage(rec) && rec.is_user !== true && rec.is_system !== true && !isSmallSys(rec) && typeof rec.name === 'string') tally.set(rec.name, (tally.get(rec.name) ?? 0) + 1);
+    // Only visible character lines vote: a speaker who exists solely as is_system lines is a system notice, not the character.
+    // `/sys` narrator lines have is_system false but extra.type=narrator — they must not win the card name.
+    for (const rec of records) {
+      if (!looksLikeMessage(rec) || rec.is_user === true || rec.is_system === true || isSystemNotice(rec) || typeof rec.name !== 'string') continue;
+      tally.set(rec.name, (tally.get(rec.name) ?? 0) + 1);
+    }
     let best: string | undefined; let bestN = 0;
     for (const [k, v] of tally) if (v > bestN) { best = k; bestN = v; }
     return best;
   })();
+  const storySpeakers = new Set<string>();
+  for (const rec of records) {
+    if (!looksLikeMessage(rec) || isSystemNotice(rec) || typeof rec.name !== 'string') continue;
+    if (rec.is_user === true) continue;
+    if (rec.is_system === true) continue;
+    storySpeakers.add(rec.name);
+  }
   let index = 0;
   for (const rec of records) {
     if (isMetadataLine(rec)) {
@@ -183,7 +222,7 @@ export function parseChatFile(
       continue;
     }
     if (!looksLikeMessage(rec)) continue;
-    pushMessage(chat.messages, rec, index++, opts, preName);
+    pushMessage(chat.messages, rec, index++, opts, preName, storySpeakers);
   }
 
   if (chat.messages.length === 0) {

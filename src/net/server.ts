@@ -4,6 +4,7 @@
  * difference is that text leaves the machine.
  */
 import type { AnalyzeOptions } from '../core/analyze';
+import { DEFAULT_AI_CONFIG } from '../core/aiTokenizer';
 import type { AnalysisResult } from '../core/types';
 import type { UserText } from '../core/zh';
 import { zh } from '../core/zh';
@@ -264,6 +265,34 @@ async function maybeGzip(bytes: Uint8Array): Promise<Uint8Array | null> {
 /** Bytes as MB with one decimal, for the upload label. */
 const mb = (n: number): string => (n / (1024 * 1024)).toFixed(1);
 
+/**
+ * `/api/analyze` currently accepts one `{ name, content }` and cannot apply
+ * browser-only extras (regex scripts, zip world-info keys). Those stay in the
+ * worker so the result matches what the local path produces.
+ */
+export const serverTakesOneFile = (n: number): boolean => n === 1;
+
+export function shouldAnalyzeOnServer(p: {
+  fileCount: number;
+  hasCustomRules?: boolean;
+  fromZip?: boolean;
+}): boolean {
+  return p.fileCount === 1 && !p.hasCustomRules && !p.fromZip;
+}
+
+/**
+ * Drop the visitor's LLM key and regex scripts before the body leaves the
+ * browser. The server disables AI anyway; regex is applied only in the worker
+ * (a hostile `find` would otherwise run in the Node process).
+ */
+export function optionsForServer(o: AnalyzeOptions): AnalyzeOptions {
+  return {
+    ...o,
+    ai: { ...DEFAULT_AI_CONFIG, enabled: false },
+    clean: { ...o.clean, customRules: undefined },
+  };
+}
+
 /** Word counts computed on the server; same result shape as local */
 export async function analyzeOnServer(
   file: { name: string; content: string },
@@ -296,7 +325,7 @@ export async function analyzeOnServer(
     });
   };
 
-  await postSSE('/api/analyze', { ...file, options }, onUpload, (ev, d) => {
+  await postSSE('/api/analyze', { ...file, options: optionsForServer(options) }, onUpload, (ev, d) => {
     if (ev === 'progress') {
       sawServerEvent = true;
       // The server sends the real phase; 'parse' is only the fallback when it omits one

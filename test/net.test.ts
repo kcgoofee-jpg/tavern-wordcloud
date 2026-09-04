@@ -4,7 +4,8 @@
  * here must produce a rising `upload` sequence and hand over to `parse`.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { analyzeOnServer, makeSSEParser, type ServerProgress } from '../src/net/server';
+import { analyzeOnServer, makeSSEParser, optionsForServer, serverTakesOneFile, shouldAnalyzeOnServer, type ServerProgress } from '../src/net/server';
+import { DEFAULT_ANALYZE_OPTIONS } from '../src/core/analyze';
 import { toZh } from '../src/core/zh';
 
 const RESULT = { words: [], messageCount: 1 };
@@ -137,7 +138,10 @@ describe('analyzeOnServer — XMLHttpRequest fallback (Safari, Firefox)', () => 
 describe('gzip request compression', () => {
   // Very compressible on purpose: the point of these tests is to see the body shrink.
   const compressible = { name: 'a.jsonl', content: '{"mes":"甲乙丙"}\n'.repeat(20_000) };
-  const plainBytes = () => new TextEncoder().encode(JSON.stringify({ ...compressible, options: opts })).byteLength;
+  const plainBytes = () => new TextEncoder().encode(JSON.stringify({
+    ...compressible,
+    options: optionsForServer(opts as unknown as typeof DEFAULT_ANALYZE_OPTIONS),
+  })).byteLength;
 
   it('streamed path: sends Content-Encoding: gzip and a smaller body when CompressionStream exists', async () => {
     let seenHeaders: Headers | undefined;
@@ -191,5 +195,38 @@ describe('gzip request compression', () => {
     await analyzeOnServer(compressible, opts, () => {}, undefined, true);
     expect(seenHeaders?.has('Content-Encoding')).toBe(false);
     expect(sentBytes).toBe(plainBytes());
+  });
+});
+
+describe('serverTakesOneFile', () => {
+  it('the current /api/analyze body is one chat; several files stay local', () => {
+    expect(serverTakesOneFile(0)).toBe(false);
+    expect(serverTakesOneFile(1)).toBe(true);
+    expect(serverTakesOneFile(2)).toBe(false);
+  });
+});
+
+describe('shouldAnalyzeOnServer', () => {
+  it('refuses a zip, extra files, and regex scripts — those stay in the worker', () => {
+    expect(shouldAnalyzeOnServer({ fileCount: 1 })).toBe(true);
+    expect(shouldAnalyzeOnServer({ fileCount: 2 })).toBe(false);
+    expect(shouldAnalyzeOnServer({ fileCount: 1, fromZip: true })).toBe(false);
+    expect(shouldAnalyzeOnServer({ fileCount: 1, hasCustomRules: true })).toBe(false);
+  });
+});
+
+describe('optionsForServer', () => {
+  it('strips the LLM key and regex scripts so they never leave the browser', () => {
+    const sent = optionsForServer({
+      ...DEFAULT_ANALYZE_OPTIONS,
+      ai: { ...DEFAULT_ANALYZE_OPTIONS.ai, enabled: true, apiKey: 'sk-secret', endpoint: 'https://x/v1', model: 'm' },
+      clean: { ...DEFAULT_ANALYZE_OPTIONS.clean, customRules: [{ find: '(a+)+$', flags: 'g', replace: '' }] },
+    });
+    expect(sent.ai.apiKey).toBe('');
+    expect(sent.ai.enabled).toBe(false);
+    expect(sent.clean.customRules).toBeUndefined();
+    const json = JSON.stringify(sent);
+    expect(json).not.toContain('sk-secret');
+    expect(json).not.toContain('(a+)+$');
   });
 });

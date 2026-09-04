@@ -3,7 +3,7 @@
 # tavern-wordcloud
 
 Turn SillyTavern chat logs into a word cloud, in the browser, offline.
-Hosted version: <https://wordcloud.davidzhao.top>
+Web edition: <https://wordcloud.davidzhao.top>
 
 ```
  .jsonl / .json / .txt / .zip / .png
@@ -16,11 +16,11 @@ Hosted version: <https://wordcloud.davidzhao.top>
 
 ## How it works
 
-**Parse.** Input is whatever SillyTavern exports: a single chat (`.jsonl` / `.json`), a plain-text export (`.txt`), a full backup (`.zip`) or a PNG made by this tool. From a backup the lorebook and character-card keywords become a proper-noun dictionary, and the regex scripts saved in settings and cards become cleaning rules. A PNG exported here carries its own word table and palette in a `tEXt` chunk, so dragging it back reproduces the cloud without the original log.
+**Parse.** Input is whatever SillyTavern exports: a single chat (`.jsonl` / `.json`), a plain-text export (`.txt`), a full backup (`.zip`) or a PNG made by this tool. From a backup the world-info and character-card keywords become a proper-noun dictionary, and the regex scripts saved in settings and cards become cleaning rules. A PNG exported here carries its own word table and palette in a `tEXt` chunk, so dragging it back reproduces the cloud without the original log.
 
 **Clean.** Plugins write status bars, variable blocks, HTML, option lists and chain-of-thought into the message text. Cleaning is a **whitelist of structural rules**: non-standard tags are removed whole, unclosed `<style>` / `<script>` blocks are cut to the end, bare CSS or JS is recognised by three consecutive lines of code shape, key–value status blocks and collapsed summaries are dropped. Your own regex scripts run next, then a statistical pass removes template lines that appear once in most messages, then the maintainer's block lists. Whitelists rather than blacklists, because a new plugin would otherwise leak silently.
 
-**Tokenize.** No dictionary files, no models. The browser's own `Intl.Segmenter` makes the first cut; fragments are glued back into words by cohesion (a candidate must occur at least four times, be at least a third as frequent as its most frequent part, and contain no function word). Names are unknown words to every segmenter, so they take a separate path: nine context cues (「X said」, 「X's」, direct address, and so on) promote a string to a person name, which then enters the dictionary directly. Lorebook keywords join the same dictionary; a longest-match merge applies it. Stop words, English lemma merging (`needs / needed / needing → need`, only when the base form exists in the text) and a classifier for time, place and explicit vocabulary finish the job. Words spread evenly over all messages are tagged *common* and hidden from the cloud by default; story words cluster. A 108-item proper-noun benchmark scores 107/108.
+**Tokenize.** No dictionary files, no models. The browser's own `Intl.Segmenter` makes the first cut; fragments are glued back into words by cohesion (a candidate must occur at least four times, be at least a third as frequent as its most frequent part, and contain no function word). Names are unknown words to every segmenter, so they take a separate path: nine context cues (「X said」, 「X's」, direct address, and so on) promote a string to a person name, which then enters the dictionary directly. World-info keywords join the same dictionary; a longest-match merge applies it. Stop words, English lemma merging (`needs / needed / needing → need`, only when the base form exists in the text) and a classifier for time, place and explicit vocabulary finish the job. Words spread evenly over all messages are tagged *common* and hidden from the cloud by default; story words cluster. A 108-item proper-noun benchmark scores 107/108.
 
 **Weight and layout.** Font size follows frequency. Words are placed on a spiral in a canvas; the ten palettes are generated in OKLCH so lightness stays monotonic with frequency. Export freezes the base pose, so the PNG is overlap-free by construction, at 1× to 3× the screen size.
 
@@ -37,7 +37,7 @@ Nothing here calls a model unless you configure an endpoint and trigger it yours
 | Model tokenization | checkbox in the endpoint panel, run manually | segmentation rules with examples plus the text in chunks of ≤1200 characters, `temperature 0`, two chunks at a time | a JSON array per chunk; a chunk that does not join back into the original falls back to local tokenization and is noted in the log |
 | Cleaning rules for this log | "Write rules" button | rule-writing prompt plus **at most 5 raw messages, ≤2500 characters each** | a JSON array of regexes; each is tested on the samples and kept only if it removes something without removing more than 70 % |
 
-Boundaries: the key lives only in your browser's local storage, in plaintext. On the hosted version requests go through the site's `/api/relay` to get around providers without CORS; the relay forwards the target URL, the body and the `Authorization` header, allows only `/chat/completions` and `/models`, and stores nothing. The site provides no model key of its own: keyword mode only works with your own endpoint, and the server merely relays the request — it never accepts or stores a key from anyone else.
+Boundaries: the key lives only in your browser's local storage, in plaintext. On the web edition, requests go through the site's `/api/relay` to get around providers without CORS; the relay forwards the target URL, the body and the `Authorization` header, allows only `/chat/completions` and `/models`, and stores nothing. The site provides no model key of its own: keyword mode only works with your own endpoint, and the server merely relays the request — it never accepts or stores a key from anyone else.
 
 ## Run it locally
 
@@ -77,7 +77,7 @@ Frequency and keyword clouds · cleaning of plugin residue with your own regex s
 
 ## Privacy
 
-- The hosted server keeps no chat text and logs no query strings; text is discarded after processing.
+- The web edition keeps no chat text and logs no query strings; text is discarded after processing.
 - The local edition never makes a network request.
 - Model keys stay in the browser; the server never accepts one.
 
@@ -108,4 +108,4 @@ This repository is a read-only mirror of the private development repository; iss
 
 ## License
 
-MIT — see [LICENSE](LICENSE). The hosted instance is run by the author; the code here is what you deploy yourself.
+MIT — see [LICENSE](LICENSE). The web edition is run by the author; the code here is what you deploy yourself.

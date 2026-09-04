@@ -61,7 +61,7 @@ export interface WorkerProgress {
 /** Final reply of a request; progress messages are not replies. */
 export type WorkerResult =
   | { id: number; progress?: false; ok: true; kind: 'load'; fileCount: number; chars: number; characters: string[] }
-  | { id: number; progress?: false; ok: true; kind: 'bundle'; fileCount: number; chars: number; characters: string[]; bundle: Omit<DataBundle, 'chats'> }
+  | { id: number; progress?: false; ok: true; kind: 'bundle'; fileCount: number; chars: number; characters: string[]; bundle: Omit<DataBundle, 'chats'>; files: SourceFile[] }
   | { id: number; progress?: false; ok: true; kind: 'analyze'; result: AnalysisResult }
   | { id: number; progress?: false; ok: true; kind: 'curate'; words: WordCount[]; curate: CurateResult; base: AnalysisResult }
   | { id: number; progress?: false; ok: true; kind: 'context'; snippets: string[] }
@@ -71,7 +71,7 @@ export type WorkerResult =
 export type WorkerResponse =
   | WorkerProgress
   | { id: number; progress?: false; ok: true; kind: 'load'; fileCount: number; chars: number; characters: string[] }
-  | { id: number; progress?: false; ok: true; kind: 'bundle'; fileCount: number; chars: number; characters: string[]; bundle: Omit<DataBundle, 'chats'> }
+  | { id: number; progress?: false; ok: true; kind: 'bundle'; fileCount: number; chars: number; characters: string[]; bundle: Omit<DataBundle, 'chats'>; files: SourceFile[] }
   | { id: number; progress?: false; ok: true; kind: 'analyze'; result: AnalysisResult }
   | { id: number; progress?: false; ok: true; kind: 'curate'; words: WordCount[]; curate: CurateResult; base: AnalysisResult }
   | { id: number; progress?: false; ok: true; kind: 'context'; snippets: string[] }
@@ -206,7 +206,7 @@ async function handle(req: WorkerRequest): Promise<void> {
       const { chats: _drop, ...extra } = bundle;
       bundleExtra = extra;
       self.postMessage({
-        id: req.id, ok: true, kind: 'bundle', ...summarize(), bundle: extra,
+        id: req.id, ok: true, kind: 'bundle', ...summarize(), bundle: extra, files,
       } as WorkerResponse);
       return;
     }

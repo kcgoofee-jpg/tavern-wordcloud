@@ -8,7 +8,7 @@ Effective date: September 4, 2026 ｜ Last updated: September 4, 2026
 
 ## 1. Scope
 
-This Policy applies to all content you upload, process, export, or share through the Service, including chat logs, character cards, lorebooks, regular-expression scripts, feedback snippets you deliberately send, and word-cloud outputs you generate and further distribute.
+This Policy applies to all content you upload, process, export, or share through the Service, including chat logs, character cards, world info (lorebooks), regular-expression scripts, feedback snippets you deliberately send, and word-cloud outputs you generate and further distribute.
 
 ## 2. Prohibited Content
 
