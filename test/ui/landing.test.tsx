@@ -36,9 +36,9 @@ describe('Landing', () => {
       expect(screen.getByText(chip)).toBeTruthy();
     }
     expect(screen.getByText('聊天记录从哪导出？')).toBeTruthy();
-    expect(screen.getByText('清洗插件残留')).toBeTruthy();
-    expect(screen.getByText('大模型挑关键词')).toBeTruthy();
-    expect(screen.getByText('完全离线的本地版')).toBeTruthy();
+    expect(screen.getByText('剥掉思维链与状态栏')).toBeTruthy();
+    expect(screen.getByText('大模型挑出故事题眼')).toBeTruthy();
+    expect(screen.getByText('本地版单文件、可离线跑')).toBeTruthy();
     expect(screen.getAllByRole('link', { name: '下载本地版' }).length).toBeGreaterThan(0);
   });
 
@@ -53,14 +53,22 @@ describe('Landing', () => {
     expect(screen.queryByRole('link', { name: '下载本地版' })).toBeNull();
   });
 
-  it('privacy line follows the processing path: server vs local', () => {
-    const { unmount } = render(<Landing {...landingProps()} hasServer />);
-    expect(screen.getByText(/记录会上传到服务器处理，处理完即丢弃。/)).toBeTruthy();
-    expect(screen.getByText(/服务器不保存正文/)).toBeTruthy();
+  it('privacy line follows the processing path: server vs local, and is said once', () => {
+    const { container, unmount } = render(<Landing {...landingProps()} hasServer />);
+    expect(screen.getByText(/记录上传到服务器处理，处理完即丢弃/)).toBeTruthy();
+    // The whole privacy story is told once, right under the drop box: no second disclaimer paragraph
+    const text = container.textContent ?? '';
+    expect((text.match(/处理完即丢弃/g) ?? []).length).toBe(1);
+    expect((text.match(/你有权使用这些记录/g) ?? []).length).toBe(1);
+    expect((text.match(/《隐私政策》/g) ?? []).length).toBe(1);
     unmount();
     render(<Landing {...landingProps()} />);
-    expect(screen.getByText(/所有处理都在这台电脑上，不出网。/)).toBeTruthy();
-    expect(screen.getByText(/不出网；结果仅供参考。/)).toBeTruthy();
+    expect(screen.getByText(/所有处理都在这台电脑上，不出网/)).toBeTruthy();
+  });
+
+  it('the feature band is one row of short lines', () => {
+    const { container } = render(<Landing {...landingProps()} hasServer />);
+    expect(container.querySelectorAll('.land-feats .land-feat').length).toBe(3);
   });
 
   it('upload card, sample button and top bar controls call back', async () => {

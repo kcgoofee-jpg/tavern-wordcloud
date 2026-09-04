@@ -29,8 +29,6 @@ const EN: Record<string, string> = {
   '支持的文件格式': 'Supported formats',
   '整包 .zip': 'full export .zip',
   '词云 .png': 'cloud .png',
-  '记录会上传到服务器处理，处理完即丢弃。': 'Logs are uploaded to the server for processing and discarded right after.',
-  '所有处理都在这台电脑上，不出网。': 'Everything is processed on this computer — nothing goes online.',
   '《隐私政策》': 'Privacy Policy',
   '《免责声明》': 'Disclaimer',
   '聊天记录从哪导出？': 'Where do I export chat logs?',
@@ -39,19 +37,17 @@ const EN: Record<string, string> = {
   '把文件（或整个文件夹打包成 zip）拖进上面的虚线框即可。': 'Drop the files (or the whole folder zipped) into the dashed box above.',
   '先看示例': 'See a sample first',
   '特性': 'Features',
-  '清洗插件残留': 'Cleans plugin residue',
-  '自动剥掉思维链、状态栏、指令块等插件注入的杂质，只留角色真正说出口的话。':
-    'Strips reasoning blocks, status bars and command blocks injected by plugins — only what the character actually said remains.',
-  '大模型挑关键词': 'LLM-picked keywords',
-  '不止数词频——让大模型通读全文，挑出这段故事真正的题眼，可接自己的接口。':
-    'Beyond counting — a model reads the whole story and picks its true motifs; bring your own endpoint.',
-  '完全离线的本地版': 'A fully offline local version',
-  '单文件、双击即用，所有处理都在自己电脑上，不出网；敏感记录用它更安心。':
-    'A single file, double-click to run; all processing stays on your computer. Safer for sensitive logs.',
+  '记录上传到服务器处理，处理完即丢弃；上传即表示你有权使用这些记录。':
+    'Logs are processed on the server and discarded right after; by uploading you confirm you may use them.',
+  '所有处理都在这台电脑上，不出网；导入即表示你有权使用这些记录。':
+    'Everything is processed on this computer, never online; by importing you confirm you may use these logs.',
   '上传即表示你有权使用这些记录并用于分析。服务器不保存正文，处理完即丢弃；结果仅供参考。':
     'By uploading you confirm you may use these logs for analysis. The server keeps no text — it is discarded after processing; results are indicative only.',
   '上传即表示你有权使用这些记录并用于分析。所有处理都在这台电脑上完成，不出网；结果仅供参考。':
     'By importing you confirm you may use these logs for analysis. Everything is processed on this computer, never online; results are indicative only.',
+  '剥掉思维链与状态栏': 'Strips reasoning and status blocks',
+  '大模型挑出故事题眼': 'A model picks the story motifs',
+  '本地版单文件、可离线跑': 'Single-file local build, runs offline',
   '示例词云 · 点任意位置开始导入': 'Sample cloud · click anywhere to start importing',
 
   // ── Modes ──
@@ -110,7 +106,6 @@ const EN: Record<string, string> = {
   '再点一下：回到自己的词云': 'Click again: back to your own cloud',
   '社区词云 · 点这里回到自己的词云': 'Community cloud · click here to return to your own',
   '你正在用本地版': 'You are using the local edition',
-  '这份文件就是完整程序，处理全在本机完成、不联网。网页版功能相同，多一个社区排行榜。': 'This file is the whole program; everything is processed on this computer and nothing goes online. The web version has the same features plus a community board.',
   '看看各类都有哪些词': 'See which words are in each kind',
   '读取': 'Read',
   '分词': 'Tokenize',

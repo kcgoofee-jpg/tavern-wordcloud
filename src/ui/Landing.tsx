@@ -119,12 +119,11 @@ export default function Landing({
         </div>
 
         <p className="land-privacy">
-          {hasServer ? (
-            <>
-              {t('记录会上传到服务器处理，处理完即丢弃。')}
-              <a href="#/privacy">{t('《隐私政策》')}</a>
-            </>
-          ) : t('所有处理都在这台电脑上，不出网。')}
+          {hasServer
+            ? t('记录上传到服务器处理，处理完即丢弃；上传即表示你有权使用这些记录。')
+            : t('所有处理都在这台电脑上，不出网；导入即表示你有权使用这些记录。')}
+          <a href="#/privacy">{t('《隐私政策》')}</a>
+          <a href="#/disclaimer">{t('《免责声明》')}</a>
         </p>
 
         <div className="land-guide">
@@ -139,34 +138,15 @@ export default function Landing({
           <button type="button" className="land-sample" onClick={onShowSample}>{t('先看示例')}</button>
         </div>
 
-        <p className="land-disclaimer">
-          {hasServer ? t('上传即表示你有权使用这些记录并用于分析。服务器不保存正文，处理完即丢弃；结果仅供参考。')
-            : t('上传即表示你有权使用这些记录并用于分析。所有处理都在这台电脑上完成，不出网；结果仅供参考。')}
-          <a href="#/disclaimer">{t('《免责声明》')}</a>
-          <a href="#/privacy">{t('《隐私政策》')}</a>
-        </p>
       </main>
 
       <section className="land-feats" aria-label={t('特性')}>
-        <article className="land-feat">
-          <h2>{t('清洗插件残留')}</h2>
-          <p>{t('自动剥掉思维链、状态栏、指令块等插件注入的杂质，只留角色真正说出口的话。')}</p>
-        </article>
-        <article className="land-feat">
-          <h2>{t('大模型挑关键词')}</h2>
-          <p>{t('不止数词频——让大模型通读全文，挑出这段故事真正的题眼，可接自己的接口。')}</p>
-        </article>
-        {hasServer ? (
-          <article className="land-feat">
-            <h2>{t('完全离线的本地版')}</h2>
-            <p>{t('单文件、双击即用，所有处理都在自己电脑上，不出网；敏感记录用它更安心。')}</p>
-          </article>
-        ) : (
-          <article className="land-feat">
-            <h2>{t('你正在用本地版')}</h2>
-            <p>{t('这份文件就是完整程序，处理全在本机完成、不联网。网页版功能相同，多一个社区排行榜。')}</p>
-          </article>
-        )}
+        <span className="land-feat"><Icon name="files" size={15} />{t('剥掉思维链与状态栏')}</span>
+        <span className="land-feat"><Icon name="chip" size={15} />{t('大模型挑出故事题眼')}</span>
+        <span className="land-feat">
+          <Icon name="cloud" size={15} />
+          {hasServer ? t('本地版单文件、可离线跑') : t('你正在用本地版')}
+        </span>
       </section>
 
       <Footer local={!hasServer} />

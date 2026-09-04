@@ -2,7 +2,7 @@
    Serif display stack mirrors src/theme/fonts.ts `palatino`; colors/sizes/radii
    come from 00-tokens-base.css variables only. */
 .landing {
-  position: absolute; inset: 0; z-index: 4; overflow-y: auto;
+  position: absolute; inset: 0; z-index: 4; overflow: hidden auto;
   background: var(--surface);
   display: flex; flex-direction: column;
   animation: card-in .4s var(--ease) backwards;
@@ -27,8 +27,8 @@
 .land-btn.on { color: var(--surface); background: var(--accent); }
 
 .land-hero {
-  flex: none; display: flex; flex-direction: column; align-items: center; text-align: center;
-  padding: 56px 24px 40px;
+  flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 0; padding: 16px 24px; min-height: 0;
 }
 .land-title {
   margin: 0; max-width: 22em;
@@ -36,18 +36,18 @@
   font-size: clamp(26px, 4.6vw, 40px); font-weight: 700; letter-spacing: .04em;
   line-height: 1.3;
 }
-.land-sub { margin: 14px 0 0; max-width: 34em; font-size: var(--t-md); color: var(--fg-dim); }
+.land-sub { margin: 10px 0 0; max-width: 34em; font-size: var(--t-md); color: var(--fg-dim); }
 /* Prose blocks: break at punctuation, balance ragged lines, never split a CJK word or a Latin token mid-way */
 .land-title { text-wrap: balance; word-break: keep-all; }
 /* Short prose with commas: break only at punctuation so a CJK word is never split (keep-all); long paragraphs in the feature cards wrap normally */
-.land-sub, .land-disclaimer, .land-drop-hint, .land-drop-big, .land-privacy { word-break: keep-all; }
-.land-sub, .land-disclaimer, .land-feat p, .land-drop-hint, .land-drop-big, .land-privacy, .land-steps li {
+.land-sub, .land-drop-hint, .land-drop-big, .land-privacy { word-break: keep-all; }
+.land-sub, .land-feat, .land-drop-hint, .land-drop-big, .land-privacy, .land-steps li {
   text-wrap: pretty; line-break: strict; overflow-wrap: anywhere;
 }
 
 /* The upload card is a real button: keyboard-reachable like the hero it replaces */
 .land-drop {
-  margin-top: 32px; width: min(520px, 100%); padding: 40px 28px;
+  margin-top: 22px; width: min(520px, 100%); padding: 30px 28px;
   border: 2px dashed var(--line); border-radius: var(--r);
   background: var(--surface2); color: var(--fg);
   display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -64,17 +64,17 @@
 }
 .land-drop-hint { font-size: var(--t-sm); color: var(--fg-dim); opacity: .8; }
 
-.land-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 18px; }
+.land-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 14px; }
 .land-chip {
   font-size: var(--t-xs); color: var(--fg-dim);
   border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px;
   background: var(--surface2); font-variant-numeric: tabular-nums;
 }
 
-.land-privacy { margin: 14px 0 0; font-size: var(--t-sm); color: var(--fg-dim); }
+.land-privacy { margin: 12px 0 0; max-width: 44em; font-size: var(--t-sm); color: var(--fg-dim); }
 .land-privacy a { color: var(--accent); margin-left: 6px; }
 
-.land-guide { display: flex; align-items: center; gap: 28px; margin-top: 20px; font-size: var(--t-md); }
+.land-guide { display: flex; align-items: center; gap: 28px; margin-top: 16px; font-size: var(--t-md); }
 .land-export { position: relative; }
 .land-export summary { cursor: pointer; color: var(--accent); list-style: none; }
 .land-export summary::-webkit-details-marker { display: none; }
@@ -97,23 +97,11 @@
 .land-sample { color: var(--accent); font-size: var(--t-md); }
 .land-sample:hover { text-decoration: underline; }
 
-.land-disclaimer { margin: 22px 0 0; max-width: 38em; font-size: var(--t-xs); color: var(--fg-dim); opacity: .8; }
-.land-disclaimer a { color: var(--fg-dim); text-decoration: underline; margin-left: 8px; }
-.land-disclaimer a:hover { color: var(--accent); }
-
 .land-feats {
-  flex: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
-  width: 100%; max-width: 980px; margin: 0 auto; padding: 8px 24px 40px;
+  flex: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 28px;
+  width: 100%; padding: 0 24px 10px;
+  font-size: var(--t-sm); color: var(--fg-dim);
 }
-.land-feat {
-  background: var(--surface2); border-radius: var(--r); padding: 20px;
-  transition: transform .24s var(--spring);
-}
-.land-feat:hover { transform: translateY(-2px); }
-.land-feat h2 {
-  margin: 0 0 8px; font-size: var(--t-lg); letter-spacing: .03em;
-  font-family: var(--serif);
-}
-.land-feat p { margin: 0; font-size: var(--t-sm); color: var(--fg-dim); }
+.land-feat { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 
 .landing .foot { margin-top: auto; }
