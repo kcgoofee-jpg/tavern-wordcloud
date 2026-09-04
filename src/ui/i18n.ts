@@ -511,10 +511,12 @@ const EN: Record<string, string> = {
   '已填': ' set',
   '没填': ' not set',
   '【原始信息】': '[RAW]',
+  '这一小时已经分析了 {n} 次，约 {m} 分钟后可以继续；本地版没有次数限制。': 'That is {n} analyses this hour; the limit frees up in about {m} minutes. The local edition has no limit.',
+  '下载本地版可以立刻继续，而且不用上传。': 'The local edition works right away and uploads nothing.',
   '还没填接口地址——点一下去配': 'No endpoint URL yet — click to set it up',
   '还没选模型——点一下去配': 'No model chosen yet — click to set it up',
   '还没填密钥——点一下去配': 'No API key yet — click to set it up',
-  '这份记录超过服务器 10 MB 的上限，网页版算不了。下载本地版可以在你自己的电脑上算，多大都行。': 'This log is over the 10 MB server limit, so the web edition cannot process it. The local edition runs on your own computer with no size limit.',
+  '网页版上限 10 MB，这份传上去有 {size} MB。上限按序列化后真正发出去的字节算，不是文件在硬盘上显示的大小。下载本地版可以在你自己的电脑上算，多大都行。': 'The web edition accepts 10 MB and this one would upload as {size} MB. The limit counts the bytes actually sent after serialization, not the file size shown on disk. The local edition runs on your own computer with no size limit.',
   '榜单只统计词，不显示角色卡名。若您是某张卡的作者、希望它出现在榜单上：请在您公开发布这张卡的页面（角色卡站、频道帖）里临时加一行本站给的校验串，再把该页面链接贴到 issue。只需要公开链接，不要发身份证件、聊天记录或卡文件。': 'The board counts words only and never shows character-card names. To have a card you wrote listed: add the verification string this site gives you to the public page where you published the card, then post that link in an issue. A public link is all that is needed — never send ID documents, chat logs or the card file.',
   'GitHub Issues': 'GitHub Issues',
   '已有一份分析': 'A result is already open',
@@ -786,7 +788,6 @@ const EN: Record<string, string> = {
 
   // Server error codes
   '文件太大（上限 {mb} MB）': 'The upload is too large (limit {mb} MB)',
-  '这一小时已经分析了 {n} 次，歇一会儿再来。': '{n} analyses this hour already — take a break and come back.',
   '服务器正忙（同时分析的人太多），过一分钟再试。': 'The server is busy (too many analyses running) — try again in a minute.',
   '这一小时经服务器中转的请求太多了，歇一会儿。': 'Too many relayed requests this hour — take a break.',
   '只中转 /chat/completions 和 /models': 'Only /chat/completions and /models are relayed',

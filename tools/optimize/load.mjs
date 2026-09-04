@@ -45,9 +45,13 @@ if (!files.length) {
 }
 const seed = files.map((f) => fs.readFileSync(path.join(FIX, f), 'utf8').trim()).join('\n');
 const target = SIZE_MB * 1024 * 1024;
-let content = seed;
-while (Buffer.byteLength(content) < target) content += '\n' + seed;
-content = content.slice(0, Math.floor(target));           // Trailing partial line: the parser skips it
+// Whole lines up to the byte target. `slice(0, target)` used to truncate by *characters*
+// while the loop measured bytes, so `--size-mb 5` produced 5.24 M characters = 10.5 MB of
+// UTF-8 Chinese — and the oversized request body got blamed on JSON escaping instead
+// (notes/docs/31 §10.5; escaping is only ~4%).
+let content = '';
+const lines = seed.split('\n');
+for (let i = 0; Buffer.byteLength(content) < target; i++) content += `${lines[i % lines.length]}\n`;
 const body = JSON.stringify({ name: 'load.jsonl', content, options: {} });
 const bodyMb = (Buffer.byteLength(body) / 1048576).toFixed(2);
 

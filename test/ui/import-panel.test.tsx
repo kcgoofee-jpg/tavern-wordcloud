@@ -5,10 +5,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import ImportPanel, { type ImportSummary } from '../../src/ui/ImportPanel';
 import { DEFAULT_ANALYZE_OPTIONS } from '../../src/core/analyze';
+import { MAX_UPLOAD_BYTES } from '../../src/net/server';
 
 afterEach(cleanup);
 
-const summary: ImportSummary = { fileCount: 1, chars: 1000, characters: ['排练厅的下午'], bundle: null, fromZip: false };
+const summary: ImportSummary = { fileCount: 1, chars: 1000, uploadBytes: 3000, characters: ['排练厅的下午'], bundle: null, fromZip: false };
 
 function panel(props: Partial<ComponentProps<typeof ImportPanel>> = {}) {
   return render(
@@ -36,5 +37,27 @@ describe('ImportPanel: card rule pack note', () => {
     const undoBtn = screen.getByRole('button', { name: '撤销本次套用' });
     fireEvent.click(undoBtn);
     expect(onUndo).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ImportPanel: over the 10 MB upload cap', () => {
+  /** The size shown must come from `uploadBytes`, not from `chars` — see notes/docs/31 §10.5. */
+  const over = { ...summary, chars: 1_000_000, uploadBytes: MAX_UPLOAD_BYTES + 512 * 1024 };
+
+  it('says the real upload size and the limit, and offers the local build for download', () => {
+    panel({ hasServer: true, summary: over });
+    expect(screen.getByText(/网页版上限 10 MB，这份传上去有 10\.5 MB/)).toBeTruthy();
+    const link = screen.getByRole('link', { name: '下载本地版' }) as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/download/index.html');
+    expect(link.hasAttribute('download')).toBe(true);
+  });
+
+  it('stays quiet under the cap, and when there is no server to upload to', () => {
+    panel({ hasServer: true, summary: { ...over, uploadBytes: MAX_UPLOAD_BYTES - 1 } });
+    expect(screen.queryByText(/网页版上限 10 MB/)).toBeNull();
+    cleanup();
+    // A million characters would have tripped the old `chars * 3` estimate
+    panel({ hasServer: false, summary: over });
+    expect(screen.queryByText(/网页版上限 10 MB/)).toBeNull();
   });
 });

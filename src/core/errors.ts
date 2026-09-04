@@ -95,7 +95,9 @@ const KNOWN: { match: RegExp; title: string; hint: string }[] = [
  */
 const SERVER_CODES: Record<string, { title: string; hint?: string }> = {
   too_large: { title: zh('文件太大（上限 {mb} MB）') },
-  rate_limited: { title: zh('这一小时已经分析了 {n} 次，歇一会儿再来。') },
+  // Refused in the browser before the upload starts (net/server.ts), so the size is known exactly.
+  too_large_local: { title: zh('网页版上限 10 MB，这份传上去有 {size} MB。上限按序列化后真正发出去的字节算，不是文件在硬盘上显示的大小。下载本地版可以在你自己的电脑上算，多大都行。') },
+  rate_limited: { title: zh('这一小时已经分析了 {n} 次，约 {m} 分钟后可以继续；本地版没有次数限制。'), hint: zh('下载本地版可以立刻继续，而且不用上传。') },
   queue_full: { title: zh('服务器正忙（同时分析的人太多），过一分钟再试。') },
   maintenance: { title: zh('网站正在维护，暂时只能下载本地版；请稍后再来。') },
   relay_rate_limited: { title: zh('这一小时经服务器中转的请求太多了，歇一会儿。') },

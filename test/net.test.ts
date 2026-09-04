@@ -4,7 +4,8 @@
  * here must produce a rising `upload` sequence and hand over to `parse`.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { analyzeOnServer, makeSSEParser, optionsForServer, serverTakesOneFile, shouldAnalyzeOnServer, type ServerProgress } from '../src/net/server';
+import { MAX_UPLOAD_BYTES, analyzeOnServer, makeSSEParser, optionsForServer, serverTakesOneFile, shouldAnalyzeOnServer, uploadBytes, type ServerProgress } from '../src/net/server';
+import { classifyError } from '../src/core/errors';
 import { DEFAULT_ANALYZE_OPTIONS } from '../src/core/analyze';
 import { toZh } from '../src/core/zh';
 
@@ -195,6 +196,48 @@ describe('gzip request compression', () => {
     await analyzeOnServer(compressible, opts, () => {}, undefined, true);
     expect(seenHeaders?.has('Content-Encoding')).toBe(false);
     expect(sentBytes).toBe(plainBytes());
+  });
+});
+
+describe('over the upload cap: refused in the browser, before any request', () => {
+  /** Serializes to just over MAX_UPLOAD_BYTES; `content` is what carries the weight. */
+  const tooBig = { name: 'a.jsonl', content: 'a'.repeat(MAX_UPLOAD_BYTES + 1024) };
+
+  it('the streamed path never calls fetch and names the size and the limit', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const err = await analyzeOnServer(tooBig, opts, () => {}, undefined, true).catch((e: unknown) => e);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(err).toMatchObject({ code: 'too_large_local' });
+    // The message says how big it is, what the cap is, and that the cap is on the upload
+    expect((err as Error).message).toContain('10 MB');
+    expect((err as Error).message).toMatch(/10\.\d MB/);
+    expect(classifyError(err).title).toContain('10 MB');
+  });
+
+  it('the XHR path never calls send() either', async () => {
+    FakeXHR.last = null;
+    vi.stubGlobal('XMLHttpRequest', FakeXHR);
+    await expect(analyzeOnServer(tooBig, opts, () => {}, undefined, false)).rejects.toMatchObject({ code: 'too_large_local' });
+    expect(FakeXHR.last).toBe(null);
+  });
+
+  it('a body just under the cap still goes out', async () => {
+    const fetchSpy = vi.fn(async (_u: string, init: RequestInit) => {
+      const reader = (init.body as ReadableStream<Uint8Array>).getReader();
+      for (;;) { const { done } = await reader.read(); if (done) break; }
+      return new Response(SSE, { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    // Room for the JSON wrapper, the escaped name and the options object
+    await analyzeOnServer({ name: 'a.jsonl', content: 'a'.repeat(MAX_UPLOAD_BYTES - 4096) }, opts, () => {}, undefined, true);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('uploadBytes counts the serialized body, not the characters', () => {
+    // CJK is 1 UTF-16 unit but 3 UTF-8 bytes; `"` and `\n` each cost one more on escaping.
+    expect(uploadBytes({ content: '甲乙丙' })).toBe(uploadBytes({ content: 'aaa' }) + 6);
+    expect(uploadBytes({ content: '"' })).toBe(uploadBytes({ content: 'a' }) + 1);
   });
 });
 

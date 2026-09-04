@@ -7,6 +7,7 @@ import Icon from './Icons';
 import Note from './Note';
 import Progress from './Progress';
 import { hostOf } from './url';
+import { MAX_UPLOAD_BYTES } from '../net/server';
 
 /** The hosted server hands out the same single-file build (server/index.ts `/download/index.html`). */
 const LOCAL_BUILD = '/download/index.html';
@@ -21,6 +22,13 @@ export interface ImportSummary {
   fileCount: number;
   /** Total characters, for the time estimate */
   chars: number;
+  /**
+   * Bytes the request body will actually weigh: what `JSON.stringify` produces, which
+   * is what the server measures. Character count × 3 used to stand in for it and was
+   * wrong in both directions — JSON escaping alone doubles a `.jsonl` (5 MB → 10.47 MB,
+   * notes/docs/31 §10.5), while plain ASCII is 1 byte per character, not 3.
+   */
+  uploadBytes: number;
   characters: string[];
   bundle: Omit<DataBundle, 'chats'> | null;
   fromZip: boolean;
@@ -179,11 +187,11 @@ export default function ImportPanel({
         </div>
 
         <div className="import-foot">
-          {/* Chinese text averages ~3 bytes per character, so the byte cap is checked against the
-              character count we already have; the server refuses over 10 MB (notes/docs/31 §6). */}
-          {!busy && hasServer && summary.chars * 3 > 10 * 1024 * 1024 && (
+          {/* Measured on the serialized body, the same number the server caps (notes/docs/31 §6/§10.5). */}
+          {!busy && hasServer && summary.uploadBytes > MAX_UPLOAD_BYTES && (
             <p className="note warn-note import-busy">
-              {t('这份记录超过服务器 10 MB 的上限，网页版算不了。下载本地版可以在你自己的电脑上算，多大都行。')}
+              {t('网页版上限 10 MB，这份传上去有 {size} MB。上限按序列化后真正发出去的字节算，不是文件在硬盘上显示的大小。下载本地版可以在你自己的电脑上算，多大都行。',
+                { size: (summary.uploadBytes / (1024 * 1024)).toFixed(1) })}
               <a className="field-act" href={LOCAL_BUILD} download>{t('下载本地版')}</a>
             </p>
           )}

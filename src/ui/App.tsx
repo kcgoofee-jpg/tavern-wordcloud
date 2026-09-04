@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { copyText } from './clipboard';
 import { endpointKind } from './endpointKind';
 import { LangContext, tx, txv, type UserText } from './i18n';
-import { probeServer, analyzeOnServer, shouldAnalyzeOnServer, type ServerHealth } from '../net/server';
+import { probeServer, analyzeOnServer, shouldAnalyzeOnServer, uploadBytes, type ServerHealth } from '../net/server';
 import CardInfo from './CardInfo';
 import CloudCanvas, { type CloudApi } from './CloudCanvas';
 import Icon, { type IconName } from './Icons';
@@ -382,7 +382,7 @@ export default function App() {
           if (res.bundle.warnings.length) showWarnings(res.bundle.warnings);
           // Full exports always go through the confirmation panel
           setImportAsk({
-            fileCount: res.fileCount, chars: res.chars,
+            fileCount: res.fileCount, chars: res.chars, uploadBytes: uploadBytes(filesRef.current),
             characters: res.characters, bundle: res.bundle, fromZip: true,
           });
           void applyCardRuleForCharacter(res.characters[0]);
@@ -420,7 +420,7 @@ export default function App() {
       // Small imports skip the confirmation panel.
       setLoadSeq((n) => n + 1);
       if (res.ok && res.kind === 'load' && (filesRef.current.length >= 3 || chars > 1_500_000)) {
-        setImportAsk({ fileCount: res.fileCount, chars, characters: res.characters, bundle: null, fromZip: false });
+        setImportAsk({ fileCount: res.fileCount, chars, uploadBytes: uploadBytes(filesRef.current), characters: res.characters, bundle: null, fromZip: false });
         void applyCardRuleForCharacter(res.characters[0]);
       } else {
         setHasFiles(true);

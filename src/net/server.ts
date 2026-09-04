@@ -7,7 +7,7 @@ import type { AnalyzeOptions } from '../core/analyze';
 import { DEFAULT_AI_CONFIG } from '../core/aiTokenizer';
 import type { AnalysisResult } from '../core/types';
 import type { UserText } from '../core/zh';
-import { zh } from '../core/zh';
+import { fill, zh } from '../core/zh';
 
 export interface ServerProgress {
   phase: 'upload' | 'parse' | 'tokenize' | 'curate';
@@ -128,6 +128,29 @@ async function readSSE(
  * upload at ~80 progress reports without adding meaningful overhead. */
 const UPLOAD_CHUNK = 64 * 1024;
 
+/**
+ * The hosted server's per-request cap (server/index.ts `MAX_BYTES`).
+ *
+ * It is measured on the JSON body *after* decompression, so gzip buys no headroom:
+ * `readBody` caps the gunzip output at the same number. What matters is therefore
+ * the serialized size, which is not the number the file manager shows: JSON escaping
+ * of `"` and `\n` adds ~4% (measured on the zh and en fixtures), the `{name,content,
+ * options}` wrapper a little more, and a UTF-16 length read off a File object
+ * understates CJK by ~3×. Measuring it is the only honest way (notes/docs/31 §10.5).
+ */
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+/** Bytes as MB with one decimal, for the upload label and the size messages. */
+const mb = (n: number): string => (n / (1024 * 1024)).toFixed(1);
+
+/** Bytes `body` occupies once serialized — exactly what the server measures. */
+export function uploadBytes(body: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(body)).byteLength;
+}
+
+/** The over-limit message, shared by the pre-flight check and the import panel. */
+export const TOO_LARGE_TEXT = zh('网页版上限 10 MB，这份传上去有 {size} MB。上限按序列化后真正发出去的字节算，不是文件在硬盘上显示的大小。下载本地版可以在你自己的电脑上算，多大都行。');
+
 export type UploadProgress = (loaded: number, total: number) => void;
 
 /**
@@ -171,6 +194,13 @@ async function postSSE(
   useStream = supportsRequestStreams(),
 ): Promise<void> {
   const jsonBytes = new TextEncoder().encode(JSON.stringify(body));
+  // Refuse before opening the socket. The server answers 413, but uploading ten
+  // megabytes only to be told they were ten megabytes is a waste of the visitor's
+  // line — and on a flaky one the answer may never arrive.
+  if (jsonBytes.byteLength > MAX_UPLOAD_BYTES) {
+    const size = mb(jsonBytes.byteLength);
+    throw new ServerError(fill(TOO_LARGE_TEXT, { size }), 'too_large_local', { size });
+  }
   const gzipped = await maybeGzip(jsonBytes);
   // Progress is reported against what actually goes over the wire, so the bar
   // doesn't jump when compression finishes ahead of the upload.
@@ -261,9 +291,6 @@ async function maybeGzip(bytes: Uint8Array): Promise<Uint8Array | null> {
     return null;
   }
 }
-
-/** Bytes as MB with one decimal, for the upload label. */
-const mb = (n: number): string => (n / (1024 * 1024)).toFixed(1);
 
 /**
  * `/api/analyze` currently accepts one `{ name, content }` and cannot apply
