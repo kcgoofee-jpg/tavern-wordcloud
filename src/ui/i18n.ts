@@ -228,6 +228,7 @@ const EN: Record<string, string> = {
   '网站更新了，刷新一下用新版；不刷新也能继续用，正在算的结果不受影响': "The site was updated. Reload to get the new version — or keep going, your current run won't be affected.",
   '刷新': 'Reload',
   '正在取社区数据…': 'Loading community data…',
+  '正在载入…': 'Loading…',
   '这 30 天': 'Last 30 days',
   '次打开': 'page views',
   '次分析': 'analyses',

@@ -1,5 +1,6 @@
 import type { CleanOptions } from './types';
 import { applyRules } from './regexScripts';
+import { stripInstructLines } from './instructLines';
 
 export const DEFAULT_CLEAN_OPTIONS: CleanOptions = {
   stripCustomTags: true,
@@ -26,6 +27,79 @@ function isCustomTag(tag: string): boolean {
   return !HTML_TAGS.has(tag.toLowerCase());
 }
 
+/** One Unicode letter. Plugin tag names are not limited to ASCII (`<状态栏>`). */
+const LETTER_ONE = /^\p{L}$/u;
+
+function isTagNameStart(code: number): boolean {
+  if (code < 128) {
+    return code === 95 || code === 58
+      || (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+  }
+  return LETTER_ONE.test(String.fromCharCode(code));
+}
+
+function isTagNameCont(code: number): boolean {
+  if (code < 128) {
+    return isTagNameStart(code)
+      || (code >= 48 && code <= 57)
+      || code === 46 || code === 45;
+  }
+  return isTagNameStart(code);
+}
+
+function isNameDelimiter(code: number): boolean {
+  return code === 62 || code === 47 || code === 32 || code === 9 || code === 10 || code === 13;
+}
+
+interface MarkupTag {
+  start: number;
+  end: number;
+  name: string;
+  closing: boolean;
+  selfClosing: boolean;
+}
+
+/**
+ * Read a markup tag at `i` (`s[i]` must be `<`). Linear: no `>` after this
+ * opener means no later opener can complete a tag either (`incomplete`).
+ * A name must stop at space / `/` / `>` so `<状态栏：…` is not a tag.
+ */
+function readTag(s: string, i: number): MarkupTag | 'incomplete' | null {
+  if (s.charCodeAt(i) !== 60) return null;
+  const len = s.length;
+  let j = i + 1;
+  if (j >= len) return 'incomplete';
+  const closing = s.charCodeAt(j) === 47;
+  if (closing) j++;
+  if (j >= len) return 'incomplete';
+  const c0 = s.charCodeAt(j);
+  if (c0 === 33 || c0 === 63) return null;
+  if (!isTagNameStart(c0)) return null;
+  const nameStart = j;
+  j++;
+  while (j < len && isTagNameCont(s.charCodeAt(j))) j++;
+  if (j >= len) return 'incomplete';
+  if (!isNameDelimiter(s.charCodeAt(j))) return null;
+  const name = s.slice(nameStart, j);
+  const gt = s.indexOf('>', j);
+  if (gt < 0) return 'incomplete';
+  const selfClosing = !closing && gt > j && s.charCodeAt(gt - 1) === 47;
+  return { start: i, end: gt + 1, name, closing, selfClosing };
+}
+
+function nextTag(s: string, from: number): MarkupTag | 'incomplete' | null {
+  let i = from;
+  while (i < s.length) {
+    const lt = s.indexOf('<', i);
+    if (lt < 0) return null;
+    const t = readTag(s, lt);
+    if (t === 'incomplete') return 'incomplete';
+    if (t) return t;
+    i = lt + 1;
+  }
+  return null;
+}
+
 const ENTITIES: Record<string, string> = {
   '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"',
   '&#39;': "'", '&apos;': "'", '&mdash;': '—', '&ndash;': '–', '&hellip;': '…',
@@ -46,19 +120,43 @@ function decodeEntities(s: string): string {
 
 /** Paired custom tags may nest; repeat until stable, with an iteration cap. */
 function stripPairedCustomTags(input: string): string {
-  const re = /<([A-Za-z_][\w:.-]*)\b[^>]*>([\s\S]*?)<\/\1\s*>/g;
   let text = input;
   for (let pass = 0; pass < 6; pass++) {
     let changed = false;
-    const next = text.replace(re, (match, tag: string, inner: string) => {
-      if (isCustomTag(tag)) {
-        changed = true;
-        return ' ';
+    const parts: string[] = [];
+    let last = 0;
+    let i = 0;
+    while (i < text.length) {
+      const open = nextTag(text, i);
+      if (!open || open === 'incomplete') break;
+      if (open.closing || open.selfClosing || !isCustomTag(open.name)) {
+        i = open.end;
+        continue;
       }
-      return match.length === inner.length ? match : match;
-    });
-    if (!changed) return next;
-    text = next;
+      const openName = open.name.toLowerCase();
+      let j = open.end;
+      let close: MarkupTag | null = null;
+      while (j < text.length) {
+        const t = nextTag(text, j);
+        if (!t || t === 'incomplete') break;
+        if (t.closing && t.name.toLowerCase() === openName) {
+          close = t;
+          break;
+        }
+        j = t.end;
+      }
+      if (!close) {
+        i = open.end;
+        continue;
+      }
+      parts.push(text.slice(last, open.start), ' ');
+      last = close.end;
+      i = close.end;
+      changed = true;
+    }
+    if (!changed) return text;
+    parts.push(text.slice(last));
+    text = parts.join('');
   }
   return text;
 }
@@ -71,27 +169,37 @@ function stripPairedCustomTags(input: string): string {
  * Standard HTML closing tags are ignored, so a stray `</b>` never truncates prose.
  */
 function stripOrphanClosingTag(input: string): string {
-  const re = /<(\/?)([A-Za-z_][\w:.-]*)\b[^>]*>/g;
   const open = new Map<string, number>();
   let cut = -1;
-  for (let m = re.exec(input); m; m = re.exec(input)) {
-    const tag = m[2].toLowerCase();
-    if (!isCustomTag(tag)) continue;
-    if (m[1] === '/') {
-      const n = open.get(tag) ?? 0;
-      if (n > 0) open.set(tag, n - 1);
-      else cut = re.lastIndex;
-    } else {
-      open.set(tag, (open.get(tag) ?? 0) + 1);
+  let i = 0;
+  while (i < input.length) {
+    const t = nextTag(input, i);
+    if (!t || t === 'incomplete') break;
+    const tag = t.name.toLowerCase();
+    if (isCustomTag(tag)) {
+      if (t.closing) {
+        const n = open.get(tag) ?? 0;
+        if (n > 0) open.set(tag, n - 1);
+        else cut = t.end;
+      } else if (!t.selfClosing) {
+        open.set(tag, (open.get(tag) ?? 0) + 1);
+      }
     }
+    i = t.end;
   }
   return cut >= 0 ? input.slice(cut) : input;
 }
 
 /** Remove an unclosed custom tag and everything after it (truncated output, mismatched closing tag). */
 function stripDanglingCustomTag(input: string): string {
-  const m = /<([A-Za-z_][\w:.-]*)\b[^>]*>/.exec(input);
-  if (m && isCustomTag(m[1])) return input.slice(0, m.index);
+  let i = 0;
+  while (i < input.length) {
+    const t = nextTag(input, i);
+    if (!t || t === 'incomplete') return input;
+    if (t.closing) { i = t.end; continue; }
+    if (isCustomTag(t.name)) return input.slice(0, t.start);
+    return input;
+  }
   return input;
 }
 
@@ -215,19 +323,41 @@ function stripMetaDetails(text: string): string {
  */
 const KV_LINE = /^\s*(?:[-*•▪◆●]\s*)?[「【[]?([^：:\n]{1,12}?)[」】\]]?\s*[：:]\s*(.{0,80})$/;
 const STATUS_FIELD = /时间|日期|地点|位置|天气|季节|温度|状态|心情|情绪|好感|信任|体力|精力|金钱|金币|资金|穿着|服装|衣着|姓名|关系|进度|目标|任务|等级|经验|数值|属性|称呼|身份|年龄|职业|物品|道具|背包|技能|事件|阶段|回合|轮次|章节|看法|想法|HP|MP|SAN/i;
+const NUMERIC_VALUE = /^[\d./:%+\-~\s]+$/;
+const ENUM_VALUE = /^(true|false|yes|no|on|off|none|null|n\/a|unknown|待定|无|平静|健康)$/i;
+
+function isNumericStatusValue(v: string): boolean {
+  const t = v.trim();
+  return NUMERIC_VALUE.test(t) || ENUM_VALUE.test(t);
+}
+
+function isStatusRun(labels: string[], values: string[]): boolean {
+  if (labels.length < 3) return false;
+  if (new Set(labels).size !== labels.length) return false;
+  if (labels.some((l) => STATUS_FIELD.test(l))) return true;
+  const numeric = values.filter(isNumericStatusValue).length;
+  return numeric >= 2 && values.every((v) => v.trim().length <= 24 && !/[。！？]/.test(v));
+}
+
 function stripStatusBlocks(text: string): string {
   const lines = text.split('\n');
   const drop = new Array<boolean>(lines.length).fill(false);
   let i = 0;
   while (i < lines.length) {
     const labels: string[] = [];
+    const values: string[] = [];
     let j = i;
     while (j < lines.length) {
+      // Status lines are short. Running KV_LINE on a 10 k-space line is ReDoS
+      // (`^\s*` backtracks against a capture that also matches spaces).
+      if (lines[j].length > 200) break;
       const m = KV_LINE.exec(lines[j]);
       if (!m) break;
-      labels.push(m[1].trim()); j++;
+      labels.push(m[1].trim());
+      values.push(m[2]);
+      j++;
     }
-    if (j - i >= 3 && new Set(labels).size === labels.length && labels.some((l) => STATUS_FIELD.test(l))) {
+    if (isStatusRun(labels, values)) {
       for (let k = i; k < j; k++) drop[k] = true;
     }
     i = Math.max(j, i + 1);
@@ -252,7 +382,9 @@ function stripBracketStatusBlocks(text: string): string {
   while (i < lines.length) {
     const labels: string[] = [];
     let j = i;
-    for (let m = BRACKET_LABEL_LINE.exec(lines[j]); m; m = BRACKET_LABEL_LINE.exec(lines[j])) {
+    for (; j < lines.length && lines[j].length <= 200; ) {
+      const m = BRACKET_LABEL_LINE.exec(lines[j]);
+      if (!m) break;
       labels.push(m[1].trim());
       if (++j >= lines.length) break;
     }
@@ -265,6 +397,85 @@ function stripBracketStatusBlocks(text: string): string {
 }
 
 /** Status-bar / table style lines. */
+/**
+ * Historical wi_format wrap: a line opens `[` / `【`, contains a colon, is not
+ * closed on this line, and a later line is only `]` / `】`. Narrative
+ * `[他停顿了很久` has no colon and is kept.
+ */
+function stripWrappedBracketBlocks(text: string): string {
+  if (!/[[【]/.test(text)) return text;
+  const lines = text.split('\n');
+  const drop = new Array<boolean>(lines.length).fill(false);
+  for (let i = 0; i < lines.length; i++) {
+    if (drop[i]) continue;
+    const t = lines[i];
+    if (!/^\s*[[【]/.test(t) || /[\]】]/.test(t) || !/[:：]/.test(t)) continue;
+    let j = i + 1;
+    while (j < lines.length && !/^\s*[\]】]\s*$/.test(lines[j])) j++;
+    if (j < lines.length && j - i >= 2) {
+      for (let k = i; k <= j; k++) drop[k] = true;
+    }
+  }
+  return drop.some(Boolean) ? lines.filter((_, k) => !drop[k]).join('\n') : text;
+}
+
+/** After HTML tags are stripped: ≥3 adjacent `token number` lines are a panel. */
+const PANEL_LINE = /^\s*(?:[\p{L}\p{N}_-]{1,20}\s+)+\d{1,5}\s*$/u;
+function stripNumericPanelLines(text: string): string {
+  const lines = text.split('\n');
+  const hit = lines.map((l) => PANEL_LINE.test(l));
+  const drop = new Array<boolean>(lines.length).fill(false);
+  let i = 0;
+  while (i < lines.length) {
+    if (!hit[i]) { i++; continue; }
+    let j = i;
+    while (j < lines.length && hit[j]) j++;
+    if (j - i >= 3) for (let k = i; k < j; k++) drop[k] = true;
+    i = j;
+  }
+  return drop.some(Boolean) ? lines.filter((_, k) => !drop[k]).join('\n') : text;
+}
+
+/** ≥3 indented `key: value` lines (YAML / dump). A single indented sentence is kept. */
+const INDENTED_KV = /^\s{2,}[^\s#:-][^:\n]{0,40}:\s+\S.{0,60}$/;
+function stripIndentedKvRuns(text: string): string {
+  const lines = text.split('\n');
+  const hit = lines.map((l) => l.length <= 200 && INDENTED_KV.test(l));
+  const drop = new Array<boolean>(lines.length).fill(false);
+  let i = 0;
+  while (i < lines.length) {
+    if (!hit[i]) { i++; continue; }
+    let j = i;
+    while (j < lines.length && (hit[j] || lines[j].trim() === '')) j++;
+    let last = j - 1;
+    while (last > i && lines[last].trim() === '') last--;
+    let n = 0;
+    for (let k = i; k <= last; k++) if (hit[k]) n++;
+    if (n >= 3) for (let k = i; k <= last; k++) drop[k] = true;
+    i = j;
+  }
+  return drop.some(Boolean) ? lines.filter((_, k) => !drop[k]).join('\n') : text;
+}
+
+/** `::` / `:::` container fences at column 0. Linear: no `*?` over the whole file. */
+function stripColonFences(text: string): string {
+  if (!text.includes('::')) return text;
+  const lines = text.split('\n');
+  const out: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (/^:{2,}/.test(lines[i])) {
+      let j = i + 1;
+      while (j < lines.length && !/^:{2,}/.test(lines[j])) j++;
+      if (j < lines.length) { out.push(' '); i = j + 1; continue; }
+      break;
+    }
+    out.push(lines[i]);
+    i++;
+  }
+  return out.join('\n');
+}
+
 function isStructuredLine(line: string): boolean {
   const t = line.trim();
   if (!t) return false;
@@ -292,23 +503,175 @@ export function unwrapUserInput(input: string): string {
   return m ? m[2].trim() : input;
 }
 
-export function cleanMessageText(input: string, opts: CleanOptions = DEFAULT_CLEAN_OPTIONS): string {
+/**
+ * SillyTavern `{{macros}}`. Linear: if `}}` never appears, later `{{` cannot close either.
+ */
+function stripStMacros(text: string): string {
+  let out = '';
+  let i = 0;
+  let skipUntil = -1;
+  while (i < text.length) {
+    if (i > skipUntil && text[i] === '{' && text[i + 1] === '{') {
+      const close = text.indexOf('}}', i + 2);
+      if (close < 0) { skipUntil = text.length; }
+      else { out += ' '; i = close + 2; continue; }
+    }
+    out += text[i]; i++;
+  }
+  return out;
+}
+
+/**
+ * `![alt](url)` → space, `[text](url)` → text. Linear: a scan that finds no `]`,
+ * or a `]` that is not `](`, cannot complete a link for any `[` before that `]`.
+ */
+export function stripMarkdownLinks(text: string): string {
+  let out = '';
+  let i = 0;
+  let skipUntil = -1;
+  while (i < text.length) {
+    const img = text[i] === '!' && text[i + 1] === '[';
+    if ((img || text[i] === '[') && i > skipUntil) {
+      const open = img ? i + 1 : i;
+      const rb = text.indexOf(']', open + 1);
+      if (rb < 0) {
+        skipUntil = text.length;
+      } else if (text[rb + 1] === '(') {
+        const rp = text.indexOf(')', rb + 2);
+        if (rp >= 0) {
+          out += img ? ' ' : text.slice(open + 1, rb);
+          i = rp + 1;
+          continue;
+        }
+        skipUntil = rb;
+      } else {
+        skipUntil = rb;
+      }
+    }
+    out += text[i]; i++;
+  }
+  return out;
+}
+
+/**
+ * Replace `open…close` runs with a space. Built from `indexOf`/`split` so a
+ * wall of delimiters is linear (per-char `+=` plus overlapping ``` was seconds).
+ */
+function stripDelimited(text: string, open: string, close: string): string {
+  if (open === close) {
+    const parts = text.split(open);
+    if (parts.length === 1) return text;
+    const out: string[] = [parts[0]];
+    for (let k = 1; k < parts.length; k += 2) {
+      if (k + 1 < parts.length) { out.push(' '); out.push(parts[k + 1]); }
+      else { out.push(open); out.push(parts[k]); }
+    }
+    return out.join('');
+  }
+  const out: string[] = [];
+  let last = 0;
+  let i = 0;
+  while (i < text.length) {
+    const start = text.indexOf(open, i);
+    if (start < 0) break;
+    const end = text.indexOf(close, start + open.length);
+    if (end < 0) break;
+    out.push(text.slice(last, start), ' ');
+    last = end + close.length;
+    i = last;
+  }
+  out.push(text.slice(last));
+  return out.join('');
+}
+
+/** Strip `<…>` from positions where `at` is true. No `>` ahead → later openers cannot close. */
+function stripUntilGt(text: string, at: (s: string, i: number) => boolean): string {
+  let out = '';
+  let i = 0;
+  let skipUntil = -1;
+  while (i < text.length) {
+    if (i > skipUntil && at(text, i)) {
+      const gt = text.indexOf('>', i + 1);
+      if (gt < 0) { skipUntil = text.length; }
+      else { out += ' '; i = gt + 1; continue; }
+    }
+    out += text[i]; i++;
+  }
+  return out;
+}
+
+function stripHtmlTags(text: string): string {
+  return stripUntilGt(text, (s, i) => {
+    if (s.charCodeAt(i) !== 60) return false;
+    const next = s.charCodeAt(i + 1);
+    if (next === 47) return i + 2 < s.length && isTagNameStart(s.charCodeAt(i + 2));
+    return isTagNameStart(next);
+  });
+}
+
+const OOC_HEAD = /^[[(（【]\s*OOC\s*[:：]/i;
+const OOC_CLOSE: Record<string, string> = { '[': ']', '(': ')', '（': '）', '【': '】' };
+
+function stripOoc(text: string): string {
+  let out = '';
+  let i = 0;
+  let skipUntil = -1;
+  while (i < text.length) {
+    const closer = OOC_CLOSE[text[i]];
+    if (closer && i > skipUntil && OOC_HEAD.test(text.slice(i, i + 16))) {
+      const end = text.indexOf(closer, i + 4);
+      if (end < 0) { skipUntil = text.length; }
+      else { out += ' '; i = end + 1; continue; }
+    }
+    out += text[i]; i++;
+  }
+  return out;
+}
+
+function unwrapBackticks(text: string): string {
+  let out = '';
+  let i = 0;
+  let skipUntil = -1;
+  while (i < text.length) {
+    if (i > skipUntil && text[i] === '`') {
+      const close = text.indexOf('`', i + 1);
+      if (close < 0) { skipUntil = text.length; }
+      else { out += text.slice(i + 1, close); i = close + 1; continue; }
+    }
+    out += text[i]; i++;
+  }
+  return out;
+}
+
+export interface CleanContext {
+  /** SillyTavern regex_placement (1 user / 2 AI / 6 reasoning). Omit = do not filter. */
+  placement?: number;
+}
+
+export function cleanMessageText(
+  input: string,
+  opts: CleanOptions = DEFAULT_CLEAN_OPTIONS,
+  ctx?: CleanContext,
+): string {
   if (!input) return '';
   // Must run first: the allowlist pass would otherwise remove the wrapper tag with its content.
   let t = unwrapUserInput(input);
   // Preset-specific rules (regex scripts) know the exact markup; they run before the generic passes
-  t = applyRules(t, opts.customRules);
+  t = applyRules(t, opts.customRules, ctx?.placement);
 
-  t = t.replace(/<!--[\s\S]*?-->/g, ' ');
-  // <!DOCTYPE ...> and similar are not matched by the generic tag regex below.
-  t = t.replace(/<![^>]*>/g, ' ');
-  t = t.replace(/<\?[\s\S]*?\?>/g, ' ');
+  t = stripDelimited(t, '<!--', '-->');
+  // <!DOCTYPE ...> / <?xml ...?> — a wall of `<!` with no `>` is linear (see stripUntilGt).
+  t = stripUntilGt(t, (s, i) => s[i] === '<' && (s[i + 1] === '!' || s[i + 1] === '?'));
 
   t = stripJsonBlocks(t);
 
   if (opts.stripCodeBlocks) {
-    t = t.replace(/```[\s\S]*?```/g, ' ').replace(/~~~[\s\S]*?~~~/g, ' ');
+    t = stripDelimited(t, '```', '```');
+    t = stripDelimited(t, '~~~', '~~~');
   }
+
+  // Cheap exit: a delimiter wall may have collapsed to whitespace already.
+  if (t.length > 0 && !/[^\s]/.test(t)) return '';
 
   // Inline base64 images would tokenize into junk; remove before segmentation.
   t = t.replace(/data:[a-zA-Z0-9.+-]+\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=\s]+/g, ' ');
@@ -317,33 +680,48 @@ export function cleanMessageText(input: string, opts: CleanOptions = DEFAULT_CLE
   if (opts.stripCustomTags) {
     // <style>/<script>: remove to the end even when unclosed.
     t = t.replace(/<(style|script)\b[\s\S]*?(<\/\1\s*>|$)/gi, ' ');
-    t = stripMetaDetails(t);
-    // Self-closing custom tags
-    t = t.replace(/<([A-Za-z_][\w:.-]*)\b[^>]*\/>/g, (m, tag: string) => (isCustomTag(tag) ? ' ' : m));
-    t = stripPairedCustomTags(t);
-    t = stripOrphanClosingTag(t);
-    t = stripDanglingCustomTag(t);
+    if (t.includes('<details')) t = stripMetaDetails(t);
+    // No `/>` / `</` in the text means these regexes cannot complete a match,
+    // but they would still scan from every `<` (O(n²) on a wall of `<a`).
+    if (t.includes('/>')) {
+      const parts: string[] = [];
+      let last = 0;
+      let i = 0;
+      while (i < t.length) {
+        const tag = nextTag(t, i);
+        if (!tag || tag === 'incomplete') break;
+        if (tag.selfClosing && isCustomTag(tag.name)) {
+          parts.push(t.slice(last, tag.start), ' ');
+          last = tag.end;
+        }
+        i = tag.end;
+      }
+      parts.push(t.slice(last));
+      t = parts.join('');
+    }
+    if (t.includes('</')) {
+      t = stripPairedCustomTags(t);
+      t = stripOrphanClosingTag(t);
+    }
+    if (t.includes('>')) t = stripDanglingCustomTag(t);
   }
 
-  // ::: container blocks
-  t = t.replace(/^:::[\s\S]*?^:::[^\n]*$/gm, ' ');
-  t = t.replace(/^:::[\s\S]*$/m, ' ');
+  t = stripColonFences(t);
+  t = stripInstructLines(t);
 
   // Remaining (standard HTML) tags: strip the tag, keep the text.
-  t = t.replace(/<\/?[A-Za-z][^>]*>/g, ' ');
+  t = stripHtmlTags(t);
   t = decodeEntities(t);
 
-  if (opts.stripOOC) {
-    t = t.replace(/[[(（【]\s*(OOC|ooc|Ooc)\s*[:：][\s\S]*?[\])）】]/g, ' ');
-  }
+  if (opts.stripOOC) t = stripOoc(t);
 
-  // Macros, images, links, URLs
-  t = t.replace(/\{\{[^}]*\}\}/g, ' ');
-  t = t.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ');
-  t = t.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
+  // Macros, images, links, URLs. Markdown `[text](url)` used to be a regex
+  // whose `[^\]]*` retried from every `[` — a wall of brackets was O(n²).
+  t = stripStMacros(t);
+  t = stripMarkdownLinks(t);
   t = t.replace(/\bhttps?:\/\/\S+/gi, ' ');
   t = t.replace(/\b[\w.+-]+@[\w-]+\.[\w.]+\b/g, ' ');
-  t = t.replace(/`([^`]*)`/g, '$1');
+  t = unwrapBackticks(t);
 
   if (opts.stripCodeBlocks) {
     // 放在标签处理之后：先把 <style>/<script> 整块拿掉，
@@ -354,6 +732,9 @@ export function cleanMessageText(input: string, opts: CleanOptions = DEFAULT_CLE
   if (opts.stripStructuredLines) {
     t = stripStatusBlocks(t);
     t = stripBracketStatusBlocks(t);
+    t = stripWrappedBracketBlocks(t);
+    t = stripNumericPanelLines(t);
+    t = stripIndentedKvRuns(t);
     t = t.split('\n').filter((l) => !isStructuredLine(l)).join('\n');
   }
 

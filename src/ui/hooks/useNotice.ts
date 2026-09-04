@@ -6,7 +6,8 @@
  * under the visitor's feet).
  */
 import { useEffect, useRef, useState } from 'react';
-import { fetchNotice, probeServer, type SiteNotice } from '../../net/server';
+import { probeServer } from '../../net/server';
+import { fetchNotice, type SiteNotice } from '../../net/notice';
 
 /** How often the notice and version are re-fetched. The server caches the notice for 60 s anyway. */
 const POLL_MS = 600_000;

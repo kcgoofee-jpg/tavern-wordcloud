@@ -29,6 +29,11 @@ export interface ChatMeta {
   avgGenSeconds: number | null;
   rawChars: number;
   cleanChars: number;
+  /**
+   * Last message index still in the model context. Null when the file did not
+   * record it — do not treat missing as 0 (notes/docs/01 §9).
+   */
+  lastInContextMessageId: number | null;
 }
 
 /** SillyTavern file names look like "<card> - 2026-08-31@20h00m08s527ms.jsonl". */
@@ -76,6 +81,7 @@ export function describeChat(chat: ParsedChat): ChatMeta {
     avgGenSeconds: genCount ? genTotal / genCount : null,
     rawChars: chat.rawChars,
     cleanChars: chat.cleanChars,
+    lastInContextMessageId: chat.lastInContextMessageId ?? null,
   };
 }
 
@@ -112,6 +118,7 @@ export function groupByCharacter(chats: ParsedChat[]): CharacterGroup[] {
         warnings: list.flatMap((c) => c.warnings),
         rawChars: list.reduce((a, c) => a + c.rawChars, 0),
         cleanChars: list.reduce((a, c) => a + c.cleanChars, 0),
+        lastInContextMessageId: list.length === 1 ? list[0].lastInContextMessageId : undefined,
       };
       return { character, files: list.map((c) => c.source), meta: describeChat(merged) };
     })

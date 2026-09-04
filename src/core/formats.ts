@@ -139,7 +139,9 @@ export function parseTxtChat(
       name: c.name,
       role: c.name === charName ? 'char' : 'user',
       raw,
-      text: cleanMessageText(raw, opts.clean),
+      text: cleanMessageText(raw, opts.clean, {
+        placement: c.name === charName ? 2 : 1,
+      }),
       swipeCount: 1,
     });
   });

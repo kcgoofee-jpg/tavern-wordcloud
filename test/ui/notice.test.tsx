@@ -17,6 +17,8 @@ vi.mock('../../src/worker/analyze.worker?worker&inline', () => ({ default: StubW
 Object.defineProperty(navigator, 'language', { value: 'zh-CN', configurable: true });
 
 const NOTICE = { id: 'abc123', text: '今晚 22:00 维护 20 分钟。', level: 'info', updatedAt: 1_756_900_000_000 };
+/** A notice published with both halves. Old ones have no `title` field at all — see NOTICE. */
+const TITLED = { id: 'ttl456', title: '例行维护', text: '今晚 22:00 起大约 20 分钟。', level: 'info', updatedAt: 1_756_900_000_000 };
 
 /** Everything is offline except the routes named here. */
 function serve(routes: Record<string, unknown>) {
@@ -64,6 +66,28 @@ describe('site notice', () => {
     const { container } = render(<App />);
     await waitFor(() => expect(bell()).not.toBeNull());
     expect(container.querySelector('.notice-quick .dot')).toBeNull();
+  });
+
+  it('the title is its own emphasised line above the body', async () => {
+    const user = userEvent.setup();
+    serve({ '/api/notice': TITLED });
+    const { container } = render(<App />);
+    await waitFor(() => expect(bell()).not.toBeNull());
+    await user.click(bell()!);
+    const lines = [...container.querySelectorAll('.notice-pop p')];
+    expect(lines.map((p) => p.textContent)).toEqual([TITLED.title, TITLED.text]);
+    expect(lines[0].className).toContain('notice-title');   // carries the bold weight
+  });
+
+  it('a notice without a title renders no empty line for one', async () => {
+    const user = userEvent.setup();
+    serve({ '/api/notice': NOTICE });
+    const { container } = render(<App />);
+    await waitFor(() => expect(bell()).not.toBeNull());
+    await user.click(bell()!);
+    expect(container.querySelector('.notice-title')).toBeNull();
+    expect(container.querySelectorAll('.notice-pop p')).toHaveLength(1);
+    expect(screen.getByText(NOTICE.text)).not.toBeNull();
   });
 
   it('no server, no bell (the single-file build)', async () => {

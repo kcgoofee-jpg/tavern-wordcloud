@@ -1,7 +1,7 @@
 import type { Placement } from './layout';
 import { makeRandom } from './layout';
 import type { QrAnalysis } from './qr';
-import { toScannerDark } from './qr';
+import { toScannerDark } from './qrColor';
 import type { Theme } from '../theme/themes';
 
 export const clamp01 = (x: number) => Math.min(1, Math.max(0, x));

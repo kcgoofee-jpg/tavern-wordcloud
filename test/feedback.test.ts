@@ -5,7 +5,15 @@ import path from 'node:path';
 import { analyze, DEFAULT_ANALYZE_OPTIONS } from '../src/core/analyze';
 
 const FILE = path.join(process.cwd(), 'test', 'feedback-samples.json');
-const samples: { word: string; snippets: string[]; kind: string }[] = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : [];
+const raw = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : [];
+const samples: { word: string; snippets: string[]; kind: string }[] = Array.isArray(raw) ? raw : [];
+
+if (samples.length === 0) {
+  console.log(
+    `跳过：${fs.existsSync(FILE) ? 'test/feedback-samples.json 存在但是空的' : 'test/feedback-samples.json 不存在'}。` +
+    ' 获取方法：npm run feedback（从线上拉清洗漏网反馈写入该文件），然后重跑 npm test。CI 上线上样本文件已被清空，此分支预期一直是跳过。',
+  );
+}
 
 describe.skipIf(samples.length === 0)('用户反馈的清洗漏网', () => {
   it.each(samples.map((s, i) => [i, s.word, s] as const))('#%i 「%s」清洗后不再出现', (_i, word, s) => {

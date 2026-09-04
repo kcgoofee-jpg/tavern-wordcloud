@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { copyText } from './clipboard';
 import { endpointKind } from './endpointKind';
 import { LangContext, tx, txv, type UserText } from './i18n';
@@ -9,19 +9,18 @@ import Icon, { type IconName } from './Icons';
 import ImportPanel, { type ImportSummary } from './ImportPanel';
 import ConfirmDialog from './ConfirmDialog';
 import Landing from './Landing';
-import LegalPage from './LegalPage';
 import Note from './Note';
 import Progress from './Progress';
-import { AdvancedPanel, AiPanel, CommunityPanel, ExportPanel, FilterPanel, FontPanel, PriorityPanel, ReviewPanel, ThemePanel, WordsPanel, type CommunityStats } from './panels';
+import type { CommunityStats } from './panels';
 import { FEATURES } from './flags';
 import type { SourceFile } from '../core/analyze';
 import { classifyError, notice, type AppError } from '../core/errors';
 import { buildShareUrl, decodeSharePayload, encodeSharePayload, readShareFromLocation, type BuiltShare } from '../share/share';
 import { PNG_KEYWORD, readText } from '../share/png';
 import { isRegexScriptFile, mergeRules, parseRegexScripts } from '../core/regexScripts';
-import { proposeCleanRules } from '../core/proposeRules';
 import { applyOverrides, applyPriority, parsePriority } from '../core/overrides';
 import { relayFetch } from '../net/relay';
+import { loadQr } from '../render/qrLoad';
 import { resolveMode } from '../theme/themes';
 import { toTraditional } from '../theme/s2t';
 import { isDirty, resetSlice, type ResetScope } from './settings';
@@ -42,6 +41,24 @@ import type { CurateResult } from '../core/curate';
 import type { WorkerProgress } from '../worker/analyze.worker';
 import type { DataBundle } from '../core/bundle';
 import './styles/index.css';
+
+/**
+ * Fetched on demand (see vite.config.ts). None of these are on the first screen: the legal
+ * pages carry ~80 kB of markdown, and every panel waits behind a click. `npm run build:single`
+ * folds the chunks back into the one script, so the offline build is unaffected.
+ */
+const LegalPage = lazy(() => import('./LegalPage'));
+const ThemePanel = lazy(() => import('./panels/ThemePanel').then((m) => ({ default: m.ThemePanel })));
+const FontPanel = lazy(() => import('./panels/FontPanel').then((m) => ({ default: m.FontPanel })));
+const FilterPanel = lazy(() => import('./panels/FilterPanel').then((m) => ({ default: m.FilterPanel })));
+const AdvancedPanel = lazy(() => import('./panels/AdvancedPanel').then((m) => ({ default: m.AdvancedPanel })));
+const PriorityPanel = lazy(() => import('./panels/PriorityPanel').then((m) => ({ default: m.PriorityPanel })));
+const WordsPanel = lazy(() => import('./panels/WordsPanel').then((m) => ({ default: m.WordsPanel })));
+const ReviewPanel = lazy(() => import('./panels/ReviewPanel').then((m) => ({ default: m.ReviewPanel })));
+const ExportPanel = lazy(() => import('./panels/ExportPanel').then((m) => ({ default: m.ExportPanel })));
+/** The AI panel drags in the model-endpoint code (aiTokenizer, labelKinds) — the biggest of the lot. */
+const AiPanel = lazy(() => import('./panels/AiPanel').then((m) => ({ default: m.AiPanel })));
+const CommunityPanel = lazy(() => import('./panels/CommunityPanel').then((m) => ({ default: m.CommunityPanel })));
 
 /** Hand-edited word count as a coarse bucket: a number would be far more identifying. */
 export const overrideBucket = (n: number): '0' | '1-10' | '11+' => (n === 0 ? '0' : n <= 10 ? '1-10' : '11+');
@@ -589,6 +606,8 @@ export default function App() {
     // The QR stamp reuses the share link when one is open; otherwise it is built on the spot
     let qrUrl: string | null = null;
     if (o.qr) {
+      // The encoder is a lazy chunk; paint() reads it synchronously, so pull it in first.
+      await loadQr();
       if (share) qrUrl = share.url;
       else {
         try {
@@ -643,6 +662,8 @@ export default function App() {
     try {
       const res = await send({ kind: 'samples', n: 5 });
       if (!res.ok || res.kind !== 'samples' || res.samples.length === 0) { setError(notice(t('没有可用的样本：先导入角色说过话的记录'))); return; }
+      // Model-endpoint code, only reachable from the AI panel: fetched here, not on the first screen.
+      const { proposeCleanRules } = await import('../core/proposeRules');
       const rules = await proposeCleanRules(res.samples, options.ai, health?.ok ? relayFetch : fetch);
       if (rules.length === 0) { setError(notice(t('模型没有给出可用的规则'))); return; }
       setOptions((o) => ({ ...o, clean: { ...o.clean, customRules: mergeRules(o.clean.customRules, rules) } }));
@@ -745,6 +766,15 @@ export default function App() {
       cardCount: bundle?.characterCards ?? 0,
       worldCount: bundle?.worlds.length ?? 0,
       hasPreset: !!bundle?.presetName,
+      // Words the user re-filed by hand in the Review or Word-table panel (settings.overrides[...].kind),
+      // as { w, from, to }: the word and the two kind ids only, no context. Capped at 50, and only the
+      // entries that actually changed the kind (a click that re-confirms the current one is not a fix).
+      kindFixes: Object.entries(settings.overrides).flatMap(([word, ov]) => {
+        if (!ov.kind) return [];
+        const orig = result.allWords.find((w) => w.text.toLowerCase() === word);
+        const from = orig?.kind ?? orig?.kinds?.[0]?.kind ?? 'plain';
+        return from === ov.kind ? [] : [{ w: orig?.text ?? word, from, to: ov.kind }];
+      }).slice(0, 50),
     };
     void fetch('/api/contribute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
   }, [result, settings.contribute, settings.options.ai.model, settings.options.ai.endpoint, health?.ok,
@@ -940,7 +970,9 @@ export default function App() {
       )}
       {noticeOpen && siteNotice && (
         <div className="notice-pop" role="note" aria-label={t('站内通知')}>
-          <p>{siteNotice.text}</p>
+          {/* Either half may be empty: an old notice is a body alone, a short one a title alone */}
+          {siteNotice.title && <p className="notice-title">{siteNotice.title}</p>}
+          {siteNotice.text && <p>{siteNotice.text}</p>}
           <time dateTime={new Date(siteNotice.updatedAt).toISOString()}>{new Date(siteNotice.updatedAt).toLocaleString()}</time>
         </div>
       )}
@@ -972,7 +1004,9 @@ export default function App() {
             </button>
           </div>
           <div className="community-body">
-            <CommunityPanel stats={community} loading={communityLoading} offline={!health?.ok} contribute={settings.contribute} setContribute={(v) => patch({ contribute: v })} />
+            <Suspense fallback={<p className="note">{t('正在载入…')}</p>}>
+              <CommunityPanel stats={community} loading={communityLoading} offline={!health?.ok} contribute={settings.contribute} setContribute={(v) => patch({ contribute: v })} />
+            </Suspense>
           </div>
         </section>
       )}
@@ -1038,6 +1072,8 @@ export default function App() {
             </span>
           </div>
           <div className="sheet-body">
+            {/* One line, not a blank sheet: the chunk is a few kB off the same origin. */}
+            <Suspense fallback={<p className="note">{t('正在载入…')}</p>}>
             {panel === 'theme' && <ThemePanel settings={settings} patch={patch} />}
             {panel === 'font' && (
               <FontPanel
@@ -1101,6 +1137,7 @@ export default function App() {
                 })}
                 focus={aiMissing ?? undefined} />
             )}
+            </Suspense>
           </div>
         </aside>
       )}
@@ -1255,7 +1292,13 @@ export default function App() {
       {/* Persistent one-line footer once data is in; the landing carries the full footer */}
 
       {/* Legal pages: `#/terms` etc., on top of everything */}
-      {legalRoute && <LegalPage route={legalRoute} />}
+      {legalRoute && (
+        <Suspense fallback={
+          <div className="legal-page" role="document"><div className="legal-body"><p className="note">{t('正在载入…')}</p></div></div>
+        }>
+          <LegalPage route={legalRoute} />
+        </Suspense>
+      )}
     </div>
     </LangContext.Provider>
   );

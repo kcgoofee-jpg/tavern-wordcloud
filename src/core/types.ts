@@ -50,6 +50,11 @@ export interface ParsedChat {
   /** Character counts before and after cleaning. */
   rawChars: number;
   cleanChars: number;
+  /**
+   * Last message index that still fit in the model context
+   * (`chat_metadata.lastInContextMessageId`). HUD display is a separate feature.
+   */
+  lastInContextMessageId?: number;
 }
 
 export interface WordCount {

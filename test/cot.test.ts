@@ -88,6 +88,28 @@ describe('cloud source switch', () => {
     expect(r.words.map((w) => w.text)).not.toContain('状态');
   });
 
+  it('prefers extra.reasoning_display_text over extra.reasoning (ST regex UI text)', () => {
+    const content = [
+      JSON.stringify({ user_name: 'unused', character_name: 'unused', chat_metadata: { lastInContextMessageId: 2 } }),
+      JSON.stringify({
+        name: '角色', is_user: false, mes: '他推开门走了进去。',
+        extra: {
+          reasoning: 'FOOBARENVY 内部痕迹不该进云',
+          reasoning_display_text: '她合上本子想了很久。',
+          model: 'model-a', api: 'custom',
+        },
+      }),
+    ].join('\n');
+    const r = analyze(
+      [{ name: '测试卡 - 2026-08-31@20h00m08s527ms.jsonl', content }],
+      { ...base, source: 'reasoning' },
+    );
+    const bag = r.words.map((w) => w.text).join(' ');
+    expect(bag).toContain('本子');
+    expect(bag).not.toMatch(/FOOBARENVY|内部痕迹/);
+    expect(r.meta?.lastInContextMessageId).toBe(2);
+  });
+
   it('reasoning source counts reasoning traces', () => {
     const r = analyze(files, { ...base, source: 'reasoning' });
     // 更新状态 occurs only in reasoning traces

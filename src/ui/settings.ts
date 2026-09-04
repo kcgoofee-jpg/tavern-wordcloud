@@ -1,4 +1,6 @@
-import { DEFAULT_ANALYZE_OPTIONS, type AnalyzeOptions } from '../core/analyze';
+import type { AnalyzeOptions } from '../core/analyze';
+// From the split-out module, not `core/analyze`: the pipeline itself belongs to the worker.
+import { DEFAULT_ANALYZE_OPTIONS } from '../core/analyzeOptions';
 import type { EntityKind } from '../core/entities';
 import { detectLang, type Lang } from './i18n';
 import { DEFAULT_WATERMARK_TEXT, type WatermarkPos } from './watermark';

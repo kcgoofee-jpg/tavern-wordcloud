@@ -119,7 +119,8 @@ describe('legal routes', () => {
     window.location.hash = '#/privacy';
     const user = userEvent.setup();
     render(<App />);
-    expect(screen.getByRole('document', { name: '隐私政策' })).toBeTruthy();
+    // The legal page is a lazy chunk (see test/lazy.test.ts), so it lands one tick late.
+    expect(await screen.findByRole('document', { name: '隐私政策' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: '隐私政策' })).toBeTruthy();
     await user.click(screen.getAllByRole('link', { name: '← 返回词云' })[0]);
     await vi.waitFor(() => expect(screen.queryByRole('document')).toBeNull());
@@ -165,7 +166,8 @@ describe('feedback confirmation', () => {
       await user.click(screen.getByTitle('词频表'));
 
       const reportTitle = '认为『沈砚秋』不该出现？提交反馈——会先给你看要发送的片段，确认后才上传';
-      await user.click(screen.getByTitle(reportTitle));
+      // The words panel is a lazy chunk; wait for it instead of the Suspense placeholder.
+      await user.click(await screen.findByTitle(reportTitle));
       // The dialog shows the full snippets and the payload size
       const dialog = screen.getByRole('dialog', { name: '提交反馈' });
       expect(within(dialog).getByText(/他看着她，说：这词不对劲。/)).toBeTruthy();

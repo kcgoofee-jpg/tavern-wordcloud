@@ -1,16 +1,16 @@
 import type { AnalysisResult, CleanOptions, Role, TokenizeOptions } from './types';
-import { DEFAULT_CLEAN_OPTIONS, stripRepeatedLines } from './clean';
+import { stripRepeatedLines } from './clean';
 import { collectNames, parseChatFile } from './parse';
-import { DEFAULT_AI_CONFIG, type AiTokenizerConfig } from './aiTokenizer';
+import type { AiTokenizerConfig } from './aiTokenizer';
 import { cleanMessageText } from './clean';
 import { cleanReasoning, COT_SCHEMA_STOPWORDS } from './cot';
 import { classifyKinds, detectEntities, systemWords, type EntityKind } from './entities';
 import { detectEnglishNames } from './english';
-import { countSensitive, NSFW_EXPLICIT_KINDS, NSFW_KINDS, nsfwKind, type NsfwKind } from './nsfw';
+import { countSensitive, NSFW_KINDS, nsfwKind, type NsfwKind } from './nsfw';
 import { applyBlocklist } from './blocklist';
 import { buildCooccur } from './cooccur';
 import { describeChat, groupByCharacter } from './meta';
-import { DEFAULT_TOKENIZE_OPTIONS, tokenizeCorpus, tokenizeCorpusAsync, type TokenizeResult } from './tokenize';
+import { tokenizeCorpus, tokenizeCorpusAsync, type TokenizeResult } from './tokenize';
 
 export interface SourceFile {
   name: string;
@@ -57,23 +57,7 @@ const GENERIC_SCAN = 150;
 /** Filler appears about once per message where it appears; a word repeated inside messages is content. */
 const GENERIC_PER_MESSAGE = 2.0;
 
-export const DEFAULT_ANALYZE_OPTIONS: AnalyzeOptions = {
-  clean: { ...DEFAULT_CLEAN_OPTIONS },
-  tokenize: { ...DEFAULT_TOKENIZE_OPTIONS },
-  includeAllSwipes: false,
-  roles: ['user'],
-  onlySpeakers: [],
-  useNamesAsDictionary: true,
-  onlyCharacter: null,
-  // Every kind on by default (user decision 2026-09-04): the kind buttons are the way to hide names, not a hidden default.
-  kinds: ['plain', 'person', 'place', 'time', 'generic', 'brand', 'wear', 'title'],
-  source: 'mes',
-  onlyModel: null,
-  ai: DEFAULT_AI_CONFIG,
-  nsfwMode: 'show',
-  nsfwKinds: [...NSFW_EXPLICIT_KINDS],
-  ignoreOwnerBlocklist: false,
-};
+export { DEFAULT_ANALYZE_OPTIONS } from './analyzeOptions';
 
 /**
  * Parse, filter and clean the input, returning the texts to tokenize.
@@ -94,7 +78,7 @@ export function prepareTexts(files: SourceFile[], options: AnalyzeOptions): stri
     const rows = kept
       .filter((m) => m.reasoning && (!options.onlyModel || m.model === options.onlyModel))
       .map((m) => m.reasoning!);
-    return cleanReasoning(rows, (t) => cleanMessageText(t, options.clean)).texts;
+    return cleanReasoning(rows, (t) => cleanMessageText(t, options.clean, { placement: 6 })).texts;
   }
   return stripRepeatedLines(kept.map((m) => m.text));
 }
@@ -182,7 +166,7 @@ function prepare(
     const rows = kept
       .filter((m) => m.reasoning && (!options.onlyModel || m.model === options.onlyModel))
       .map((m) => m.reasoning!);
-    const cleaned = cleanReasoning(rows, (t) => cleanMessageText(t, options.clean));
+    const cleaned = cleanReasoning(rows, (t) => cleanMessageText(t, options.clean, { placement: 6 }));
     texts = cleaned.texts;
     cotBoilerplate = cleaned.boilerplateSentences;
     cotStopwords = COT_SCHEMA_STOPWORDS;
@@ -344,6 +328,7 @@ function prepare(
           warnings: [],
           rawChars: scoped.reduce((a, c) => a + c.rawChars, 0),
           cleanChars: scoped.reduce((a, c) => a + c.cleanChars, 0),
+          lastInContextMessageId: scoped.length === 1 ? scoped[0].lastInContextMessageId : undefined,
         })
       : null,
   };

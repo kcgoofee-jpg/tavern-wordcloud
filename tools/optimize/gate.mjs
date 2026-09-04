@@ -41,7 +41,15 @@ if (base) {
   if (m.bundle && base.bundle) need(m.bundle.gzip <= base.bundle.gzip * 1.02, `gzip ${m.bundle.gzip} > ${Math.round(base.bundle.gzip * 1.02)}`);
   if (m.core?.tokenize && base.core?.tokenize) need(m.core.tokenize.ms <= base.core.tokenize.ms * 1.10, `tokenize ${m.core.tokenize.ms}ms > ${Math.round(base.core.tokenize.ms * 1.1)}`);
   if (m.core?.layout && base.core?.layout) need(m.core.layout.ms <= Math.max(base.core.layout.ms * 1.10, base.core.layout.ms + 20), `layout ${m.core.layout.ms}ms > budget`);
-  for (const [f, v] of Object.entries(m.core?.noise ?? {})) if (base.core?.noise?.[f] != null) need(Math.abs(v - base.core.noise[f]) <= 0.02, `noise ${f} ${v} vs ${base.core.noise[f]}`);
+  for (const [f, v] of Object.entries(m.core?.noise ?? {})) {
+    const prev = base.core?.noise?.[f];
+    if (prev == null) continue;
+    const delta = v - prev;
+    if (Math.abs(delta) > 0.02) {
+      console.error(`noise 越界：fixture=${f}  变化=${delta >= 0 ? '+' : ''}${delta.toFixed(4)}  上次=${prev}  本次=${v}`);
+    }
+    need(Math.abs(delta) <= 0.02, `noise ${f} changed by ${delta >= 0 ? '+' : ''}${delta.toFixed(4)} (now ${v}, was ${prev})`);
+  }
   if (m.visual && !acceptVisual) need((m.visual.maxRatio ?? 0) <= 0.005, `visual diff ${m.visual.maxRatio} > 0.005`);
 }
 if (fails.length) { console.error('GATE FAILED\n  ' + fails.join('\n  ')); process.exit(1); }

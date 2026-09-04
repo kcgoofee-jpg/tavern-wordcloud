@@ -46,11 +46,43 @@ function roleOf(m: RawMessage, charName: string | undefined, storySpeakers: Read
   return 'char';
 }
 
-/** What the user saw: regex display output, else the raw `mes`. */
+/**
+ * Current swipe body. SillyTavern writes `mes = swipes[swipe_id]` on swipe
+ * (`slash-commands.js` addSwipeCallback / script.js syncMesToSwipe). If a file
+ * was saved mid-edit they can diverge; the selector is `swipe_id`.
+ */
+function currentMes(m: RawMessage): string {
+  const id = m.swipe_id;
+  let body = m.mes ?? '';
+  if (
+    typeof id === 'number' && Number.isInteger(id) && id >= 0
+    && Array.isArray(m.swipes) && typeof m.swipes[id] === 'string'
+  ) {
+    body = m.swipes[id];
+  }
+  // chats.js appendFileContent prepends attachment text and stores its length.
+  // Only applied on the raw mes/swipe path: display_text is what the UI showed.
+  const fl = extraOf(m).fileLength;
+  if (typeof fl === 'number' && Number.isInteger(fl) && fl > 0 && fl <= body.length) {
+    return body.slice(fl);
+  }
+  return body;
+}
+
+/** What the user saw: regex display output, else the selected swipe / `mes`. */
 function messageBody(m: RawMessage): string {
   const display = extraOf(m).display_text;
   if (typeof display === 'string' && display.trim()) return display;
-  return m.mes ?? '';
+  return currentMes(m);
+}
+
+/** Same rule as `display_text` vs `mes`: the regex-processed trace if present (`reasoning.js`). */
+function extraReasoning(ex: Record<string, unknown>): string | undefined {
+  for (const key of ['reasoning_display_text', 'reasoning'] as const) {
+    const v = ex[key];
+    if (typeof v === 'string' && v.trim()) return v;
+  }
+  return undefined;
 }
 
 /** Metadata line: has chat_metadata / user_name but no mes. */
@@ -98,15 +130,18 @@ function pushMessage(
   }
   const raw = texts.join('\n');
   const ex = extraOf(m);
+  const role = roleOf(m, charName, storySpeakers);
   out.push({
     index,
     name: typeof m.name === 'string' ? m.name : zh('(未知)'),
-    role: roleOf(m, charName, storySpeakers),
+    role,
     raw,
-    text: cleanMessageText(raw, opts.clean),
+    text: cleanMessageText(raw, opts.clean, {
+      placement: role === 'user' ? 1 : role === 'char' ? 2 : undefined,
+    }),
     date: m.send_date != null ? String(m.send_date) : undefined,
     // Reasoning is passed through raw; it has its own cleaning path (cot.ts).
-    reasoning: typeof ex.reasoning === 'string' && ex.reasoning.trim() ? ex.reasoning : undefined,
+    reasoning: extraReasoning(ex),
     model: typeof ex.model === 'string' ? ex.model : undefined,
     api: typeof ex.api === 'string' ? ex.api : undefined,
     genSeconds: genSeconds(m),
@@ -218,6 +253,9 @@ export function parseChatFile(
       if (cm) {
         if (typeof cm.world_info === 'string' && cm.world_info) chat.worldInfo = cm.world_info;
         if (typeof cm.note_prompt === 'string' && cm.note_prompt.trim()) chat.authorNote = cm.note_prompt.trim();
+        if (typeof cm.lastInContextMessageId === 'number' && Number.isFinite(cm.lastInContextMessageId)) {
+          chat.lastInContextMessageId = cm.lastInContextMessageId;
+        }
       }
       continue;
     }

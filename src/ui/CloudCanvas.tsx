@@ -3,7 +3,8 @@ import { embedLsb, encodeChunkText, WATERMARK_KEYWORD } from './watermark';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useT } from './i18n';
 import { canvasMeasure, hashSeed, layoutCloud, type Placement } from '../render/layout';
-import { analyzeQr, type QrAnalysis } from '../render/qr';
+import type { QrAnalysis } from '../render/qr';
+import { loadQr, qrSync } from '../render/qrLoad';
 import { CloudRenderer, type FrameState, type RenderInput } from '../render/renderer';
 import { cloudToSvg } from '../render/svg';
 import { downloadBlob, mimeOf, tooLarge, type PaintOpts } from './export';
@@ -218,10 +219,20 @@ const CloudCanvas = forwardRef<CloudApi, Props>(function CloudCanvas(
     );
   }, [placements, size.dpr, size.w, size.h]);
 
+  // The QR encoder is a separate chunk (render/qrLoad); nothing here needs it until a share
+  // link exists, so it is fetched on demand and the layout re-runs once it lands.
+  const [qrMod, setQrMod] = useState(qrSync);
+  useEffect(() => {
+    if (!shareUrl || qrMod) return;
+    let live = true;
+    void loadQr().then((m) => { if (live) setQrMod(m); });
+    return () => { live = false; };
+  }, [shareUrl, qrMod]);
+
   const qr = useMemo<QrAnalysis | null>(() => {
-    if (!shareUrl) return null;
-    try { return analyzeQr(shareUrl, 'H'); } catch { return null; }
-  }, [shareUrl]);
+    if (!shareUrl || !qrMod) return null;
+    try { return qrMod.analyzeQr(shareUrl, 'H'); } catch { return null; }
+  }, [shareUrl, qrMod]);
 
   // Replay the entrance animation only after a real re-layout, not on theme changes.
   useEffect(() => { stateRef.current.progress = 0; }, [placements]);
@@ -350,9 +361,11 @@ const CloudCanvas = forwardRef<CloudApi, Props>(function CloudCanvas(
       ctx.globalAlpha = 1;
       ctx.textAlign = 'left';
     }
-    if (o.qr) {
+    // Callers that ask for a QR stamp await `loadQr()` first (see App's savePng).
+    const qrMod = qrSync();
+    if (o.qr && qrMod) {
       // Quiet zone plus a light plate: hard rule 6 wants the code scannable, not pretty
-      const q = analyzeQr(o.qr);
+      const q = qrMod.analyzeQr(o.qr);
       const box = Math.max(72, Math.round(Math.min(out.width, out.height) * 0.16));
       const cell = Math.max(1, Math.floor(box / (q.size + 4)));
       const side = cell * (q.size + 4);

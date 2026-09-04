@@ -40,4 +40,7 @@
   animation: card-in .26s var(--spring) backwards;
 }
 .notice-pop p { margin: 0; color: var(--fg); }
+/* Title on its own line above the body; absent notices render no element at all */
+.notice-pop .notice-title { font-weight: 600; font-size: var(--t-sm); margin-bottom: 5px; }
+.notice-pop .notice-title + p { color: var(--fg-dim); }
 .notice-pop time { display: block; margin-top: 8px; font-size: var(--t-xs); opacity: .62; }
