@@ -1,0 +1,49 @@
+/* ---------- Author claim: the collapsible form, and the claimed-card list ---------- */
+.claim { margin-top: 8px; }
+.claim-toggle {
+  font-size: var(--t-sm); color: var(--fg-dim); padding: 4px 10px;
+  border-radius: var(--r-sm); background: var(--surface2);
+}
+.claim-toggle:hover,
+.claim-toggle[aria-expanded='true'] { color: var(--fg); }
+
+.claim-body { margin-top: 8px; display: grid; gap: 8px; max-width: 460px; }
+.claim-field {
+  display: grid; grid-template-columns: 5.5em 1fr auto; align-items: center; gap: 8px;
+  font-size: var(--t-sm); color: var(--fg-dim);
+}
+.claim-field > label { grid-column: 1; }
+.claim-field input {
+  min-width: 0; padding: 5px 8px; border-radius: var(--r-sm);
+  background: var(--surface); color: var(--fg); font-size: var(--t-sm);
+}
+.claim-field input[readonly] { color: var(--fg-dim); font-variant-numeric: tabular-nums; }
+.claim-copy {
+  grid-column: 3; font-size: var(--t-sm); color: var(--fg-dim);
+  padding: 4px 8px; border-radius: var(--r-sm); background: var(--surface2);
+}
+.claim-copy:hover { color: var(--fg); }
+
+.claim-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.claim-btn {
+  font-size: var(--t-sm); padding: 5px 12px; border-radius: var(--r-sm);
+  background: var(--surface2); color: var(--fg-dim);
+}
+.claim-btn:hover { color: var(--fg); }
+.claim-btn.primary { background: var(--accent); color: var(--surface); }
+.claim-btn:disabled { opacity: .5; }
+
+.claim-confirm {
+  display: grid; gap: 6px; padding: 8px 10px;
+  border-radius: var(--r-sm); background: var(--surface);
+}
+.claim-preview {
+  margin: 0; padding-left: 1.1em; font-size: var(--t-sm);
+  color: var(--fg); word-break: break-all;
+}
+
+/* Claimed cards: names only, one per line. */
+.claimed-cards {
+  margin: 2px 0 0; padding-left: 1.1em; font-size: var(--t-sm);
+  color: var(--fg); display: grid; gap: 2px;
+}

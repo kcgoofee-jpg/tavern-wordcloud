@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CommunityPanel, type CommunityStats } from '../../src/ui/panels';
+import { setCurrentLang } from '../../src/ui/i18n';
 
 afterEach(cleanup);
 
@@ -125,6 +126,17 @@ describe('CommunityPanel author claim', () => {
     expect(sessionStorage.getItem('wc-claim-token')).toBe(tok);
   });
 
+  it('offers a copy button for the challenge string', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    open();
+    const tok = (screen.getByLabelText('校验串') as HTMLInputElement).value;
+    const copy = screen.getByTitle('复制');
+    fireEvent.click(copy);
+    await waitFor(() => expect(screen.getByText('已复制')).toBeTruthy());
+    expect(writeText).toHaveBeenCalledWith(tok);
+  });
+
   it('shows the payload first and only sends after confirmation', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true } as Response);
     vi.stubGlobal('fetch', fetchMock);
@@ -143,5 +155,36 @@ describe('CommunityPanel author claim', () => {
     expect(Object.keys(body).sort()).toEqual(['card', 'token', 'url']);   // no identity fields
     expect(body.card).toBe('小红');
     await waitFor(() => expect(screen.getByText('已收到，站长核对后加入榜单')).toBeTruthy());
+  });
+
+  it('words a rejection through the shared error classifier', async () => {
+    // txv() reads the module-level language (useSettings syncs it in the app), not the context.
+    setCurrentLang('zh');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, json: () => Promise.resolve({ code: 'claim_bad_url', error: '链接要是完整的 https 网址' }),
+    } as unknown as Response));
+    open();
+    fireEvent.change(screen.getByLabelText('卡名'), { target: { value: '小红' } });
+    fireEvent.change(screen.getByLabelText('公开链接'), { target: { value: 'https://example.com/card' } });
+    fireEvent.click(screen.getByText('提交认领'));
+    fireEvent.click(screen.getByText('发送'));
+    await waitFor(() => expect(screen.getByText('链接要是完整的 https 网址')).toBeTruthy());
+  });
+});
+
+describe('CommunityPanel claimed cards', () => {
+  it('is not rendered at all when no card has been claimed', () => {
+    view();
+    expect(screen.queryByText('已认领的角色卡')).toBeNull();
+    view({ ...STATS, claimedCards: [] });
+    expect(screen.queryByText('已认领的角色卡')).toBeNull();
+  });
+
+  it('lists the names only — no link, no submitter', () => {
+    const { container } = view({ ...STATS, claimedCards: ['排练厅的下午', '雨夜咖啡店'] });
+    expect(screen.getByText('已认领的角色卡')).toBeTruthy();
+    const items = [...container.querySelectorAll('.claimed-cards li')].map((n) => n.textContent);
+    expect(items).toEqual(['排练厅的下午', '雨夜咖啡店']);
+    expect(container.querySelector('.claimed-cards a')).toBeNull();
   });
 });

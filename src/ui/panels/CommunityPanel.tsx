@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { useT } from '../i18n';
+import { classifyError } from '../../core/errors';
+import { copyText } from '../clipboard';
+import { useT, txv } from '../i18n';
 
 /** One leaderboard row: count, share, and the 95% Wilson bounds the server computed. */
 export interface BoardRow { name: string; n: number; share: number; low: number; high: number }
@@ -20,6 +22,8 @@ export interface CommunityStats {
   kinds: { kind: string; words: number; share: number }[];
   /** Median generation time in ms, when logs carried timings. */
   genMs: number | null;
+  /** Card names an approved author claim vouched for. Names only — no links, no submitter. */
+  claimedCards?: string[];
   updated: number;
 }
 
@@ -174,21 +178,33 @@ function ClaimForm() {
   const [url, setUrl] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [state, setState] = useState<'idle' | 'sent' | 'failed'>('idle');
+  const [failure, setFailure] = useState('');
+  const [copied, setCopied] = useState(false);
   const toggle = () => {
     setOpen((v) => {
       if (!v) setToken(claimToken());
       return !v;
     });
   };
+  /** Translate a rejection through the shared classifier, so a server `code` is worded once. */
+  const fail = (raw: unknown) => {
+    const e = classifyError(raw);
+    setFailure(e.titleTpl ? txv(e.titleTpl) : txv(e.title));
+    setState('failed');
+  };
   const send = () => {
     setConfirming(false);
     fetch('/api/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card: card.trim(), url: url.trim(), token }) })
-      .then((r) => setState(r.ok ? 'sent' : 'failed'))
-      .catch(() => setState('failed'));
+      .then(async (r) => {
+        if (r.ok) { setState('sent'); return; }
+        const body = await r.json().catch(() => ({})) as { code?: string; error?: string };
+        fail(Object.assign(new Error(body.error ?? 'claim failed'), { code: body.code }));
+      })
+      .catch((e: unknown) => fail(e));
   };
   return (
     <div className="claim">
-      <button type="button" className="claim-toggle" aria-expanded={open} onClick={toggle}>
+      <button type="button" className="claim-toggle" aria-expanded={open} title={t('认领我的角色卡')} onClick={toggle}>
         {t('认领我的角色卡')}
       </button>
       {open && (
@@ -200,9 +216,15 @@ function ClaimForm() {
           <label className="claim-field"><span>{t('公开链接')}</span>
             <input type="url" value={url} maxLength={300} placeholder="https://" onChange={(e) => { setUrl(e.target.value); setState('idle'); }} />
           </label>
-          <label className="claim-field"><span>{t('校验串')}</span>
-            <input type="text" readOnly value={token} onFocus={(e) => e.currentTarget.select()} />
-          </label>
+          {/* The copy button sits outside the label: a label wrapping two controls
+              makes the field ambiguous to assistive tech and to getByLabelText. */}
+          <div className="claim-field">
+            <label htmlFor="claim-token">{t('校验串')}</label>
+            <input id="claim-token" type="text" readOnly value={token} onFocus={(e) => e.currentTarget.select()} />
+            <button type="button" className="claim-copy" title={t('复制')} onClick={() => { void copyText(token).then(setCopied); }}>
+              {copied ? t('已复制') : t('复制')}
+            </button>
+          </div>
           {confirming ? (
             <div className="claim-confirm">
               <p className="note">{t('将发送这三项，别的什么都不发：')}</p>
@@ -222,7 +244,7 @@ function ClaimForm() {
             </div>
           )}
           {state === 'sent' && <p className="stat-line">{t('已收到，站长核对后加入榜单')}</p>}
-          {state === 'failed' && <p className="note">{t('没发出去，检查一下链接是不是完整的 https 网址')}</p>}
+          {state === 'failed' && <p className="note">{failure || t('没发出去，检查一下链接是不是完整的 https 网址')}</p>}
         </div>
       )}
     </div>
@@ -249,6 +271,7 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
   const median = medianBucket(stats.sizes);
   // A server one deploy behind returns none of the leaderboard fields; render the rest.
   const models = stats.models ?? [], endpoints = stats.endpoints ?? [], kinds = foldKinds(stats.kinds ?? []);
+  const claimed = stats.claimedCards ?? [];
   return (
     <>
       <section className="community-sec">
@@ -306,6 +329,15 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
       <p className="note">{peak === null ? t('还没有数据') : t('按小时（北京时间），最活跃是 {h} 点', { h: peak })}</p>
       <p className="stat-line">{peak === null ? t('还没有数据') : t('{h} 点最热闹，占全天 {p}%', { h: peak, p: peakShare })}</p>
       </section>
+      {claimed.length > 0 && (
+      <section className="community-sec">
+      <div className="group-label">{t('已认领的角色卡')}</div>
+      <ul className="claimed-cards">
+        {claimed.map((name) => <li key={name}>{name}</li>)}
+      </ul>
+      <p className="note">{t('作者自己提交、站长核对过的卡名；不显示链接，也不显示是谁提交的。')}</p>
+      </section>
+      )}
       <section className="community-sec community-sec-wide">
       <div className="group-label">{t('我的参与')}</div>
       <label className="check">
