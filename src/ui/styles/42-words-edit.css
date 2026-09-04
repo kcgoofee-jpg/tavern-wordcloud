@@ -55,6 +55,7 @@
 
 .alias-cands { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
 .alias-cands .note { margin: 0; }
+.alias-cands .alias-exp { flex: 1 0 100%; opacity: 0.75; }
 .alias-cand {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: var(--t-sm); color: var(--fg);

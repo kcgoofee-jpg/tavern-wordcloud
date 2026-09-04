@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_ANALYZE_OPTIONS } from '../../src/core/analyze';
 import type { WordCount, WordOverride } from '../../src/core/types';
 import { WordsPanel } from '../../src/ui/panels';
+import type { Cooccur } from '../../src/core/cooccur';
 
 afterEach(cleanup);
 
@@ -15,7 +16,7 @@ const WORDS: WordCount[] = [
 ];
 
 /** Renders the panel over a mutable override map and re-renders after every change. */
-function harness(init: Record<string, WordOverride> = {}, words: WordCount[] = WORDS) {
+function harness(init: Record<string, WordOverride> = {}, words: WordCount[] = WORDS, cooccur?: Cooccur) {
   let current = init;
   const setOverrides = vi.fn((fn: (o: Record<string, WordOverride>) => Record<string, WordOverride>) => {
     current = fn(current);
@@ -25,7 +26,7 @@ function harness(init: Record<string, WordOverride> = {}, words: WordCount[] = W
     <WordsPanel
       words={words} options={DEFAULT_ANALYZE_OPTIONS} setOptions={() => {}}
       onHover={() => {}} hovered={null}
-      overrides={current} setOverrides={setOverrides} />
+      overrides={current} setOverrides={setOverrides} cooccur={cooccur} />
   );
   const view = render(ui());
   return { get: () => current };
@@ -164,6 +165,26 @@ describe('WordsPanel equivalence mode', () => {
     expect(input.value).toBe('zzz');
     await user.type(input, '{Enter}');
     expect(h.get()['西德妮'].display).toBe('zzz');
+  });
+
+  it('candidate order follows the score: co-occurrence beats a higher count', async () => {
+    const user = userEvent.setup();
+    // Both candidates are persons, so the kind bonus cancels out; 沈砚秋 is the more
+    // frequent word but never shares a message, while sydney always does.
+    const words: WordCount[] = [
+      { text: '西德妮', count: 12, kind: 'person' },
+      { text: '沈砚秋', count: 9, kind: 'person' },
+      { text: 'sydney', count: 3, kind: 'person' },
+    ];
+    const cooccur: Cooccur = {
+      docs: { '西德妮': 12, '沈砚秋': 9, 'sydney': 3 },
+      pairs: { '西德妮': { 'sydney': 3 }, 'sydney': { '西德妮': 3 } },
+    };
+    harness({}, words, cooccur);
+    await user.click(equalsBtn());
+    const names = screen.getAllByTitle(/把「.+」并入/).map((b) => b.textContent);
+    expect(names[0]).toContain('sydney');
+    expect(names[1]).toContain('沈砚秋');
   });
 
   it('the 等价 chip undoes the alias', async () => {

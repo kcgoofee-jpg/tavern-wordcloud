@@ -1053,6 +1053,7 @@ export default function App() {
                 overrides={settings.overrides}
                 setOverrides={(fn) => setSettings((s) => ({ ...s, overrides: fn(s.overrides) }))}
                 priority={parsePriority(settings.priority)}
+                cooccur={result?.cooccur}
                 onHover={setHovered} hovered={hovered} onReport={health?.ok ? (w) => void reportWord(w) : undefined} />
             )}
             {panel === 'review' && (

@@ -582,6 +582,7 @@ const EN: Record<string, string> = {
   '把「{a}」并入「{b}」': 'Merge "{a}" into "{b}"',
   '没有匹配的词；回车会改成只修改「{w}」的显示名': 'No match; Enter will rename "{w}" instead',
   '没有匹配的词，已改为只修改显示名': 'No matching word — renaming instead',
+  '候选顺序是实验功能：按同类、共现和输入前缀猜的，不一定对': 'Experimental ranking: guessed from entity kind, co-occurrence and what you typed — often wrong',
   '「{a}」已经并到「{b}」那边了，再并回来会绕圈': '"{a}" is already merged into "{b}"; merging back would loop',
   '优先词': 'Priority words',
   '优先显示这些词': 'Show these words biggest',

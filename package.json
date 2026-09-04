@@ -25,6 +25,7 @@
     "eval": "npx --yes vite-node tools/eval/cli.ts",
     "bench": "npx --yes vite-node tools/bench-corpus.ts fixtures/ceo-en.jsonl fixtures/ceo-zh.jsonl",
     "eval:junk": "vitest run test/junk.test.ts",
+    "eval:alias": "npx --yes vite-node tools/eval/alias.ts",
     "eval:persons": "npx --yes vite-node tools/eval/persons.ts",
     "eval:kinds": "npx --yes vite-node tools/eval/kinds.ts",
     "optimize:measure": "node tools/optimize/measure.mjs",

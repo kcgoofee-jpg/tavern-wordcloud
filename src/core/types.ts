@@ -169,4 +169,10 @@ export interface AnalysisResult {
   groups: import('./meta').CharacterGroup[];
   /** Card info for the current scope. */
   meta: import('./meta').ChatMeta | null;
+  /**
+   * Word co-occurrence over the head of the frequency list, used only by the
+   * equivalence picker. Analysis-time scratch data: stripped before sharing,
+   * exporting or contributing (core/cooccur.ts `stripCooccur`).
+   */
+  cooccur?: import('./cooccur').Cooccur;
 }

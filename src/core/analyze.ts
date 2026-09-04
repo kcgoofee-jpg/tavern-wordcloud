@@ -8,6 +8,7 @@ import { classifyKinds, detectEntities, systemWords, type EntityKind } from './e
 import { detectEnglishNames } from './english';
 import { countSensitive, NSFW_EXPLICIT_KINDS, NSFW_KINDS, nsfwKind, type NsfwKind } from './nsfw';
 import { applyBlocklist } from './blocklist';
+import { buildCooccur } from './cooccur';
 import { describeChat, groupByCharacter } from './meta';
 import { DEFAULT_TOKENIZE_OPTIONS, tokenizeCorpus, tokenizeCorpusAsync, type TokenizeResult } from './tokenize';
 
@@ -330,6 +331,7 @@ function prepare(
         words: typed.filter((w) => w.kinds.some((x) => x.kind === k) && w.count >= options.tokenize.minCount).length,
       })),
     },
+    cooccur: buildCooccur(texts, visible),
     elapsedMs: Date.now() - t0,
     groups,
     meta: scoped.length

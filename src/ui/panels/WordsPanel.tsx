@@ -3,6 +3,8 @@ import { useT } from '../i18n';
 import type { AnalyzeOptions } from '../../core/analyze';
 import type { WordCount, WordOverride } from '../../core/types';
 import { hasAliasCycle } from '../../core/overrides';
+import { rankAliasCandidates } from '../../core/aliasScore';
+import type { Cooccur } from '../../core/cooccur';
 import Icon from '../Icons';
 import { NSFW_EXPLICIT_KINDS } from '../../core/nsfw';
 import { nsfwLabel } from '../nsfwLabels';
@@ -12,7 +14,7 @@ import { toTraditional } from '../../theme/s2t';
 const key = (w: string) => w.toLowerCase();
 
 export function WordsPanel({
-  words, options, setOptions, onHover, hovered, onReport, overrides, setOverrides, priority = [],
+  words, options, setOptions, onHover, hovered, onReport, overrides, setOverrides, priority = [], cooccur,
 }: {
   /** Report a word as noise: sends the word and a few context snippets. Hidden without a server. */
   onReport?: (word: string) => void;
@@ -25,6 +27,8 @@ export function WordsPanel({
   setOverrides: (fn: (o: Record<string, WordOverride>) => Record<string, WordOverride>) => void;
   /** Parsed priority words; they outrank a hide, so those hide chips are shown greyed. */
   priority?: string[];
+  /** Co-occurrence index from the analysis; drives the equivalence candidate ranking. */
+  cooccur?: Cooccur | null;
 }) {
   const t = useT();
   const [q, setQ] = useState('');
@@ -94,27 +98,24 @@ export function WordsPanel({
     patchOv(w, { rotate: cur === 'v' ? 'h' : 'v' });
   };
 
+  /** Words that already point somewhere else; they are demoted, not hidden. */
+  const aliased = useMemo(
+    () => new Set(Object.entries(overrides).filter(([, o]) => o.alias !== undefined).map(([k]) => k)),
+    [overrides],
+  );
+
   /**
-   * Equivalence candidates: words that could be merged into `aliasInto`.
-   * Ranking is deliberately shallow — same entity kind first, then a prefix match,
-   * then a substring match. There is no co-occurrence scoring, so a zh/en pair
-   * (西德妮 / sydney) will not float to the top on its own.
+   * Equivalence candidates for `aliasInto`, ranked by core/aliasScore.ts:
+   * same kind, prefix/substring of what was typed, co-occurrence rate, similar
+   * length, minus a penalty for a word already aliased elsewhere. Experimental:
+   * `npm run eval:alias` puts the top-3 hit rate below the 60% bar, so the list
+   * is a shortcut, not an answer.
    */
   const candidates = useMemo(() => {
     if (!aliasInto) return [];
-    const target = words.find((w) => key(w.text) === key(aliasInto));
-    const needle = q.trim().toLowerCase();
-    const scored = words
-      .filter((w) => key(w.text) !== key(aliasInto))
-      .map((w) => {
-        const text = w.text.toLowerCase();
-        const match = !needle ? 0 : text.startsWith(needle) ? 2 : text.includes(needle) ? 1 : -1;
-        return { w, score: match + (target && w.kind && w.kind === target.kind ? 4 : 0), match };
-      })
-      .filter((c) => c.match >= 0);
-    scored.sort((a, b) => b.score - a.score || b.w.count - a.w.count);
-    return scored.slice(0, 8).map((c) => c.w);
-  }, [words, q, aliasInto]);
+    const target = words.find((w) => key(w.text) === key(aliasInto)) ?? { text: aliasInto, count: 0 };
+    return rankAliasCandidates(target, words, { needle: q, cooccur, aliased }) as WordCount[];
+  }, [words, q, aliasInto, cooccur, aliased]);
 
   const exitAlias = () => { setAliasInto(null); setQ(''); setHint(null); };
 
@@ -201,6 +202,7 @@ export function WordsPanel({
       </div>
       {aliasInto && (
         <div className="alias-cands">
+          <p className="note alias-exp">{t('候选顺序是实验功能：按同类、共现和输入前缀猜的，不一定对')}</p>
           {candidates.length === 0
             ? <p className="note">{t('没有匹配的词；回车会改成只修改「{w}」的显示名', { w: aliasInto })}</p>
             : candidates.map((c) => (
