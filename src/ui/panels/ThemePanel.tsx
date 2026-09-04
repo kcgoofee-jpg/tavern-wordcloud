@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useT, tx } from '../i18n';
 import {
   GROUP_LABEL, THEME_GROUPS, THEME_SPECS, previewTheme,
@@ -42,6 +42,8 @@ export function ThemePanel({
   );
 
   // The color input needs an sRGB value; use the mid-lightness step as the representative color
+  /** Palette in use before a colour-vision switch replaced it, so switching back restores it. */
+  const before = useRef<string | null>(null);
   const pickHex = oklchToHex(resolved === 'dark' ? 0.62 : 0.55, custom.chroma, custom.hue);
 
   const card = (theme: Theme, id: string, note?: string) => {
@@ -81,11 +83,20 @@ export function ThemePanel({
           <button key={v} type="button" className={colorVision === v ? 'on' : ''}
             aria-pressed={colorVision === v}
             onClick={() => {
-              // Switching vision must change what you see: if the current palette is not safe
-              // under the new setting, jump to the first safe one instead of only greying cards.
+              // Switching vision must change what you see: an unsafe palette is swapped for a safe
+              // one. Going back has to undo that too — otherwise the palette stayed on the
+              // accessible one and it looked like the switch was stuck (reported 2026-09-05).
               const cur = previews.find((p) => p.spec.id === themeId);
               const safe = previews.find((p) => cvdAllows(v, p.theme.cvd));
-              patch(cur && !cvdAllows(v, cur.theme.cvd) && safe ? { colorVision: v, themeId: safe.spec.id } : { colorVision: v });
+              if (cur && !cvdAllows(v, cur.theme.cvd) && safe) {
+                before.current = themeId;
+                patch({ colorVision: v, themeId: safe.spec.id });
+                return;
+              }
+              const back = before.current;
+              const backOk = back && previews.find((p) => p.spec.id === back && cvdAllows(v, p.theme.cvd));
+              before.current = null;
+              patch(backOk ? { colorVision: v, themeId: back } : { colorVision: v });
             }}
           >{visionLabel(t)[v]}</button>
         ))}

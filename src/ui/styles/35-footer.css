@@ -6,7 +6,8 @@
   display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 14px;
   text-align: center; font-size: calc(var(--t-xs) - 1px); color: var(--fg-dim);
 }
-.foot nav { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 14px; }
+/* min-width:0 so a wrapping nav cannot push past the footer's own padding (audit: 越界左 7px). */
+.foot nav { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 14px; min-width: 0; max-width: 100%; }
 .foot a { color: var(--fg-dim); text-decoration: none; }
 .foot a:hover { color: var(--accent); text-decoration: underline; }
 .foot p { margin: 0; opacity: .7; }
