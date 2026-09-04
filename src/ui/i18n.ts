@@ -57,10 +57,6 @@ const EN: Record<string, string> = {
   // ── Modes ──
   '词频': 'Frequency',
   '关键词': 'Keywords',
-  '要配接口': 'needs an API',
-  '缺地址': 'no URL',
-  '缺模型': 'no model',
-  '缺密钥': 'no key',
   '统计出现最多的词。免费、半秒出结果': 'Counts the most frequent words. Free, half a second',
   '让大模型读完整份聊天，挑出这个故事独有的词。整份正文会发给你配的接口':
     'A model reads the whole log and picks what is specific to this story. The full text is sent to the endpoint you configured.',
@@ -470,6 +466,9 @@ const EN: Record<string, string> = {
   '已填': ' set',
   '没填': ' not set',
   '【原始信息】': '[RAW]',
+  '还没填接口地址——点一下去配': 'No endpoint URL yet — click to set it up',
+  '还没选模型——点一下去配': 'No model chosen yet — click to set it up',
+  '还没填密钥——点一下去配': 'No API key yet — click to set it up',
   '这份记录超过服务器 10 MB 的上限，网页版算不了。下载本地版可以在你自己的电脑上算，多大都行。': 'This log is over the 10 MB server limit, so the web version cannot process it. The local edition runs on your own computer with no size limit.',
   '榜单只统计词，不显示角色卡名。若您是某张卡的作者、希望它出现在榜单上：请在您公开发布这张卡的页面（角色卡站、频道帖）里临时加一行本站给的校验串，再把该页面链接贴到 issue。只需要公开链接，不要发身份证件、聊天记录或卡文件。': 'The board counts words only and never shows character-card names. To have a card you wrote listed: add the verification string this site gives you to the public page where you published the card, then post that link in an issue. A public link is all that is needed — never send ID documents, chat logs or the card file.',
   'GitHub Issues': 'GitHub Issues',

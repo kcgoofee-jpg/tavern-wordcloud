@@ -841,18 +841,15 @@ export default function App() {
           <button type="button" className={keywordMode ? 'on' : ''}
             title={localAiReady
               ? t('让大模型读完整份聊天，挑出这个故事独有的词。整份正文会发给你配的接口')
-              : t('还没配接口——点一下去配')}
+              : aiMissing === 'endpoint' ? t('还没填接口地址——点一下去配')
+                : aiMissing === 'model' ? t('还没选模型——点一下去配')
+                  : aiMissing === 'key' ? t('还没填密钥——点一下去配') : t('还没配接口——点一下去配')}
             onClick={() => {
               if (!localAiReady) { openPanel('ai'); return; }
               patch({ cloudMode: 'keyword' });
             }}>
             <Icon name="chip" size={15} />{t('关键词')}
-            {/* Name the missing field: "needs an API" left the user hunting through the panel */}
-            {!localAiReady && (
-              <em>{aiMissing === 'endpoint' ? t('缺地址')
-                : aiMissing === 'model' ? t('缺模型')
-                  : aiMissing === 'key' ? t('缺密钥') : t('要配接口')}</em>
-            )}
+            {/* The missing field is named in the tooltip, not printed next to the label. */}
           </button>
         </div>
       )}

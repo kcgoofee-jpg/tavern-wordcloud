@@ -81,7 +81,6 @@ export default function Landing({
               : t('还没配接口——点一下去配')}
             onClick={() => onCloudMode('keyword')}>
             <Icon name="chip" size={15} />{t('关键词')}
-            {!aiReady && <em>{t('要配接口')}</em>}
           </button>
         </div>
         <div className="land-acts">

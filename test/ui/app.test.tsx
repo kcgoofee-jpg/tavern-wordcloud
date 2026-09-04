@@ -208,7 +208,8 @@ describe('keyword mode without a key', () => {
       await vi.waitFor(() => expect(document.querySelector('.cloudmode')).toBeTruthy());
       const keywordBtn = within(document.querySelector('.cloudmode') as HTMLElement).getByText('关键词').closest('button')!;
       // Nothing configured at all: the label names the first missing field
-      expect(within(keywordBtn).getByText('缺地址')).toBeTruthy();
+      // The missing field is named in the tooltip now, not printed beside the label.
+      expect(keywordBtn.getAttribute('title')).toContain('还没填接口地址');
     } finally {
       fetchMock.mockImplementation(() => Promise.reject(new TypeError('offline')));
     }
@@ -233,7 +234,7 @@ describe('rail icons carry no captions', () => {
 });
 
 describe('keyword switch: which endpoint field is missing', () => {
-  it('with only an endpoint saved it says 缺模型, and opening the panel focuses the model input', async () => {
+  it('with only an endpoint saved the tooltip names the model, and opening the panel focuses the test button', async () => {
     localStorage.setItem('tw-settings', JSON.stringify({
       options: {
         ai: {
@@ -251,8 +252,8 @@ describe('keyword switch: which endpoint field is missing', () => {
 
     const keyword = within(document.querySelector('.cloudmode') as HTMLElement)
       .getByRole('button', { name: /关键词/ });
-    expect(keyword.textContent).toContain('缺模型');
-    expect(keyword.textContent).not.toContain('缺地址');
+    expect(keyword.getAttribute('title')).toContain('还没选模型');
+    expect(keyword.textContent).not.toContain('缺');
 
     // Clicking opens the endpoint panel. There is no model box before the list is fetched
     // (the box is a disabled select), so the cursor lands on the test-connection button.
