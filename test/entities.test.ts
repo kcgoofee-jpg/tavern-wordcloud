@@ -42,7 +42,9 @@ describe('entity detection', () => {
     expect(classify('2008年', e)).toBe('time');
     expect(classify('下午', e)).toBe('time');
     expect(classify('办公室', e)).toBe('place');
-    expect(classify('合同', e)).toBe('plain');
+    // 合同 used to stand in for "an ordinary noun with no kind"; since docs/33's
+    // batch 3 it is a 文书, so the stand-in has to be a word no rule reaches.
+    expect(classify('筷子', e)).toBe('plain');
   });
 
   /* ---------- F10: a word can carry several kinds ---------- */
@@ -69,7 +71,53 @@ describe('entity detection', () => {
   it('bare terms of address are titles, ordinary nouns are not', () => {
     const e = detectEntities(story);
     for (const w of ['陛下', '殿下', '大人', '老板', '导演', '女士']) expect(classify(w, e), w).toBe('title');
-    for (const w of ['合同', '剧本', '消息', '筷子']) expect(classify(w, e), w).toBe('plain');
+    for (const w of ['名字', '项目', '消息', '筷子']) expect(classify(w, e), w).toBe('plain');
+  });
+
+  /* ---------- docs/33 batch 3: the 20 kinds that take the design from 25 to 45 ---------- */
+
+  it('the batch-3 suffix rules hit their class and reject the confusables built on the same characters', () => {
+    const e = detectEntities(story);
+    const kinds = (w: string) => classifyKinds(w, e).map((k) => k.kind);
+    const cases: [string, string[], string[]][] = [
+      ['plant', ['槐树', '树叶', '树枝', '玫瑰'], ['潦草', '起草', '爆竹', '烟花']],
+      ['weather', ['暴雨', '大雪', '台风', '闪电'], ['血雨', '作风', '中风', '通风']],
+      ['device', ['洗衣机', '遥控器', '手机', '屏幕'], ['危机', '时机', '器官', '直升机']],
+      ['weapon', ['手枪', '长剑', '盾牌', '子弹'], ['矛盾', '开枪', '鞭炮', '反弹']],
+      ['sound', ['脚步声', '笑声', '巨响', '嗓音'], ['名声', '影响', '大声', '低声']],
+      ['smell', ['香味', '血腥味', '幽香', '气味'], ['意味', '品味', '回味', '口味']],
+      ['illness', ['伤口', '骨折', '后遗症', '头痛'], ['悲伤', '受伤', '生病', '心痛']],
+      ['speech', ['说道', '问道', '争吵', '语气'], ['知道', '味道', '街道', '难道']],
+      ['thought', ['念头', '回忆', '幻想', '想法'], ['我想', '他想', '不想', '纪念']],
+      ['desire', ['占有欲', '食欲', '渴望', '野心'], ['失望', '绝望', '眺望', '观望']],
+      ['document', ['说明书', '身份证', '账单', '名片'], ['简单', '事件', '软件', '穿一件']],
+      ['media', ['电视剧', '悲剧', '插曲', '小说'], ['加剧', '弯曲', '扭曲', '蜷曲']],
+      ['event', ['婚礼', '决赛', '开幕式', '发布会'], ['敬礼', '委员会', '机会', '方式']],
+      ['myth', ['神仙', '恶魔', '妖怪', '幽灵'], ['水仙', '精神', '心灵', '奇怪']],
+      ['martial', ['口诀', '真气', '心法', '筑基'], ['秘诀', '成功', '生气', '牡丹']],
+      ['festival', ['春节', '圣诞节', '元宵', '除夕'], ['细节', '环节', '章节', '季节']],
+      ['material', ['玻璃', '塑料', '丝绸', '水泥'], ['本质', '材料', '资料', '饮料']],
+      ['animal', ['老虎', '狐狸', '蝴蝶', '兔子'], ['马路', '牛奶', '龙头', '虎口']],
+      ['jewelry', ['戒指', '项链', '玉镯', '发簪'], ['衬衫', '外套', '皮带', '围巾']],
+      ['texture', ['冰凉', '滚烫', '粗糙', '湿润'], ['温柔', '冷漠', '热情', '冷静']],
+    ];
+    for (const [kind, pos, neg] of cases) {
+      for (const w of pos) expect(kinds(w), `${kind}+ ${w}`).toContain(kind);
+      for (const w of neg) expect(kinds(w), `${kind}- ${w}`).not.toContain(kind);
+    }
+  });
+
+  it('batch 3 never outranks an existing kind: it only fills in what was 其他', () => {
+    const e = detectEntities(story);
+    // 圣诞节 gains `festival` but stays 时间; 剧本 is a 文书 and a 作品, and the
+    // stronger of the two is the one CONF orders first.
+    expect(classify('圣诞节', e)).toBe('time');
+    expect(classifyKinds('圣诞节', e).map((k) => k.kind)).toContain('festival');
+    expect(classify('办公室', e)).toBe('place');
+    expect(classify('衬衫', e)).toBe('wear');
+    expect(classify('咖啡', e)).toBe('drink');
+    const tags = classifyKinds('剧本', e);
+    expect(tags.map((k) => k.kind)).toEqual(['document', 'media']);
   });
 
   it('garment words are wear; the same tail characters elsewhere are not', () => {

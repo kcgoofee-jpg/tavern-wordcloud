@@ -26,16 +26,21 @@ export type EntityKind =
   | 'kinship' | 'occupation' | 'relation'
   // Group 3 places and buildings
   | 'building' | 'room' | 'nature'
-  // Group 4 quantities
-  | 'money'
+  // Group 4 time and quantity
+  | 'money' | 'festival'
   // Group 5 things
   | 'food' | 'drink' | 'furniture' | 'container' | 'vehicle'
+  | 'device' | 'weapon' | 'jewelry'
+  // Group 6 materials and nature
+  | 'material' | 'plant' | 'animal' | 'weather'
   // Group 7 body and senses
-  | 'body' | 'color'
+  | 'body' | 'color' | 'sound' | 'smell' | 'texture' | 'illness'
   // Group 8 behaviour and feeling
-  | 'emotion'
+  | 'emotion' | 'speech' | 'thought' | 'desire'
   // Group 9 society
-  | 'org';
+  | 'org' | 'document' | 'media' | 'event'
+  // Group 10 culture and language
+  | 'myth' | 'martial';
 
 /** User-visible kind names, translated at display time via tx(). */
 export const ENTITY_LABEL: Record<EntityKind, string> = {
@@ -64,6 +69,28 @@ export const ENTITY_LABEL: Record<EntityKind, string> = {
   color: zh('色彩'),
   emotion: zh('情绪'),
   org: zh('机构'),
+  festival: zh('节日'),
+  device: zh('电子设备'),
+  weapon: zh('武器'),
+  jewelry: zh('首饰'),
+  material: zh('材质'),
+  plant: zh('植物'),
+  animal: zh('动物'),
+  weather: zh('天气'),
+  sound: zh('声音'),
+  // 「气味」 is already an NSFW category label (i18n keys are the Chinese source
+  // strings, so the two would collide); the sense is named after the sense.
+  smell: zh('嗅觉'),
+  texture: zh('触感'),
+  illness: zh('伤病'),
+  speech: zh('言语'),
+  thought: zh('心理'),
+  desire: zh('欲望'),
+  document: zh('文书'),
+  media: zh('作品与媒体'),
+  event: zh('事件与仪式'),
+  myth: zh('神话与超自然'),
+  martial: zh('武侠与修真'),
 };
 
 /**
@@ -77,10 +104,13 @@ export const KIND_GROUPS = [
   { id: 'common', label: zh('常用'), kinds: ['plain', 'person', 'place', 'time', 'generic'] },
   { id: 'people', label: zh('人物与身份'), kinds: ['title', 'kinship', 'occupation', 'relation'] },
   { id: 'space', label: zh('地点与建筑'), kinds: ['building', 'room', 'nature'] },
-  { id: 'thing', label: zh('物品'), kinds: ['brand', 'wear', 'food', 'drink', 'furniture', 'container', 'vehicle'] },
-  { id: 'sense', label: zh('身体与感官'), kinds: ['body', 'color'] },
-  { id: 'act', label: zh('行为与情绪'), kinds: ['emotion'] },
-  { id: 'social', label: zh('社会与组织'), kinds: ['org', 'money'] },
+  { id: 'count', label: zh('时间与数量'), kinds: ['money', 'festival'] },
+  { id: 'thing', label: zh('物品'), kinds: ['brand', 'wear', 'food', 'drink', 'furniture', 'container', 'vehicle', 'device', 'weapon', 'jewelry'] },
+  { id: 'matter', label: zh('材料与自然物'), kinds: ['material', 'plant', 'animal', 'weather'] },
+  { id: 'sense', label: zh('身体与感官'), kinds: ['body', 'color', 'sound', 'smell', 'texture', 'illness'] },
+  { id: 'act', label: zh('行为与情绪'), kinds: ['emotion', 'speech', 'thought', 'desire'] },
+  { id: 'social', label: zh('社会与组织'), kinds: ['org', 'document', 'media', 'event'] },
+  { id: 'culture', label: zh('文化与语言'), kinds: ['myth', 'martial'] },
 ] as const satisfies readonly { id: string; label: string; kinds: readonly EntityKind[] }[];
 
 export type KindGroupId = (typeof KIND_GROUPS)[number]['id'];
@@ -101,7 +131,17 @@ export const ALL_KINDS: EntityKind[] = KIND_GROUPS.flatMap((g) => [...g.kinds]);
  * all), so what the user sees is mostly misses. docs/27 §7 expects those to be
  * fixed by hand re-filing, not by guessing.
  */
-export const EXPERIMENTAL_KINDS: EntityKind[] = ['brand'];
+export const EXPERIMENTAL_KINDS: EntityKind[] = [
+  'brand',
+  /**
+   * Both cleared the 80% line on the hand-written cases, and both then over-fired
+   * on the local TOP 200, which is the check that actually finds things (docs/33
+   * §7): the 件 rule read the measure-word fragment 穿一件 as a document, and the
+   * 想 rule read 我想 / 他想 as thoughts. They are patched, not proven — the seed
+   * characters stay the most ambiguous of the batch, so the UI says so.
+   */
+  'document', 'thought',
+];
 
 /** One classification of a word. A word can carry several; sorted by `conf` descending. */
 export interface KindTag {
@@ -149,6 +189,34 @@ const CONF = {
   relation: 0.5,
   color: 0.5,
   emotion: 0.5,
+  /**
+   * Batch-3 kinds (docs/33, second half of the 60). Every one of them sits
+   * **below** the whole of batch 2, so this batch cannot change the primary kind
+   * of any word that already had one — the strongest tag only ever moves when a
+   * word's only previous tag was `plain`. Inside the batch the order is again
+   * specificity: a closed form-class first, then a suffix rule, then the rules
+   * whose seed characters are the most ambiguous.
+   */
+  animal: 0.49,
+  material: 0.48,
+  jewelry: 0.47,
+  texture: 0.46,
+  festival: 0.46,
+  weather: 0.45,
+  plant: 0.44,
+  illness: 0.43,
+  myth: 0.43,
+  martial: 0.42,
+  desire: 0.42,
+  weapon: 0.41,
+  device: 0.4,
+  thought: 0.39,
+  sound: 0.38,
+  smell: 0.37,
+  speech: 0.36,
+  document: 0.35,
+  media: 0.34,
+  event: 0.33,
   plain: 0.3,
   /** Dispersion-based, assigned in analyze.ts; never outranks a construction. */
   generic: 0.3,
@@ -552,6 +620,257 @@ const ORG_WORDS = new Set([
   '联盟', '门派', '宗门', '家族', '公司',
 ]);
 
+/* ==========================================================================
+   Batch-3 kinds (notes/docs/33 §5, the second half of the sixty). Same contract
+   as batch 2: every block is a construction — a suffix, a closed form-class, or
+   a fixed compounding template — of at most 40 seeds counting the counter-example
+   list, never a lexicon to look words up in (docs/33 §2). The counter-examples
+   are not guesses: each one is a word the suffix actually reached on the local
+   TOP-200 pass or an obvious confusable of the same shape.
+   ========================================================================== */
+
+/* ---------- 材质 (`material`) ----------
+   Closed list only. The design note offers …质 / …料 as suffixes, but 本质 /
+   性质 / 素质 and 资料 / 照料 / 饮料 outnumber the material readings, so neither
+   is safe as a rule and the class is small enough to close by hand. */
+const MATERIAL_WORDS = new Set([
+  '木头', '木材', '钢铁', '不锈钢', '玻璃', '塑料', '陶瓷', '瓷器', '大理石', '石头',
+  '棉花', '丝绸', '皮革', '真皮', '牛皮', '羊毛', '亚麻', '尼龙', '帆布', '纸张',
+  '橡胶', '水泥', '混凝土', '青铜', '黄铜', '白银', '黄金', '合金', '布料', '麻布',
+  '天鹅绒', '蕾丝', '绸缎', '红木', '琉璃', '泡沫',
+]);
+
+/* ---------- 植物 (`plant`) ----------
+   花 is deliberately not a suffix: 烟花 / 火花 / 浪花 / 雪花 / 泪花 all end in it
+   and none is a plant, so flower names are reached through the closed list. */
+const PLANT_TAIL = /(?:树|草|叶|枝|藤|竹)$/;
+const NOT_PLANT = new Set(['潦草', '起草', '爆竹']);
+const PLANT_WORDS = new Set([
+  '玫瑰', '樱花', '桃花', '荷花', '菊花', '兰花', '百合', '牡丹', '梅花', '杏花',
+  '梨花', '向日葵', '蔷薇', '薰衣草', '仙人掌', '苔藓', '蘑菇', '银杏', '花瓣', '花朵',
+  '花束', '树干', '树根', '树苗', '盆栽', '绿植', '藤蔓', '荆棘', '麦子', '玉米', '小麦',
+]);
+
+/* ---------- 动物 (`animal`) ----------
+   Closed: the animals narration actually names. No suffix rule — 龙头 / 马路 /
+   牛奶 / 虎口 are built on exactly these characters. */
+const ANIMAL_WORDS = new Set([
+  '猫', '狗', '小猫', '小狗', '猫咪', '鸟儿', '鱼儿', '马儿', '老虎', '狮子',
+  '狼群', '熊猫', '狐狸', '老鼠', '蛇', '龙', '凤凰', '大象', '猴子', '鹿',
+  '老鹰', '乌鸦', '麻雀', '蝴蝶', '蜘蛛', '蚂蚁', '蜜蜂', '青蛙', '鲨鱼', '海豚',
+  '骏马', '母马', '野兽', '猛兽', '宠物', '幼崽', '兔子', '羊群', '牛群', '猎犬',
+]);
+
+/* ---------- 天气 (`weather`) ----------
+   雨 / 雪 are safe suffixes (大雨 细雨 暴雨 / 大雪 风雪); 风 is not — 作风 /
+   家风 / 通风 / 中风 swamp it, so wind words are listed. */
+const WEATHER_TAIL = /(?:雨|雪)$/;
+const NOT_WEATHER = new Set(['血雨', '泪雨', '洗雪']);
+const WEATHER_WORDS = new Set([
+  '大风', '微风', '冷风', '狂风', '台风', '龙卷风', '寒风', '暖风', '晚风', '夜风',
+  '雾气', '浓雾', '薄雾', '闪电', '雷电', '雷鸣', '霜冻', '露水', '晴天', '阴天',
+  '多云', '冰雹', '彩虹', '天气', '气温', '阳光', '月光', '天晴', '放晴', '寒气',
+  '暑气', '冰霜',
+]);
+
+/* ---------- 电子设备 (`device`) ----------
+   …机 / …器 are productive but the two-character words built on them are almost
+   never devices (危机 时机 动机 生机 / 武器 容器 器官 乐器), so the suffix rule
+   needs three characters. The remaining three-character misfires are vehicles
+   and anatomy, listed below; two-character devices are in the closed list. */
+const DEVICE_TAIL = /(?:机|器)$/;
+const NOT_DEVICE = new Set(['直升机', '拖拉机', '战斗机', '轰炸机', '救护机', '运输机', '生殖器', '消化器']);
+const DEVICE_WORDS = new Set([
+  '手机', '电脑', '相机', '屏幕', '键盘', '鼠标', '耳机', '音响', '音箱', '充电器',
+  '数据线', '电视', '冰箱', '空调', '洗衣机', '微波炉', '吹风机', '电灯', '电扇', '摄像头',
+  '监控', '平板', '电话', '座机', '遥控器', '闹钟', '显示器', '路由器', '投影仪', '摄像机',
+]);
+
+/* ---------- 武器 (`weapon`) ----------
+   矛盾 is the one that matters: it is a contradiction, not a pike and a shield,
+   and it is far more frequent than either. */
+const WEAPON_TAIL = /(?:刀|剑|枪|炮|弓|箭|斧|锤|矛|盾|弹)$/;
+const NOT_WEAPON = new Set(['矛盾', '开枪', '中枪', '鞭炮', '放炮', '反弹', '回弹', '剪刀']);
+const WEAPON_WORDS = new Set([
+  '匕首', '手枪', '步枪', '手榴弹', '炸弹', '子弹', '导弹', '长剑', '宝剑', '佩剑',
+  '长枪', '弓箭', '盔甲', '铠甲', '武器', '兵器', '暗器', '军刀', '战斧', '盾牌', '箭矢',
+]);
+
+/* ---------- 首饰 (`jewelry`) ----------
+   镯 / 簪 / 钗 end essentially nothing else. Gemstone names are left out on
+   purpose: docs/33 §6 dropped 矿物与宝石 because 玉 cannot be split between
+   material and jewel without knowing what it modifies. */
+const JEWELRY_TAIL = /(?:镯|簪|钗)$/;
+const JEWELRY_WORDS = new Set([
+  '戒指', '项链', '耳环', '耳坠', '耳钉', '手镯', '手链', '脚链', '胸针', '发簪',
+  '玉佩', '吊坠', '首饰', '珠宝', '钻戒', '金饰', '银饰', '头饰', '发饰', '项圈',
+  '袖扣', '玉镯', '手串', '佛珠', '婚戒', '挂坠',
+]);
+
+/* ---------- 声音 (`sound`) ----------
+   …声 / …响 is the most productive suffix in the whole batch (脚步声 关门声
+   呼吸声 都不用列). Its misfires are of two kinds and both are listed: the
+   adverbs built on 声 (大声 低声 轻声) and the abstract nouns (名声 影响 交响). */
+const SOUND_TAIL = /(?:声|响)$/;
+const NOT_SOUND = new Set([
+  '名声', '影响', '音响', '交响', '反响', '大声', '小声', '低声', '轻声', '高声', '出声', '齐声',
+]);
+const SOUND_WORDS = new Set([
+  '声音', '噪音', '嗓音', '口音', '尖叫', '呐喊', '杂音', '静音',
+  '音量', '响动', '动静', '音色', '重音', '嘶吼', '呻吟', '喘息',
+]);
+
+/* ---------- 气味 (`smell`) ----------
+   …味 / …香 with the evaluative senses excluded: 意味 / 品味 / 趣味 / 回味 are
+   about judgement, not the nose, and 口味 / 滋味 / 美味 are taste. */
+const SMELL_TAIL = /(?:味|香)$/;
+const NOT_SMELL = new Set([
+  '意味', '品味', '趣味', '回味', '乏味', '兴味', '入味', '美味', '口味', '滋味', '烧香',
+]);
+const SMELL_WORDS = new Set([
+  '气味', '香水', '气息', '味道', '芬芳', '熏香', '檀香', '麝香', '恶臭', '臭气', '香气', '体香',
+]);
+
+/* ---------- 触感 (`texture`) ----------
+   Closed: temperature and surface words as they are used of touch. 温柔 and
+   冷漠 are about a person, not a surface, and stay out. */
+const TEXTURE_WORDS = new Set([
+  '冰凉', '冰冷', '温热', '滚烫', '灼热', '炙热', '温暖', '柔软', '松软', '柔滑',
+  '光滑', '顺滑', '粗糙', '坚硬', '僵硬', '湿润', '潮湿', '干燥', '干涩', '黏腻',
+  '湿滑', '温软', '酥麻', '麻木', '紧绷', '蓬松', '细腻', '厚实', '轻盈', '冰寒',
+]);
+
+/* ---------- 伤病 (`illness`) ----------
+   …伤 / …病 / …症 / …痛 minus the feelings built on the same characters
+   (悲伤 哀伤 心痛 悲痛 are `emotion`) and the verb-object phrases (受伤 生病
+   看病 疗伤). */
+const ILLNESS_TAIL = /(?:伤|病|症|痛)$/;
+const NOT_ILLNESS = new Set([
+  '悲伤', '哀伤', '感伤', '忧伤', '中伤', '受伤', '生病', '看病', '治病', '疗伤', '心痛', '悲痛',
+]);
+const ILLNESS_WORDS = new Set([
+  '伤口', '伤疤', '骨折', '高烧', '发烧', '感冒', '咳嗽', '呕吐', '头晕', '眩晕',
+  '昏迷', '中毒', '过敏', '失眠', '淤青', '疤痕', '病情', '症状', '药物', '药片',
+]);
+
+/* ---------- 言语 (`speech`) ----------
+   The bare 道 suffix is unusable (知道 味道 街道 难道 频道 跑道), but the
+   *speech-verb* + 道 template is a closed two-character construction and it is
+   the single most common speech form in these logs. Plus the closed list of
+   speech acts. */
+const SAY_DAO_RE = /^[说问答喊叫笑骂吼应回续哼]道$/;
+const SPEECH_WORDS = new Set([
+  '说话', '讲话', '对话', '交谈', '聊天', '闲聊', '议论', '讨论', '争论', '争吵',
+  '吵架', '解释', '说明', '承诺', '命令', '警告', '提醒', '抱怨', '唠叨', '嘟囔',
+  '低语', '耳语', '呢喃', '嘀咕', '沉默', '口吻', '语气',
+]);
+
+/* ---------- 心理 (`thought`) ----------
+   …念 / …忆 / …想. The misfire the local TOP 200 actually produced is the
+   pronoun + 想 fragment (我想 / 他想 / 你想 all reach the word list), so those
+   are listed; 纪念 and 悬念 are the other two shapes that are not thoughts. */
+const THOUGHT_TAIL = /(?:念|忆|想)$/;
+const NOT_THOUGHT = new Set([
+  '我想', '你想', '他想', '她想', '不想', '没想', '别想', '要想', '敢想', '休想',
+  '试想', '只想', '纪念', '悬念',
+]);
+const THOUGHT_WORDS = new Set([
+  '想法', '心思', '思绪', '直觉', '错觉', '印象', '疑惑', '困惑', '好奇', '意识',
+  '潜意识', '灵感', '主意', '打算', '决心', '判断', '想象', '认知', '观点', '看法',
+  '念头', '脑海', '思考',
+]);
+
+/* ---------- 欲望 (`desire`) ----------
+   …欲 is a clean suffix (食欲 性欲 情欲 私欲 占有欲 控制欲 求知欲): almost
+   nothing else ends in it as a standalone token. */
+const DESIRE_TAIL = /欲$/;
+const DESIRE_WORDS = new Set([
+  '渴望', '愿望', '冲动', '贪婪', '野心', '执念', '好胜心', '渴求', '奢望', '妄念',
+  '痴念', '企图', '野望', '贪心', '占有', '迷恋', '痴迷', '觊觎', '憧憬', '向往',
+  '心愿', '念想', '欲望',
+]);
+
+/* ---------- 文书 (`document`) ----------
+   …书 / …单 / …证 / …函 / …件 at three characters or more. Every two-character
+   word on these characters is ambiguous (秘书 床单 保证 事件 条件 软件), and the
+   documents among them are listed instead. */
+const DOCUMENT_TAIL = /(?:书|单|证|函|件)$/;
+/**
+ * Second clause: a **measure-word phrase**, not a document. `QUANT_HEAD` only
+ * looks at the first character, so 穿一件 walked straight through the 件 rule and
+ * reached the local TOP 200 as a 文书 (2026-09-05). Any quantifier immediately in
+ * front of the suffix character means the token is a fragment of 数词 + 量词.
+ */
+const NOT_DOCUMENT = /(?:简单|保证|事件|条件|零件|部件|软件|硬件|物件|证明)$|(?:[一二两三四五六七八九十几半这那每某另整]|\d)[书单证函件]$/;
+const DOCUMENT_WORDS = new Set([
+  '合同', '协议', '文件', '剧本', '名片', '证件', '简历', '报告', '名单', '清单',
+  '账单', '菜单', '订单', '发票', '收据', '信件', '邮件', '通知', '公告', '契约',
+  '遗嘱', '档案', '资料', '笔记', '日记',
+]);
+
+/* ---------- 作品与媒体 (`media`) ----------
+   …剧 / …曲 only. 片 / 集 / 说 were dropped: 照片 碎片 药片 卡片, 集合, 听说
+   据说 虽说 are all more frequent than the work readings. */
+const MEDIA_TAIL = /(?:剧|曲)$/;
+const NOT_MEDIA = new Set(['加剧', '急剧', '恶作剧', '弯曲', '扭曲', '蜷曲']);
+const MEDIA_WORDS = new Set([
+  '电影', '电视剧', '小说', '综艺', '专辑', '歌曲', '音乐', '节目', '纪录片', '动画',
+  '漫画', '游戏', '杂志', '报纸', '新闻', '广告', '直播', '视频', '照片', '画作',
+  '诗集', '剧集', '预告片', '主题曲', '台词', '影视', '镜头', '剧本',
+]);
+
+/* ---------- 事件与仪式 (`event`) ----------
+   礼 / 赛 / 典 work at two characters; 式 and 会 need three, because 方式 形式
+   模式 样式 公式 and 机会 社会 一会 体会 误会 are the two-character majority.
+   委员会 / 基金会 are institutions and stay with `org`. */
+const EVENT_TAIL = /(?:礼|赛|典)$/;
+const EVENT_TAIL3 = /(?:式|会)$/;
+const NOT_EVENT = new Set([
+  '敬礼', '行礼', '送礼', '失礼', '无礼', '有礼', '委员会', '基金会', '方程式', '表达式',
+]);
+const EVENT_WORDS = new Set([
+  '婚礼', '葬礼', '会议', '发布会', '比赛', '典礼', '婚宴', '宴会', '舞会', '晚会',
+  '聚会', '约会', '面试', '演出', '演唱会', '展览', '仪式', '庆典', '派对', '聚餐',
+  '拍摄', '试镜', '开机', '杀青', '探班',
+]);
+
+/* ---------- 神话与超自然 (`myth`) ----------
+   仙 / 魔 / 妖 are the three that carry no everyday reading. 神 / 灵 / 鬼 / 怪
+   were dropped from the suffix — 精神 眼神 走神, 心灵 机灵 失灵, 见鬼 搞鬼,
+   奇怪 古怪 难怪 would have needed a longer exception list than the class. */
+const MYTH_TAIL = /(?:仙|魔|妖)$/;
+const NOT_MYTH = new Set(['水仙', '入魔', '着魔', '成魔']);
+const MYTH_WORDS = new Set([
+  '神明', '神灵', '神仙', '女神', '死神', '天神', '天使', '恶魔', '魔鬼', '恶鬼',
+  '厉鬼', '鬼魂', '幽灵', '亡灵', '精灵', '妖怪', '妖精', '巫师', '巫婆', '术士',
+  '吸血鬼', '狼人', '僵尸', '神话', '传说', '魔法', '法术', '咒语', '诅咒', '结界',
+  '灵异', '仙人', '灵魂',
+]);
+
+/* ---------- 武侠与修真 (`martial`) ----------
+   …诀 is the only safe suffix (口诀 心诀 剑诀 法诀); …功 / …气 / …丹 would take
+   成功 / 生气 天气 语气 / 牡丹 with them. The cultivation stages are a closed
+   set — the ladder is fixed by the genre, not sampled from it. */
+const MARTIAL_TAIL = /诀$/;
+const NOT_MARTIAL = new Set(['秘诀']);
+const MARTIAL_WORDS = new Set([
+  '内力', '真气', '内功', '武功', '招式', '剑法', '刀法', '拳法', '心法', '功法',
+  '秘籍', '剑气', '灵力', '灵气', '灵石', '丹药', '仙丹', '灵丹', '修为', '境界',
+  '筑基', '金丹', '元婴', '化神', '渡劫', '轻功', '点穴', '经脉', '丹田', '气海',
+  '修炼', '打坐', '入定', '天劫', '法宝', '剑意',
+]);
+
+/* ---------- 节日 (`festival`) ----------
+   Split out of `time` (docs/33 §5 group 4). The words keep their `time` tag —
+   it has the higher confidence, so 圣诞节 still reads as 时间 — and gain a
+   second one, which is what the additive design is for. 节 alone is not a
+   suffix: 细节 环节 章节 情节 季节 关节 调节 all end in it. */
+const FESTIVAL_RE = /^(?:春|元|中秋|端午|清明|重阳|七夕|圣诞|万圣|感恩|情人|愚人|劳动|国庆|儿童|母亲|父亲|教师|平安|建军|复活|光棍|妇女)节$/;
+const FESTIVAL_WORDS = new Set([
+  '元旦', '春节', '除夕', '新年', '跨年', '年夜', '中秋', '端午', '清明', '七夕',
+  '圣诞', '万圣', '元宵', '腊八', '小年', '平安夜',
+]);
+
 export interface EntityIndex {
   kindOf: Map<string, EntityKind>;
   /** Words the corpus pass accepted as brands (Latin forms are lower-cased). */
@@ -759,6 +1078,35 @@ export function classifyKinds(word: string, index: EntityIndex): KindTag[] {
 
   if (MONEY_WORDS.has(word) || MONEY_RE.test(word) || FEE_RE.test(word)) add('money');
   if (ORG_WORDS.has(word) || (word.length >= 2 && ORG_TAIL.test(word))) add('org');
+
+  /* ---- Batch-3 kinds (docs/33 §5). Same shape as batch 2: closed set OR
+     suffix rule minus its counter-examples, every tag additive. ---- */
+  if (MATERIAL_WORDS.has(word)) add('material');
+  if (PLANT_WORDS.has(word) || (!NOT_PLANT.has(word) && suffixHit(word, PLANT_TAIL))) add('plant');
+  if (ANIMAL_WORDS.has(word)) add('animal');
+  if (WEATHER_WORDS.has(word) || (!NOT_WEATHER.has(word) && suffixHit(word, WEATHER_TAIL))) add('weather');
+
+  if (DEVICE_WORDS.has(word) || (!NOT_DEVICE.has(word) && suffixHit(word, DEVICE_TAIL, 3))) add('device');
+  if (WEAPON_WORDS.has(word) || (!NOT_WEAPON.has(word) && suffixHit(word, WEAPON_TAIL))) add('weapon');
+  if (JEWELRY_WORDS.has(word) || suffixHit(word, JEWELRY_TAIL)) add('jewelry');
+
+  if (SOUND_WORDS.has(word) || (!NOT_SOUND.has(word) && suffixHit(word, SOUND_TAIL))) add('sound');
+  if (SMELL_WORDS.has(word) || (!NOT_SMELL.has(word) && suffixHit(word, SMELL_TAIL))) add('smell');
+  if (TEXTURE_WORDS.has(word)) add('texture');
+  if (ILLNESS_WORDS.has(word) || (!NOT_ILLNESS.has(word) && suffixHit(word, ILLNESS_TAIL))) add('illness');
+
+  if (SPEECH_WORDS.has(word) || SAY_DAO_RE.test(word)) add('speech');
+  if (THOUGHT_WORDS.has(word) || (!NOT_THOUGHT.has(word) && suffixHit(word, THOUGHT_TAIL))) add('thought');
+  if (DESIRE_WORDS.has(word) || suffixHit(word, DESIRE_TAIL)) add('desire');
+
+  if (DOCUMENT_WORDS.has(word) || (!NOT_DOCUMENT.test(word) && suffixHit(word, DOCUMENT_TAIL, 3))) add('document');
+  if (MEDIA_WORDS.has(word) || (!NOT_MEDIA.has(word) && suffixHit(word, MEDIA_TAIL))) add('media');
+  if (EVENT_WORDS.has(word) || (!NOT_EVENT.has(word)
+      && (suffixHit(word, EVENT_TAIL) || suffixHit(word, EVENT_TAIL3, 3)))) add('event');
+
+  if (MYTH_WORDS.has(word) || (!NOT_MYTH.has(word) && suffixHit(word, MYTH_TAIL))) add('myth');
+  if (MARTIAL_WORDS.has(word) || (!NOT_MARTIAL.has(word) && suffixHit(word, MARTIAL_TAIL))) add('martial');
+  if (FESTIVAL_WORDS.has(word) || FESTIVAL_RE.test(word)) add('festival');
 
   if (!tags.length) return [{ kind: 'plain', conf: CONF.plain }];
   return tags.sort((a, b) => b.conf - a.conf);
