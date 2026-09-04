@@ -12,7 +12,7 @@ import Landing from './Landing';
 import LegalPage from './LegalPage';
 import Note from './Note';
 import Progress from './Progress';
-import { AdvancedPanel, AiPanel, CommunityPanel, ExportPanel, FilterPanel, FontPanel, PriorityPanel, ThemePanel, WordsPanel, type CommunityStats } from './panels';
+import { AdvancedPanel, AiPanel, CommunityPanel, ExportPanel, FilterPanel, FontPanel, PriorityPanel, ReviewPanel, ThemePanel, WordsPanel, type CommunityStats } from './panels';
 import { FEATURES } from './flags';
 import type { SourceFile } from '../core/analyze';
 import { classifyError, notice, type AppError } from '../core/errors';
@@ -43,7 +43,7 @@ import type { WorkerProgress } from '../worker/analyze.worker';
 import type { DataBundle } from '../core/bundle';
 import './styles/index.css';
 
-type PanelId = 'theme' | 'font' | 'filter' | 'advanced' | 'words' | 'ai' | 'export' | 'community';
+type PanelId = 'theme' | 'font' | 'filter' | 'advanced' | 'words' | 'review' | 'ai' | 'export' | 'community';
 
 /** Panel -> title + reset scope. Panels without a scope have no reset button. A function of `t` so titles are literal `t('…')` calls. */
 const panelMeta = (t: (s: string) => string): Record<PanelId, { title: string; reset?: ResetScope; resetHint?: string }> => ({
@@ -52,6 +52,7 @@ const panelMeta = (t: (s: string) => string): Record<PanelId, { title: string; r
   filter: { title: t('筛选与分词'), reset: 'filter', resetHint: t('统计范围、词类、NSFW、清洗开关和竖排比例；不动接口和密钥') },
   advanced: { title: t('高级设置'), reset: 'advanced', resetHint: t('新词发现、自定义词、禁词表和清洗细项') },
   words: { title: t('词频表'), reset: 'words', resetHint: t('拆开的词') },
+  review: { title: t('检查分类') },
   ai: { title: t('大模型接口'), reset: 'ai', resetHint: t('接口地址、模型、密钥和关键词个数') },
   export: { title: t('导出'), reset: 'export', resetHint: t('导出选项') },
   community: { title: t('社区排行榜') },
@@ -63,6 +64,7 @@ const panelMeta = (t: (s: string) => string): Record<PanelId, { title: string; r
 const tools = (t: (s: string) => string): { id: PanelId; icon: IconName; label: string }[] => [
   { id: 'filter', icon: 'sliders', label: t('筛选与分词') },
   { id: 'words', icon: 'list', label: t('词频表') },
+  { id: 'review', icon: 'check', label: t('检查分类') },
   { id: 'advanced', icon: 'gear', label: t('高级设置') },
   { id: 'ai', icon: 'plug', label: t('大模型接口 · 密钥') },
 ];
@@ -1033,6 +1035,13 @@ export default function App() {
                 setOverrides={(fn) => setSettings((s) => ({ ...s, overrides: fn(s.overrides) }))}
                 priority={parsePriority(settings.priority)}
                 onHover={setHovered} hovered={hovered} onReport={health?.ok ? (w) => void reportWord(w) : undefined} />
+            )}
+            {panel === 'review' && (
+              <ReviewPanel words={result?.allWords ?? words}
+                overrides={settings.overrides}
+                setOverrides={(fn) => setSettings((s) => ({ ...s, overrides: fn(s.overrides) }))}
+                extraStopwords={options.tokenize.extraStopwords}
+                setExtraStopwords={(v) => setOptions((o) => ({ ...o, tokenize: { ...o.tokenize, extraStopwords: v } }))} />
             )}
             {panel === 'export' && (
               <ExportPanel opts={settings.exportOpts} setOpts={(o) => patch({ exportOpts: o })}

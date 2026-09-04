@@ -31,6 +31,24 @@ export function migrateExportOpts(saved: (Partial<ExportOpts> & { transparent?: 
   return next;
 }
 
+/**
+ * `kindOverrides` (text -> kind) was the old «move a word out of its class» store.
+ * The review panel writes `overrides[word].kind` instead, so a saved map is folded in
+ * once and the old field is emptied. An existing `overrides[…].kind` wins: it is newer.
+ */
+export function migrateKindOverrides(
+  kindOverrides: Settings['kindOverrides'] | undefined,
+  overrides: Settings['overrides'] | undefined,
+): Pick<Settings, 'kindOverrides' | 'overrides'> {
+  const next = { ...(overrides ?? {}) };
+  for (const [word, kind] of Object.entries(kindOverrides ?? {})) {
+    const k = word.toLowerCase();
+    if (next[k]?.kind) continue;
+    next[k] = { ...next[k], kind };
+  }
+  return { kindOverrides: {}, overrides: next };
+}
+
 export function loadSettings(): Settings {
   const saved = load(KEY, {} as Partial<Settings>);
   return {
@@ -47,6 +65,7 @@ export function loadSettings(): Settings {
     custom: { ...DEFAULT_SETTINGS.custom, ...saved.custom },
     exportOpts: migrateExportOpts(saved.exportOpts),
     font: { ...DEFAULT_SETTINGS.font, ...saved.font },
+    ...migrateKindOverrides(saved.kindOverrides, saved.overrides),
   };
 }
 

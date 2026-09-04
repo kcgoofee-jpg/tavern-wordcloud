@@ -70,6 +70,20 @@ const EN: Record<string, string> = {
   // ── Toolbar ──
   '筛选与分词': 'Filters & tokenizing',
   '词频表': 'Word table',
+
+  // ── Review page (F11) ──
+  '检查分类': 'Review kinds',
+  '全部': 'All',
+  '搜词': 'Search words',
+  '本次改了 {n} 个': '{n} changed this session',
+  '全部撤销': 'Undo all',
+  '这一类还没有词': 'Nothing in this kind yet',
+  '已标为非词': 'marked as not a word',
+  '改类别': 'Change kind',
+  '移出分类': 'Move out of its kind',
+  '标为非词': 'Mark as not a word',
+  '这些修改只存在你的浏览器里，同一张卡下次导入自动套用':
+    'These edits live only in your browser, and are re-applied the next time you import the same card',
   '大模型接口 · 密钥': 'API endpoint & key',
   '大模型接口': 'API endpoint',
   '导出 · 分享': 'Export & share',

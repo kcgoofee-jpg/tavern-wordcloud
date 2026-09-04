@@ -8,3 +8,4 @@ export { PriorityPanel } from './PriorityPanel';
 export { AiPanel } from './AiPanel';
 export { ExportPanel } from './ExportPanel';
 export { CommunityPanel, type CommunityStats } from './CommunityPanel';
+export { ReviewPanel } from './ReviewPanel';
