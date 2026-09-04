@@ -1,0 +1,14 @@
+/* ---------- Scheme row ---------- */
+.seg.row button {
+  flex-direction: row; gap: 6px; padding: 8px 6px; font-size: var(--t-sm);
+}
+.seg.row button.on {
+  background: var(--accent); color: var(--surface); font-weight: 600;
+  box-shadow: 0 3px 10px -4px var(--accent);
+}
+.seg.row button.on svg { opacity: 1; }
+.seg.row button:not(.on) svg { opacity: .7; }
+
+/* Selected segment is emphasized */
+.seg button.on { background: var(--accent); color: var(--surface); font-weight: 600; }
+.seg button.on em { opacity: .85; }

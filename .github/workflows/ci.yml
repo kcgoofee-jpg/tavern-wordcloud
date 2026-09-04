@@ -1,0 +1,21 @@
+# Every push and PR: typecheck, lint, tests, build.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx vite-node --version   # warm the server-test runner; the first spawn otherwise pays the cold start inside a test timeout
+      - run: npm run fixtures   # 生成合成语料（fixtures/ 不入库），让语料相关测试真的跑而不是跳过
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build:single   # before the tests: server tests serve dist-single/index.html (not tracked)
+      - run: npm test

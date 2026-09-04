@@ -1,0 +1,43 @@
+/* ---------- Site notice: bell in the top-right group + its card ---------- */
+.notice-quick {
+  position: absolute; top: 14px; right: calc(14px + (var(--tap) + 6px) * 3);
+  width: var(--tap); height: var(--tap); border-radius: 50%; z-index: 6;
+  display: grid; place-items: center; color: var(--fg-dim);
+  background: color-mix(in srgb, var(--surface2) 84%, transparent);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: 0 8px 30px -14px rgb(0 0 0 / .38);
+  transition: color .18s var(--ease), background .18s var(--ease), transform .24s var(--spring);
+}
+.notice-quick:hover { color: var(--fg); }
+.notice-quick:hover svg { transform: scale(1.16); }
+.notice-quick svg { transition: transform .22s var(--spring); }
+.notice-quick:active { transform: scale(.9); }
+.notice-quick.on { color: var(--surface); background: var(--accent); }
+/* Important notices tint the bell itself; the wording stays in the card */
+.notice-quick.warn { color: var(--accent); }
+.notice-quick.warn.on { color: var(--surface); }
+
+/* Unread mark: one small dot, no count */
+.notice-quick .dot {
+  position: absolute; top: 9px; right: 9px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface2) 84%, transparent);
+}
+.notice-quick.on .dot { background: var(--surface); }
+
+/* Same card as the info popover, anchored under the bell */
+.notice-pop {
+  position: absolute; z-index: 60;
+  top: calc(14px + var(--tap) + 8px); right: 14px;
+  width: max-content; max-width: min(320px, calc(100vw - 28px));
+  padding: 12px 14px; border-radius: 14px;
+  font-size: var(--t-xs); line-height: 1.62; color: var(--fg-dim); text-align: left;
+  white-space: pre-line;
+  background: color-mix(in srgb, var(--surface2) 98%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 14px 40px -16px rgb(0 0 0 / .5);
+  animation: card-in .26s var(--spring) backwards;
+}
+.notice-pop p { margin: 0; color: var(--fg); }
+.notice-pop time { display: block; margin-top: 8px; font-size: var(--t-xs); opacity: .62; }

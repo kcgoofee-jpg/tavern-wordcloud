@@ -1,0 +1,26 @@
+node_modules
+dist
+.DS_Store
+*.local
+
+# Real chat logs never enter the repo; corpus tests read the local SillyTavern data dir.
+verify/
+fixtures/
+
+# Local secrets
+.env.local
+.env
+*.key
+
+# Server-only and local-only material (notes/, AGENTS.md, PROGRESS.md, CLAUDE.md are tracked in the private repository; the public mirror strips them)
+src/core/blocklist/*.local.txt
+data-clean/
+
+# User feedback samples pulled from the server
+test/feedback-samples.json
+
+# Build output (deploy builds it fresh; the server reads dist-single/ at runtime)
+dist-single/
+
+# Agent worktrees (Claude Code)
+.claude/worktrees/

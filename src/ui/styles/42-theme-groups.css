@@ -1,0 +1,51 @@
+/* ---------- Palette groups (collapsible) ---------- */
+/* One section per group. Only 「推荐」 is open on first render; the head is a real button
+   carrying aria-expanded, so the state is readable without seeing the caret. */
+
+.theme-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 4px;
+  border: 0;
+  background: none;
+  color: var(--fg-dim);
+  font-size: var(--t-sm);
+  cursor: pointer;
+}
+
+.theme-group-head:hover { color: var(--fg); }
+
+.theme-group-head svg {
+  flex: none;
+  transition: transform .15s ease;
+  transform: rotate(-90deg);
+}
+
+.theme-group-head[aria-expanded='true'] svg { transform: none; }
+
+.theme-group-head[aria-expanded='true'] { color: var(--fg); }
+
+/* Count of palettes in the group; sits at the far end */
+.theme-group-head em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: var(--t-xs);
+  opacity: .55;
+}
+
+/* Ruled out by the colour-vision setting: still shown so the list does not jump,
+   but not selectable. The reason is in the title attribute. */
+.swatch.cvd-off {
+  opacity: .38;
+  cursor: not-allowed;
+  filter: grayscale(.5);
+}
+
+.swatch.cvd-off:active { transform: none; }
+
+/* Collapsed groups are just rows: the 14px gap 04-theme.css puts between palette
+   sections would make the closed list twice as tall as it needs to be. */
+.theme-group:has(> .theme-group-head) + .theme-group:has(> .theme-group-head) { margin-top: 0; }
+.theme-group-head + .swatches { margin-bottom: 8px; }

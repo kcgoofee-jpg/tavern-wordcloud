@@ -1,0 +1,47 @@
+/* ---------- Legal pages (#/terms, #/privacy, #/disclaimer, #/content, #/enforcement) ---------- */
+.legal-page {
+  position: fixed; inset: 0; z-index: 8; overflow-y: auto;
+  background: var(--surface); color: var(--fg);
+  animation: card-in .28s var(--ease) backwards;
+}
+.legal-body {
+  max-width: 720px; margin: 0 auto; padding: 32px 24px 64px;
+  font-size: var(--t-md); line-height: 1.7;
+  /* Long URLs and CJK prose: never overflow, prefer breaks at punctuation */
+  overflow-wrap: anywhere; line-break: strict;
+}
+.legal-body p, .legal-body li, .legal-body blockquote { text-wrap: pretty; }
+.legal-body h1, .legal-body h2, .legal-body h3 { text-wrap: balance; word-break: keep-all; }
+.legal-body a { word-break: break-all; }
+.legal-body td { white-space: normal; }
+.legal-back { display: inline-block; margin: 16px 0; color: var(--accent); }
+.legal-body h1, .legal-body h2, .legal-body h3 {
+  font-family: var(--serif);
+  letter-spacing: .03em; line-height: 1.35;
+}
+.legal-body h1 { font-size: 24px; margin: 8px 0 16px; }
+.legal-body h2 { font-size: 18px; margin: 28px 0 10px; }
+.legal-body h3 { font-size: var(--t-lg); margin: 20px 0 8px; }
+.legal-body p { margin: 10px 0; }
+.legal-body ul, .legal-body ol { margin: 10px 0; padding-left: 22px; }
+.legal-body li { margin-bottom: 6px; }
+.legal-body blockquote {
+  margin: 12px 0; padding: 8px 14px; border-radius: 8px;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  color: var(--fg-dim); font-size: var(--t-sm);
+}
+.legal-body code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .88em;
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+  border-radius: 4px; padding: 1px 5px;
+}
+.legal-body a { color: var(--accent); }
+.legal-body table {
+  width: 100%; border-collapse: collapse; margin: 14px 0;
+  font-size: var(--t-sm); display: block; overflow-x: auto;
+}
+.legal-body th, .legal-body td {
+  text-align: left; padding: 7px 10px; vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+.legal-body th { color: var(--fg-dim); font-weight: 600; white-space: nowrap; }

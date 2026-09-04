@@ -1,0 +1,61 @@
+{
+  "name": "tavern-wordcloud",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node tools/start.mjs",
+    "dev": "vite",
+    "dev:lan": "vite --host",
+    "build": "tsc -b && vite build",
+    "build:single": "tsc -b && vite build --mode single",
+    "blocklist": "node tools/blocklist-build.mjs",
+    "shot": "node tools/shot.mjs",
+    "audit": "node tools/shot.mjs 1440 900 && SHOT_NO_BUILD=1 node tools/shot.mjs 390 844",
+    "audit:fast": "SHOT_FAST=1 node tools/shot.mjs 1440 900",
+    "typecheck": "tsc -b",
+    "lint": "oxlint",
+    "test": "vitest run",
+    "serve:single": "npm run build:single && npx --yes http-server dist-single -p 5199 -a 0.0.0.0 --cors -s",
+    "themes": "node tools/build-themes.mjs --emit",
+    "preview": "vite preview",
+    "test:watch": "vitest",
+    "fixtures": "node tools/make-fixtures.mjs fixtures",
+    "verify:en": "npx --yes vite-node tools/verify-english.ts",
+    "eval": "npx --yes vite-node tools/eval/cli.ts",
+    "bench": "npx --yes vite-node tools/bench-corpus.ts fixtures/ceo-en.jsonl fixtures/ceo-zh.jsonl",
+    "eval:junk": "vitest run test/junk.test.ts",
+    "eval:persons": "npx --yes vite-node tools/eval/persons.ts",
+    "eval:kinds": "npx --yes vite-node tools/eval/kinds.ts",
+    "optimize:measure": "node tools/optimize/measure.mjs",
+    "optimize:gate": "node tools/optimize/gate.mjs"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^24.13.3",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "happy-dom": "^20.13.2",
+    "oxlint": "^1.79.0",
+    "pixelmatch": "^7.2.0",
+    "pngjs": "^7.0.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2",
+    "vite-node": "^6.0.0",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^4.1.11"
+  },
+  "description": "把 SillyTavern 的聊天记录变成词云。网页版服务器处理、处理完即丢；单文件版完全离线。",
+  "exports": {
+    ".": "./src/core/index.ts"
+  }
+}

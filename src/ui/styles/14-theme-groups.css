@@ -1,0 +1,9 @@
+/* ---------- Theme groups ---------- */
+.theme-group + .theme-group { margin-top: 14px; }
+.swatches.wide { grid-template-columns: 1fr; }
+.swatch { min-height: 0; }
+/* Descriptions live in title attributes to keep cards compact */
+.swatch-note { display: none; }
+
+/* UI font follows the theme */
+body { font-family: var(--font-ui, "PingFang SC", system-ui, sans-serif); }

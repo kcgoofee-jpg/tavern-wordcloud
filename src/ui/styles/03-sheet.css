@@ -1,0 +1,32 @@
+/* ---------- Sheet ----------
+   The close button sits in its own title bar, never over content. */
+.sheet {
+  /* Grows upward from the bottom, next to the buttons that open it; max-height keeps it below the mode switch. */
+  /* Leaves room for the rail on the left (76 = rail width + gap). */
+  position: absolute; left: 76px; bottom: 60px; top: auto; transform: none;
+  width: min(340px, calc(100vw - 96px));
+  max-height: calc(100vh - 118px);
+  display: flex; flex-direction: column;
+  border-radius: var(--r); z-index: 6; overflow: hidden;
+  /* Opaque enough to hide the cloud underneath. */
+  background: var(--surface2);
+  backdrop-filter: blur(20px) saturate(1.5);
+  box-shadow: 0 24px 60px -26px rgb(0 0 0 / .5);
+  animation: sheet-in .34s var(--spring) backwards;
+}
+/* The word table shows six controls per row; 340px truncated long words and hid the counts. */
+.sheet.wide { width: min(520px, calc(100vw - 96px)); }
+@keyframes sheet-in { from { opacity: 0; transform: translateY(10px) scale(.97); } }
+
+.sheet-bar {
+  flex: none; display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 8px 10px 16px;
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+}
+.sheet-title { font-size: var(--t-sm); letter-spacing: .1em; color: var(--fg-dim); }
+.sheet-close {
+  width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%;
+  color: var(--fg-dim); transition: color .16s, background .16s, transform .24s var(--spring);
+}
+.sheet-close:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 9%, transparent); transform: rotate(90deg); }
+.sheet-body { overflow-y: auto; padding: 14px 16px 18px; }

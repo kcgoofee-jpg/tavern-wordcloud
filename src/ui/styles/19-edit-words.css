@@ -1,0 +1,22 @@
+/* ---------- Manual word edits ---------- */
+.merge-row { display: flex; gap: 6px; align-items: center; margin: 10px 0 6px; }
+.merge-row .search { margin: 0; }
+.icon-btn {
+  flex: none; width: 32px; height: 32px; display: grid; place-items: center;
+  border-radius: 9px; color: var(--surface); background: var(--accent);
+  transition: transform .2s var(--spring), opacity .16s;
+}
+.icon-btn:disabled { opacity: .3; cursor: default; }
+.icon-btn:active:not(:disabled) { transform: scale(.9); }
+
+.edits { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.edit-chip {
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 7px 3px 5px; border-radius: 7px; font-size: var(--t-xs);
+  color: var(--fg-dim); background: color-mix(in srgb, var(--accent) 14%, transparent);
+  transition: color .16s, background .16s;
+}
+.edit-chip em { font-style: normal; opacity: .6; }
+.edit-chip:hover { color: var(--fg); background: color-mix(in srgb, var(--accent) 24%, transparent); }
+
+/* Column widths are defined in 07-words.css */

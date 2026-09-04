@@ -1,0 +1,62 @@
+/*
+ * Animations use animation-fill-mode: backwards, not both: `both` keeps the final
+ * keyframe applied and overrides :hover transforms.
+ * No borders; hierarchy comes from surface tone and light shadows. All colors are
+ * theme CSS variables. Motion uses transform / opacity only.
+ */
+
+:root {
+  /* Five type sizes only. */
+  --t-xs: 11px;    /* group labels, footnotes */
+  --t-sm: 12.5px;  /* secondary text, values */
+  --t-md: 13.5px;  /* body, controls */
+  --t-lg: 15px;    /* emphasis */
+
+  --surface: #ece5da;
+  --surface2: #f2eee7;
+  --line: #d8cfc0;
+  --fg: #2b2115;
+  --fg-dim: #6b5c48;
+  --accent: #8c6344;
+  --r: 16px;
+  --tap: 44px;
+  /* Serif face for headings and legal prose; one definition, used by 34-landing and 36-legal */
+  --serif: Palatino, "Palatino Linotype", "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+  --spring: cubic-bezier(.22, 1.2, .36, 1);
+  --ease: cubic-bezier(.2, .8, .3, 1);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--fg);
+  font: 14px/1.55 "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC",
+        "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+button { font: inherit; color: inherit; border: none; background: none; cursor: pointer; }
+
+.app {
+  position: fixed; inset: 0; overflow: hidden;
+  background: var(--surface);
+  transition: background .5s var(--ease);
+}
+
+.cloud-wrap { position: absolute; inset: 0; }
+.app:has(.sheet) .cloud-canvas,
+.app:has(.cardinfo.open) .cloud-canvas {
+  /* Dim the cloud while a panel is open */
+  opacity: .38;
+  transition: opacity .24s var(--ease);
+}
+.cloud-canvas {
+  display: block;
+  transition: opacity .24s var(--ease);
+  /* Must be none: pan-y would hand vertical gestures to the browser and break pinch / pan. */
+  touch-action: none;
+  -webkit-user-select: none; user-select: none;
+}

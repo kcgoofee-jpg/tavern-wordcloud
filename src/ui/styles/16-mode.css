@@ -1,0 +1,3 @@
+/* ---------- Color scheme ---------- */
+.seg.icons button { flex-direction: column; gap: 3px; padding: 8px 4px; font-size: var(--t-xs); }
+.seg.icons button svg { opacity: .9; }

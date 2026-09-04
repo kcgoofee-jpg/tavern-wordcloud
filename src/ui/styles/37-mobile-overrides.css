@@ -1,0 +1,95 @@
+/* ---------- Mobile overrides ----------
+   This file must be last in index.css: media queries do not add specificity. */
+@media (max-width: 720px) {
+  /* Bottom stack on narrow screens: each layer is derived from the previous one. */
+  :root {
+    --m-gap: 8px;
+    --m-safe: env(safe-area-inset-bottom, 0px);
+    /* pill padding + the caption line under each icon (39-captions.css) */
+    --m-rail-h: calc(var(--tap) + 12px + var(--m-cap));
+    /* Caption line: 10px text plus its offset, above the dock buttons and below the rail icons */
+    --m-cap: 0px;  /* captions are gone; kept as 0 so the rail-height maths below stays readable */
+    /* Figures row inside the dock: 30px pill + the 6px row gap it wraps with */
+    --m-stats-h: 36px;
+    --m-l1: calc(12px + var(--m-safe));                        /* 1 rail */
+    --m-l2: calc(var(--m-l1) + var(--m-rail-h) + var(--m-gap)); /* 2 palette / font / card / figures */
+    --m-l3: calc(var(--m-l2) + var(--tap) + var(--m-cap) + var(--m-stats-h) + var(--m-gap)); /* 3 ratio */
+    --m-l4: calc(var(--m-l3) + 22px + var(--m-gap));            /* 4 above the ratio row */
+    --m-l5: calc(var(--m-l4) + var(--m-gap));                   /* 5 toast / sheet */
+  }
+
+  .rail {
+    left: 50%; top: auto; bottom: var(--m-l1);
+    transform: translateX(-50%); flex-direction: row;
+    max-width: calc(100vw - 24px); overflow-x: auto; scrollbar-width: none;
+  }
+  .rail::-webkit-scrollbar { display: none; }
+  .rail { gap: 2px; }
+  @keyframes rail-in { from { opacity: 0; transform: translateX(-50%) translateY(16px); } }
+
+  /* Four items do not fit across 390px, so the figures take their own row above the
+     buttons: a zero-height flex break after them forces the rest onto the next line,
+     which keeps the buttons nearest the thumb and the pill sized to its content. */
+  .dock {
+    left: 10px; right: 10px; bottom: var(--m-l2); max-width: none;
+    flex-wrap: wrap; row-gap: 6px;
+  }
+  .dock-stats { order: -2; height: 30px; }
+  .dock:has(.dock-stats)::before { content: ''; order: -1; flex-basis: 100%; height: 0; }
+  /* Units make the row about a third wider; the smaller size keeps it inside 390px */
+  .dock-stats span { font-size: var(--t-xs); gap: 4px; padding: 4px 7px; }
+  .ratio { left: 0; right: 0; padding: 0 12px; bottom: var(--m-l3); }
+  /* Sample-view hint: above the dock, which owns layer 2 */
+  .demo-hint { bottom: calc(var(--m-l3) + 8px); max-width: calc(100vw - 24px); text-align: center; }
+  .toast {
+    bottom: var(--m-l5);
+    /* Break at word boundaries; CJK would otherwise break mid-word */
+    left: 10px; right: 10px; max-width: none; transform: none;
+    word-break: keep-all; line-break: strict;
+  }
+
+  .sheet {
+    left: 10px; right: 10px; top: auto; width: auto; transform: none;
+    bottom: var(--m-l5);
+    /* The sheet grows from layer 5; leave room for the mode switch at the top */
+    /* Top: mode switch (10px) and the round buttons (to 106px); the sheet starts at 120px */
+    max-height: calc(100vh - var(--m-l5) - 120px);
+  }
+  /* Toast and sheet share layer 5; the sheet moves up when a toast is shown */
+  :root { --m-l6: calc(var(--m-l5) + 96px + var(--m-gap)); }
+  .app:has(.toast) .sheet { bottom: var(--m-l6); max-height: calc(100vh - var(--m-l6) - 120px); }
+  /* Expanded card info: full width; the figures in the dock step aside for it */
+  .cardinfo-body { position: fixed; left: 10px; right: 10px; width: auto; bottom: var(--m-l4); max-height: calc(100vh - var(--m-l4) - 120px); }
+  .app:has(.cardinfo.open) .dock-stats { display: none; }
+  @keyframes sheet-in { from { opacity: 0; transform: translateY(16px) scale(.98); } }
+  .swatches { grid-template-columns: repeat(3, 1fr); }
+
+  /* Round buttons move down to avoid the mode switch */
+  .cloudmode { top: 10px; }
+  .mode-quick, .lang-quick, .community-quick, .notice-quick { top: calc(10px + var(--tap) + 8px); }
+  .notice-pop { top: calc(10px + var(--tap) * 2 + 16px); }
+  /* The community page starts below the mode switch and the round buttons */
+  .community-page { inset: 120px 8px 8px 8px; }
+
+  /* Landing: single column, tighter rhythm */
+  .land-top { padding: 10px 12px; gap: 10px; }
+  .land-top .seg { order: 3; margin-inline: 0; width: 100%; justify-content: center; }
+  .land-acts { margin-left: auto; }
+  .land-hero { padding: 32px 16px 32px; }
+  .land-drop { padding: 32px 20px; }
+  .land-guide { flex-direction: column; gap: 12px; }
+  .land-feats { grid-template-columns: 1fr; padding: 0 16px 32px; }
+
+  /* Footer links fold into a menu on narrow screens */
+  .foot nav { display: none; }
+  .foot-menu { display: inline-block; position: relative; }
+  .foot-menu summary { cursor: pointer; color: var(--fg-dim); list-style: none; }
+  .foot-menu summary::-webkit-details-marker { display: none; }
+  .foot-menu nav {
+    display: flex; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    flex-direction: column; gap: 8px; width: max-content; margin: 0;
+    padding: 12px 18px; border-radius: var(--r);
+    background: var(--surface2); box-shadow: 0 12px 32px -14px rgb(0 0 0 / .5);
+  }
+}
+

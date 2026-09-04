@@ -1,0 +1,3 @@
+/* ---------- Dock buttons ---------- */
+.dock-style.text { gap: 6px; font-size: var(--t-sm); }
+.dock-style.text span { line-height: 1; }

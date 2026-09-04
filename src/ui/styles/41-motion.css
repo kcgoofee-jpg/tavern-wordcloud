@@ -1,0 +1,22 @@
+/* ---------- Reduced motion ----------
+   Kept in one file so the whole opt-out is readable at once. The entrance animations
+   are neutralised by redefining their keyframes: a later @keyframes of the same name
+   wins, so every element that plays `card-in` stops moving without having to list the
+   selectors one by one. The progress ring keeps turning — it is the only sign that a
+   long job is still alive — just slower. The cloud's idle float is switched off in
+   CloudCanvas.tsx, which passes idleAmplitude 0. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes rail-in { from { opacity: 1; } }
+  @keyframes tool-in { from { opacity: 1; } }
+  @keyframes sheet-in { from { opacity: 1; } }
+  @keyframes card-in { from { opacity: 1; } }
+  @keyframes hero-in { from { opacity: 1; } }
+  @keyframes toast-in { from { opacity: 1; } }
+  @keyframes pop-in { from { opacity: 1; } }
+  @keyframes row-in { from { opacity: 1; } }
+  @keyframes land-pop { from { opacity: 1; } to { opacity: 1; } }
+  @keyframes bob { 0%, 100% { transform: none; } }
+  @keyframes ring { 0%, 100% { transform: none; } }
+  /* Hover and press feedback on the controls the review called out */
+  .tool, .sheet, .dock-style { transition: none; }
+}

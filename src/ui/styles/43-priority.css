@@ -1,0 +1,25 @@
+/* Priority-words panel: one textarea with the item counter tucked into its bottom-right corner. */
+.priority-field { position: relative; }
+
+.priority-input {
+  padding: 8px 10px 22px; border-radius: 9px; font: inherit; font-size: var(--t-sm);
+  color: var(--fg); background: color-mix(in srgb, var(--fg) 6%, transparent);
+  border: 1px solid transparent; resize: vertical;
+  transition: border-color .18s, background .18s;
+}
+.priority-input:focus {
+  outline: none; border-color: var(--accent);
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+}
+
+.priority-count {
+  position: absolute; right: 9px; bottom: 6px;
+  font-size: var(--t-xs); color: var(--fg-dim); pointer-events: auto;
+}
+/* Same red as .toast.unknown in 11-toast.css: over the cap, some words are dropped. */
+.priority-count.over { color: #e2483d; }
+
+/* Word table: a word the priority list put there. */
+.pri-tag { font-style: normal; font-size: var(--t-xs); color: var(--accent); margin-left: 4px; }
+/* A hide that the priority list overrules. */
+.edit-chip.muted { opacity: .45; }

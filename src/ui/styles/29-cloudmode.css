@@ -1,0 +1,25 @@
+/* ---------- Cloud mode switch ---------- */
+/* Top center, always visible. */
+.cloudmode {
+  position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 5;
+  display: flex; gap: 3px; padding: 3px; border-radius: 999px;
+  background: color-mix(in srgb, var(--surface2) 82%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 6px 22px -12px rgb(0 0 0 / .4);
+  animation: card-in .5s var(--spring) backwards;
+}
+.cloudmode button {
+  display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px;
+  font-size: var(--t-sm); color: var(--fg-dim); white-space: nowrap;
+  transition: color .18s, background .2s, transform .24s var(--spring);
+}
+.cloudmode button:hover { color: var(--fg); transform: scale(1.05); }
+.cloudmode button:active { transform: scale(.94); }
+/* Selected mode is clearly marked */
+.cloudmode button.on {
+  color: var(--surface); background: var(--accent); font-weight: 600;
+  box-shadow: 0 3px 12px -6px var(--accent);
+}
+.cloudmode button em { font-style: normal; font-size: var(--t-xs); opacity: .62; }
+.cloudmode-run { color: var(--accent) !important; font-weight: 600; }
+.cloudmode-run:disabled { opacity: .4; }

@@ -1,0 +1,29 @@
+/* ---------- Which words are in each kind (filter panel) ---------- */
+.kind-list { margin: 8px 0 0; font-size: var(--t-xs); color: var(--fg-dim); }
+.kind-list summary { cursor: pointer; color: var(--accent); list-style: none; }
+.kind-list summary::-webkit-details-marker { display: none; }
+.kind-list summary:hover { text-decoration: underline; }
+.kind-list-row { display: grid; grid-template-columns: 3.5em 1fr; gap: 6px; margin-top: 6px; line-height: 1.6; }
+.kind-list-row b { color: var(--fg); font-weight: 600; }
+.kind-list-row span { overflow-wrap: anywhere; text-wrap: pretty; }
+
+/* Each word is a button with a re-file menu: the core's kind is a guess, not a verdict */
+.kind-list-row .kw { position: relative; display: inline-block; }
+.kw-btn {
+  padding: 0 3px; border-radius: 5px; color: inherit; font: inherit;
+  transition: background .14s, color .14s;
+}
+.kw-btn:hover, .kw-btn[aria-expanded='true'] { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--fg); }
+.kw-btn.moved { color: var(--accent); }
+.kw-menu {
+  position: absolute; z-index: 20; top: 100%; left: 0; margin-top: 3px;
+  display: flex; flex-direction: column; min-width: 6em; padding: 3px;
+  border-radius: 8px; background: var(--surface2);
+  box-shadow: 0 8px 24px -10px rgb(0 0 0 / .45);
+}
+.kw-menu button { padding: 3px 8px; border-radius: 5px; text-align: left; color: var(--fg-dim); }
+.kw-menu button:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); color: var(--fg); }
+.kw-menu button.on { color: var(--accent); }
+
+/* Restore every hand-filed word at once; only shown when there is something to restore */
+.kind-reset { margin-top: 6px; }

@@ -1,0 +1,25 @@
+/* ---------- Endpoint panel ----------
+   Two lines, no headings: marks + address + key, then test + model.
+   The inputs share the row and shrink together; `min-width: 0` keeps a long
+   placeholder from pushing the row past the sheet. */
+.ai-line {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin: 8px 0 0;
+}
+/* The button carries a sentence in some languages: let it shrink and ellipsize
+   rather than push the model box past the sheet. */
+.ai-line > .more { margin: 0; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-presets { display: flex; gap: 2px; flex: 0 0 auto; }
+.ai-preset {
+  width: 26px; height: 26px; display: grid; place-items: center;
+  border-radius: 8px; color: var(--fg-dim);
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  transition: color .16s, background .16s;
+}
+.ai-preset:hover { color: var(--fg); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.ai-preset.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.ai-url { flex: 2 1 0; min-width: 0; }
+.ai-key { flex: 1 1 0; min-width: 0; }
+.ai-model { flex: 1 1 0; min-width: 0; }
+/* Failure notice: one line beside the test button, guidance only */
+.ai-err { margin: 5px 0 0; font-size: var(--t-xs); color: var(--bad, var(--accent)); line-height: 1.4; }

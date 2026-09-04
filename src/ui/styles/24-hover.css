@@ -1,0 +1,20 @@
+/* ---------- Hover feedback for every clickable element ---------- */
+.tool:hover:not(:disabled) > svg,
+.dock-style:hover > svg,
+.sheet-close:hover:not(:disabled) > svg,
+.btn-x:hover > svg,
+.icon-btn:hover:not(:disabled) > svg,
+.pill:hover > svg { transform: scale(1.16); }
+.tool > svg, .dock-style > svg, .sheet-close > svg, .btn-x > svg,
+.icon-btn > svg, .pill > svg { transition: transform .22s var(--spring); }
+
+.seg button:hover:not(.on),
+.kind:hover:not(.on),
+.swatch:hover,
+.fontcard:hover,
+.more:hover,
+.edit-chip:hover { transform: translateY(-1px) scale(1.015); }
+.seg button, .kind, .more, .edit-chip { will-change: transform; }
+
+/* Font button: icon only */
+.dock-style.icon-only { padding: 0; width: 38px; justify-content: center; }

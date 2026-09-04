@@ -1,0 +1,194 @@
+/** Entity layer: names bypass cohesion (沈高飞 358 vs 高飞 1789 = 0.20) and can be hidden as a kind. */
+import { describe, expect, it } from 'vitest';
+import { classify, detectEntities, looksLikePerson, systemWords } from '../src/core/entities';
+import { analyze, DEFAULT_ANALYZE_OPTIONS } from '../src/core/analyze';
+
+const story = [
+  '沈砚秋把音量拧小，"明天带你去试一个角色。"她说。',
+  '沈高飞咬了口鸡蛋，目光落在那档案袋上。',
+  '"郑叔叔好。"沈高飞说。郑晓龙笑了一下，没再跟他搭话。',
+  '沈砚秋点点头，沈高飞抬头看她。',
+  '周敬亭的声音从走廊那头传过来，"高飞，你过来。"',
+  '沈砚秋说：好。沈高飞说：好。周敬亭问：真的吗。',
+  '和周敬亭说过之后，沈砚秋皱了皱眉。',
+  '沈高飞的眼睛盯着桌上那份合同，忽然觉得有点冷。',
+  '但他知道，这件事没那么简单。然后他站起来走到窗边。',
+];
+
+describe('entity detection', () => {
+  it('names need three or more syntactic positions', () => {
+    const e = detectEntities(story);
+    expect(e.personNames).toContain('沈砚秋');
+    expect(e.personNames).toContain('沈高飞');
+    // Hit only one or two patterns: narration, not names
+    expect(e.personNames).not.toContain('忽然觉得');
+    expect(e.personNames).not.toContain('但他知');
+    expect(e.personNames).not.toContain('然后');
+  });
+
+  it('reports patterns hit per name', () => {
+    const e = detectEntities(story);
+    expect(e.personConfidence.get('沈高飞')).toBeGreaterThanOrEqual(3);
+  });
+
+  it('persona and card names are system words', () => {
+    const e = detectEntities(story, ['goofy', '逐梦演艺圈4.2']);
+    expect(classify('goofy', e)).toBe('system');
+    expect(classify('逐梦演艺圈4.2', e)).toBe('system');
+  });
+
+  it('time and place fall back to morphology', () => {
+    const e = detectEntities(story);
+    expect(classify('2008年', e)).toBe('time');
+    expect(classify('下午', e)).toBe('time');
+    expect(classify('办公室', e)).toBe('place');
+    expect(classify('合同', e)).toBe('plain');
+  });
+
+  it('systemWords come from message names', () => {
+    const names = systemWords([
+      { index: 0, name: 'goofy', role: 'user', raw: '', text: '', swipeCount: 1 },
+      { index: 1, name: '逐梦演艺圈4.2', role: 'char', raw: '', text: '', swipeCount: 1 },
+    ]);
+    expect(names).toContain('goofy');
+    expect(names).toContain('逐梦演艺圈4.2');
+  });
+});
+
+describe('names bypass cohesion', () => {
+  // Long name much rarer than the short name it contains, as in real logs
+  const lines: string[] = [];
+  for (let i = 0; i < 40; i++) lines.push('高飞走进房间，高飞看了一眼，高飞坐下了。');
+  for (let i = 0; i < 8; i++) lines.push('沈高飞说：好。沈高飞点点头。沈高飞的眼睛看着他。"沈高飞说。');
+
+  it('a long name is not lost to its frequent short form', () => {
+    const e = detectEntities(lines);
+    expect(e.personNames).toContain('沈高飞');
+  });
+});
+
+describe('kind toggles', () => {
+  const content = [
+    JSON.stringify({ user_name: 'unused', character_name: 'unused', chat_metadata: {} }),
+    ...story.map((t) => JSON.stringify({ name: 'goofy', is_user: true, mes: t })),
+  ].join('\n');
+  const files = [{ name: '测试卡 - 2026-08-31@20h00m08s527ms.jsonl', content }];
+  const base = {
+    ...DEFAULT_ANALYZE_OPTIONS,
+    tokenize: { ...DEFAULT_ANALYZE_OPTIONS.tokenize, minCount: 1, discoverMinCount: 2 },
+  };
+
+  it('person names show by default; the kind button hides them', () => {
+    const r = analyze(files, base);
+    expect(r.words.map((w) => w.text)).toContain('沈砚秋');
+    const hidden = analyze(files, { ...base, kinds: ['plain', 'place', 'time'] });
+    expect(hidden.words.map((w) => w.text)).not.toContain('沈砚秋');
+    expect(hidden.words.map((w) => w.text)).not.toContain('沈高飞');
+  });
+
+  it('per-kind counts are reported', () => {
+    const r = analyze(files, base);
+    const person = r.entities.byKind.find((k) => k.kind === 'person');
+    expect(person!.words).toBeGreaterThan(0);
+  });
+});
+
+/** 部 / 口 suffixes must not turn quantifier phrases (一部, 那部) into places. */
+describe('place detection ignores quantifier phrases', () => {
+  const idx = { kindOf: new Map(), personNames: [], hits: new Map() } as never;
+  it.each(['一部', '那部', '这部', '两口', '三所', '几站'])('%s 不是地点', (w) => {
+    expect(classify(w, idx)).toBe('plain');
+  });
+  it.each(['办公室', '写字楼', '排练厅', '菜市场', '中戏西门口'])('%s 是地点', (w) => {
+    expect(classify(w, idx)).toBe('place');
+  });
+
+  /** Body parts, direction words and verb-object phrases share the 口/部/场/路 suffixes. */
+  it.each([
+    '胸口', '乳房', '面部', '大口', '裆部', '胸部', '腰部', '臀部', '阴部', '根部',
+    '虎口', '背部', '中部', '内部', '外部', '底部', '尾部', '大腿根部',
+    '吐司', '查房', '接口', '磁场', '一路', '当场', '现场',
+  ])('%s 不是地点', (w) => {
+    expect(classify(w, idx)).toBe('plain');
+  });
+  it.each([
+    '片场', '餐厅', '厨房', '浴室', '卧室', '客厅', '二楼', '一楼', '门口', '出口',
+    '入口', '柏油路', '高速公路', '马路', '朝阳区', '居民楼', '中央戏剧学院',
+  ])('%s 是地点', (w) => {
+    expect(classify(w, idx)).toBe('place');
+  });
+});
+
+describe('time expressions', () => {
+  const idx = detectEntities([]);
+  it('durations, relative days, day parts, seasons, weekdays and moments are time', () => {
+    const yes = ['三个月', '两天', '半小时', '五分钟', '十秒钟', '几秒', '一整夜', '一天', '一夜', '一大早', '三秒钟',
+      '今天', '那天', '当天', '每天', '前几天', '下个月', '去年', '明年', '今年', '周末', '月底', '年初', '三个月前', '两周后',
+      '清晨', '午后', '深夜', '傍晚', '初春', '盛夏', '寒冬', '冬天', '周一', '星期三', '礼拜天',
+      '此刻', '刚才', '后来', '片刻', '转眼', '当年', '如今', '小时候', '十月', '十一月', '三点', '十点半', '2026年', '12月', '4号',
+      '春节', '圣诞节', '除夕', '生日', '一会儿', '半晌',
+      '正月', '腊月', '初一', '廿三', '子时', '卯时', '三更', '五更天', '一炷香', '一盏茶', '一刻钟', '百年', '千年', '三百年', '数百年', '一甲子', '甲子年', '贞观三年', '立春', '冬至', '元宵', '上元', '昨夜', '今宵', '前世', '上古', '洪荒',
+      'monday', 'january', 'morning', 'tonight', 'yesterday', 'weekend', '3pm', '1990s', 'christmas', 'minutes', 'ago', 'midnight'];
+    for (const w of yes) expect(classify(w, idx), w).toBe('time');
+  });
+  it('look-alikes are not time', () => {
+    const no = ['百分', '十分', '万一', '两下', '一下', '霜月', '月见', '分析', '分配', '少年', '享年', '年龄', '分娩', '同学', '年表', '准时', '分流', '午休室',
+      // adverbs, conjunctions and weather words that used to slip into the alternation
+      '雨水', '最终', '更深', '往前', '一秒', '一瞬间', '临时', '平时', '这时', '什么时候', '偶尔', '先前', '不久'];
+    for (const w of no) expect(classify(w, idx), w).not.toBe('time');
+  });
+});
+
+/**
+ * Precision guard: the broad `subject` pattern used to promote common nouns and
+ * adverb phrases to person names. Each string below is fed through five distinct
+ * name positions, so only the suffix / head rules can reject it — the hit
+ * thresholds are all satisfied. Measured end to end by `npm run eval:persons`.
+ */
+describe('common nouns are not person names', () => {
+  /** Five sentences, five different PERSON_PATTERNS, for one candidate. */
+  const positions = (w: string) => [
+    `${w}说，这事就这么定了。`,
+    `${w}，你先坐一会儿。`,
+    `“${w}，别急。”`,
+    `${w}：好。`,
+    `${w}走到窗边，没有回头。`,
+  ];
+  const corpus = [
+    '木质地板', '理石台面', '针织开衫', '另一只手', '复印件',
+    '沈砚秋', '周敬亭', '韩野',
+  ].flatMap(positions);
+  const e = detectEntities(corpus);
+
+  it.each(['木质地板', '理石台面', '针织开衫', '另一只手', '复印件'])('%s 不是人名', (w) => {
+    expect(e.personNames).not.toContain(w);
+  });
+  it.each(['沈砚秋', '周敬亭', '韩野'])('%s 还是人名', (w) => {
+    expect(e.personNames).toContain(w);
+  });
+});
+
+/**
+ * The corpus-free check used to sieve the community board a second time
+ * (server/admin.ts): contributors filter on their own machine, so a name whose
+ * log gave too little positional evidence can still reach the aggregate.
+ */
+describe('looksLikePerson（无上下文的人名判断）', () => {
+  it.each(['赵一文', '沈砚秋', 'Maya Torres', '赵总', '王老师'])('%s 判成人名，要从榜单剔除', (w) => {
+    expect(looksLikePerson(w)).toBe(true);
+  });
+
+  it.each(['片场', '沙发', '办公室', '通告单', '排练厅', '剧本'])('%s 不是人名，留在榜单里', (w) => {
+    expect(looksLikePerson(w)).toBe(false);
+  });
+
+  // Deliberate choices, not accidents:
+  it('单个小写英文词保留，即使它也可能是人名（sydney 既是城市也是名字，无上下文分不开）', () => {
+    expect(looksLikePerson('sydney')).toBe(false);
+    expect(looksLikePerson('rose')).toBe(false);
+  });
+
+  it('两字候选不按「姓+名」判（白裙 / 陈醋 跟 林薇 一样像，错删比漏删更贵）', () => {
+    expect(looksLikePerson('白裙')).toBe(false);
+  });
+});

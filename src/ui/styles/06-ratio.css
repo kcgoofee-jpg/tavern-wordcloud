@@ -1,0 +1,14 @@
+/* ---------- Share of the pointed word ---------- */
+/* Centered below the cloud; full width, no pointer events. */
+.ratio {
+  position: absolute; left: 0; right: 0; bottom: 16px; z-index: 3;
+  display: flex; justify-content: center; pointer-events: none;
+  /* Keep clear of the corner widgets */
+  padding: 0 190px; min-height: 20px;
+  font-size: var(--t-sm); color: var(--fg-dim); font-variant-numeric: tabular-nums;
+}
+.ratio span {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  animation: card-in .24s var(--spring) backwards;
+}
+.ratio b { color: var(--fg); }

@@ -1,0 +1,10 @@
+/* ---------- Files ---------- */
+.srclist { list-style: none; margin: 4px 0 0; padding: 0; }
+.srclist li {
+  display: grid; grid-template-columns: 1fr 32px 46px; gap: 8px; align-items: center;
+  padding: 4px 0; font-size: var(--t-sm); animation: row-in .3s var(--ease) backwards;
+}
+.src-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-dim); }
+.src-num { text-align: right; font-variant-numeric: tabular-nums; color: var(--fg-dim); }
+.src-bar { height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--fg) 10%, transparent); overflow: hidden; }
+.src-bar i { display: block; height: 100%; transition: width .4s var(--spring); }

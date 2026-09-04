@@ -1,0 +1,20 @@
+/* ---------- Figures in the dock ----------
+   The three figures (messages / cleaned / words) used to be a separate chip in the
+   bottom-right corner. It read as a stray badge and on a phone it covered words, so
+   it is now the fourth item of the bottom-left dock: the same pill as the dock
+   buttons, but a status readout rather than a control. */
+.dock-stats {
+  flex: none; display: flex; align-items: center; gap: 2px;
+  height: 38px; padding: 0 4px; border-radius: 12px;
+  background: color-mix(in srgb, var(--surface2) 80%, transparent);
+  backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: 0 8px 26px -14px rgb(0 0 0 / .4);
+}
+.dock-stats span {
+  display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 999px;
+  font-size: var(--t-sm); font-variant-numeric: tabular-nums; color: var(--fg-dim);
+  transition: background .18s, color .18s;
+  /* Each figure carries its unit, so the line must not wrap */
+  white-space: nowrap;
+}
+.dock-stats span:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 7%, transparent); }

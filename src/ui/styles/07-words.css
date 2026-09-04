@@ -1,0 +1,46 @@
+/* ---------- Word table ---------- */
+
+.wordlist { list-style: none; margin: 4px 0 0; padding: 0; }
+.wordlist li {
+  /* Four fixed columns: rank | word | count | actions. Fixed-width right-aligned count column. */
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) 56px 72px;
+  align-items: center; gap: 8px; padding: 5px 8px; margin: 1px 0;
+  border-radius: 8px; cursor: default;
+  transition: background .18s var(--ease), transform .22s var(--spring);
+  animation: row-in .34s var(--ease) backwards;
+}
+@keyframes row-in { from { opacity: 0; transform: translateX(-8px); } }
+.wordlist li:hover, .wordlist li.on {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  transform: translateX(3px);
+}
+.wordlist .rank { font-size: var(--t-xs); color: var(--fg-dim); text-align: right; font-variant-numeric: tabular-nums; opacity: .65; }
+.wordlist .word { font-weight: 600; font-size: var(--t-md); }
+.wordlist .count { font-size: var(--t-sm); color: var(--fg-dim); font-variant-numeric: tabular-nums; text-align: right; }
+.wordlist .word { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Explicit-word category tags: explicit red, mild accent, maybe grey */
+.wordlist .nsfw-tag { font-style: normal; font-weight: 400; font-size: 10px; margin-left: 6px; padding: 1px 5px; border-radius: 999px; vertical-align: 1px; white-space: nowrap; }
+.wordlist .nsfw-tag.sure { color: #b0433a; background: color-mix(in srgb, #b0433a 12%, transparent); }
+.wordlist .nsfw-tag.mild { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.wordlist .nsfw-tag.maybe { color: var(--fg-dim); background: color-mix(in srgb, var(--fg) 8%, transparent); }
+.wordlist .row-acts { display: flex; justify-content: flex-end; gap: 2px; }
+/* Community panel: distinctive words under the card name; mini bars */
+.wordlist.cards .word { white-space: normal; }
+.wordlist.cards .sig { display: block; font-weight: 400; font-size: var(--t-xs); color: var(--fg-dim); font-style: normal; }
+.mini-bars { width: 100%; height: auto; display: block; margin: 4px 0 2px; color: var(--fg-dim); }
+.btn-x {
+  width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%;
+  /* Faintly visible at rest: hidden buttons were never found (they only appeared on hover) */
+  color: var(--fg-dim); opacity: .35; transition: opacity .16s, color .16s, transform .2s var(--spring);
+}
+.wordlist .icon-btn { opacity: .35; }
+.wordlist li:hover .btn-x, .wordlist li.on .btn-x,
+.wordlist li:hover .icon-btn, .wordlist li.on .icon-btn { opacity: .8; }
+/* No hover on touch screens: keep the row actions visible, dimmed */
+@media (hover: none) { .wordlist .btn-x, .wordlist .icon-btn { opacity: .55; } }
+.btn-x:hover { opacity: 1 !important; color: #e2483d; transform: scale(1.2); }
+.more {
+  width: 100%; margin-top: 10px; padding: 8px; border-radius: 9px; font-size: var(--t-sm); color: var(--fg-dim);
+  background: color-mix(in srgb, var(--fg) 5%, transparent); transition: background .2s, color .2s;
+}
+.more:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 9%, transparent); }

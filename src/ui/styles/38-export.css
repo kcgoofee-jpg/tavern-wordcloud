@@ -1,0 +1,90 @@
+/* ---------- Export panel ---------- */
+.export-size { margin: 6px 0 4px; font-size: var(--t-xs); color: var(--fg-dim); font-variant-numeric: tabular-nums; text-wrap: pretty; }
+.export-act {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+  background: var(--accent); color: var(--surface2); font-weight: 600; font-size: var(--t-sm);
+  transition: transform .2s var(--spring), opacity .2s, filter .2s;
+}
+.export-act:hover:not(:disabled) { filter: brightness(1.08); }
+.export-act:active:not(:disabled) { transform: scale(.97); }
+.export-act:disabled { opacity: .4; cursor: default; }
+
+/* Live thumbnail: the export itself, drawn small */
+.export-preview {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  margin-bottom: 4px; padding: 10px; border-radius: 12px;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+}
+.export-preview-canvas {
+  max-width: 100%; height: auto; border-radius: 8px;
+  /* Checkerboard so a transparent background reads as transparent, not white */
+  background-color: var(--surface2);
+  background-image:
+    linear-gradient(45deg, color-mix(in srgb, var(--fg) 8%, transparent) 25%, transparent 25% 75%, color-mix(in srgb, var(--fg) 8%, transparent) 75%),
+    linear-gradient(45deg, color-mix(in srgb, var(--fg) 8%, transparent) 25%, transparent 25% 75%, color-mix(in srgb, var(--fg) 8%, transparent) 75%);
+  background-size: 14px 14px;
+  background-position: 0 0, 7px 7px;
+}
+.export-preview .export-size { margin: 0; }
+
+.export-size-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }
+.export-num { display: flex; align-items: center; gap: 6px; font-size: var(--t-sm); color: var(--fg-dim); }
+.export-num input[type='number'] {
+  width: 84px; padding: 6px 8px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--surface2); color: var(--fg); font: inherit; font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+}
+.export-num input[type='color'] { width: 44px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; }
+.export-num select {
+  padding: 6px 8px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--surface2); color: var(--fg); font: inherit; font-size: var(--t-sm);
+}
+.export-preset { flex: 1 1 100%; }
+
+.export-warn { margin: 8px 0 0; font-size: var(--t-xs); color: var(--accent); font-weight: 600; text-wrap: pretty; }
+
+.export-tpl {
+  width: 100%; margin-top: 4px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--surface2); color: var(--fg); font: inherit; font-size: var(--t-sm);
+}
+
+/* ---------- Watermark ---------- */
+.export-verify {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; margin-top: 8px; padding: 8px 12px; border-radius: 10px;
+  border: 1px solid var(--line); color: var(--fg-dim);
+  font-size: var(--t-sm); transition: color .16s, border-color .16s;
+}
+.export-verify:hover { color: var(--fg); border-color: var(--fg-dim); }
+
+/* ---------- Size presets as chips (phone) ----------
+   A native <select> with thirty options covers a phone screen, so below 640px the
+   presets become one scrollable row instead. */
+.export-chips {
+  display: flex; gap: 6px; margin-top: 8px; padding-bottom: 4px;
+  overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.export-chips::-webkit-scrollbar { display: none; }
+.export-chip {
+  flex: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface2); color: var(--fg-dim); font-size: var(--t-xs); white-space: nowrap;
+  transition: color .16s, border-color .16s, background .16s;
+}
+.export-chip.on { color: var(--surface2); background: var(--accent); border-color: var(--accent); }
+
+/* ---------- Full-screen export page (phone) ----------
+   Same colours and same title bar as the sheet; only the box becomes the viewport. */
+.sheet.fullscreen {
+  left: 0; right: 0; top: 0; bottom: auto;
+  width: 100%; max-width: none;
+  height: 100dvh; max-height: 100dvh;
+  border-radius: 0; z-index: 12;
+}
+.sheet.fullscreen .sheet-bar { position: sticky; top: 0; z-index: 1; background: var(--surface2); }
+.sheet.fullscreen .sheet-body { flex: 1 1 auto; overflow-y: auto; padding-bottom: 32px; }
+/* The thumbnail gives up most of its height so the controls stay reachable. */
+.export-panel.fullscreen .export-preview-canvas { max-height: 40%; }
+
+/* Long English preset names made the size dropdown wider than the panel (audit: 越界右 33px). */
+.export-panel select { max-width: 100%; min-width: 0; box-sizing: border-box; }

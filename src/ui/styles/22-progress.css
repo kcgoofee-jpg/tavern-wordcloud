@@ -1,0 +1,78 @@
+/* ---------- Progress ring ---------- */
+.progress {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  min-width: 240px; padding: 30px 34px; border-radius: 22px; z-index: 9;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--surface2) 90%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 20px 50px -24px rgb(0 0 0 / .5);
+  animation: card-in .28s var(--spring) backwards;
+  /* The card itself passes pointer events through; its buttons must remain clickable. */
+  pointer-events: none;
+}
+.progress > button, .progress .progress-log { pointer-events: auto; }
+.progress svg { display: block; }
+/* Determinate ring: only the offset animates, and only linearly — no rotation anywhere. */
+.progress .progress-arc { transition: stroke-dashoffset .25s linear; }
+@media (prefers-reduced-motion: reduce) { .progress .progress-arc { transition: none; } }
+/* Fixed heights so a changing label or detail does not shift the ring */
+.progress-label { min-height: 1.4em; }
+.progress-detail { min-height: 1.3em; }
+.progress-text {
+  /* Percentage centered in the ring */
+  position: absolute; top: 30px; left: 0; right: 0; text-align: center;
+  font-size: 22px; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--fg);
+  line-height: 96px; height: 96px;
+}
+.progress-label { font-size: var(--t-md); color: var(--fg); text-align: center; }
+.progress-detail {
+  font-size: var(--t-sm); color: var(--fg-dim); text-align: center;
+  font-variant-numeric: tabular-nums; margin-top: -6px;
+}
+/* Reassurance for big files: only shows when the ring has sat near zero */
+.progress-hint {
+  font-size: var(--t-sm); color: var(--fg-dim); text-align: center;
+  max-width: 26em; line-height: 1.5;
+}
+/* Stage strip under the ring: done · now · next */
+.progress-steps {
+  display: flex; gap: 6px; list-style: none; margin: -4px 0 0; padding: 0;
+  font-size: var(--t-xs); color: var(--fg-dim); letter-spacing: .04em;
+}
+.progress-steps li { display: flex; align-items: center; gap: 6px; opacity: .55; }
+.progress-steps li + li::before { content: '›'; opacity: .6; }
+.progress-steps li.done { opacity: .8; }
+.progress-steps li.now { opacity: 1; color: var(--accent); font-weight: 600; }
+/* Progress log */
+.progress-log {
+  list-style: none; margin: 4px 0 0; padding: 8px 10px; max-width: 340px;
+  border-radius: 10px; text-align: left;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  font-size: var(--t-xs); line-height: 1.7; color: var(--fg-dim);
+  max-height: 132px; overflow-y: auto;
+}
+.progress-log li { overflow-wrap: anywhere; }
+.progress-log li::before { content: '· '; opacity: .5; }
+.progress-stream {
+  /* Streamed model output: bottom-aligned, last lines only */
+  margin: 2px 0 0; padding: 8px 10px; max-width: 340px; max-height: 96px;
+  border-radius: 10px; overflow: hidden;
+  display: flex; flex-direction: column-reverse;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: var(--t-xs); line-height: 1.6; color: var(--fg-dim);
+  white-space: pre-wrap; word-break: break-all; text-align: left;
+}
+.progress-cancel {
+  padding: 7px 20px; border-radius: 999px; font-size: var(--t-sm); color: var(--fg-dim);
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  transition: color .18s, background .18s, transform .22s var(--spring);
+}
+.progress-cancel:hover { color: #e2483d; background: color-mix(in srgb, #e2483d 12%, transparent); transform: scale(1.04); }
+.progress-cancel:active { transform: scale(.96); }
+
+/* Informational notice, not an error */
+.toast.notice .toast-icon { color: var(--accent); }
+.toast.notice { background: color-mix(in srgb, var(--accent) 8%, var(--surface2)); }

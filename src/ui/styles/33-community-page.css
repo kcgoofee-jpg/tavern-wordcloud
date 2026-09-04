@@ -1,0 +1,45 @@
+/* ---------- Community board: full page ---------- */
+.community-quick {
+  position: absolute; top: 14px; right: calc(14px + (var(--tap) + 6px) * 2);
+  width: var(--tap); height: var(--tap); border-radius: 50%; z-index: 6;
+  display: grid; place-items: center; color: var(--fg-dim);
+  background: color-mix(in srgb, var(--surface2) 84%, transparent);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: 0 8px 30px -14px rgb(0 0 0 / .38);
+  transition: color .18s var(--ease), background .18s var(--ease), transform .24s var(--spring);
+}
+.community-quick:hover { color: var(--fg); }
+.community-quick:hover svg { transform: scale(1.16); }
+.community-quick.on { color: var(--surface); background: var(--accent); }
+
+.community-page {
+  position: absolute; inset: 72px 14px 14px 14px; z-index: 7;
+  display: flex; flex-direction: column; border-radius: 18px;
+  background: color-mix(in srgb, var(--surface2) 96%, transparent);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 24px 60px -24px rgb(0 0 0 / .5);
+  animation: card-in .28s var(--spring) backwards;
+}
+.community-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px 10px;
+}
+.community-head h2 { margin: 0; font-size: var(--t-lg); font-weight: 600; }
+.community-body {
+  flex: 1; overflow-y: auto; padding: 4px 20px 20px;
+  /* One grid cell per section. CSS multi-column (the previous approach) flowed a chart into
+     the next column away from its caption on wide screens. */
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px 32px; align-content: start;
+}
+.community-sec { min-width: 0; }
+.community-sec .group-label:first-child { margin-top: 0; }
+.community-sec .mini-bars { width: 100%; max-width: 360px; height: auto; display: block; }
+
+/* "My participation" is a wide checkbox row, not a chart cell: it spans the grid. */
+.community-sec-wide { grid-column: 1 / -1; }
+
+/* One key number under each chart, so a cell is never just axes. */
+.community-sec .stat-line {
+  margin: 2px 0 0; font-size: var(--t-sm); color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}

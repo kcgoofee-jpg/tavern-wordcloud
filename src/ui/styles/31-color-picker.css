@@ -1,0 +1,44 @@
+/* ---------- Native color input ---------- */
+/* Strip the browser chrome; only the color swatch remains, sized like a slider. */
+.pick {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 26px; padding: 0; margin: 0; border: none;
+  border-radius: 8px; background: none; cursor: pointer;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 14%, transparent) inset;
+  transition: transform .22s var(--spring), box-shadow .2s;
+}
+.pick::-webkit-color-swatch-wrapper { padding: 0; }
+.pick::-webkit-color-swatch { border: none; border-radius: 8px; }
+.pick::-moz-color-swatch { border: none; border-radius: 8px; }
+.pick:hover { transform: scale(1.02); box-shadow: 0 0 0 1px var(--accent) inset; }
+.pick:active { transform: scale(.98); }
+
+/* Connection test: the button shows the result */
+.more.ok {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  color: var(--accent); font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* Responsive overrides belong at the end of the cascade (34-mobile-overrides.css): media queries do not add specificity. */
+
+/* Small action button next to a field label */
+.field-act {
+  margin-left: 8px; padding: 2px 9px; border-radius: 999px;
+  font-size: var(--t-xs); color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  transition: background .18s, transform .2s var(--spring);
+}
+.field-act:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 22%, transparent); transform: scale(1.05); }
+.field-act:disabled { opacity: .4; }
+.field select {
+  width: 100%; padding: 9px 11px; border-radius: 10px; border: none;
+  font: inherit; color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+
+/* Reasoning is dimmer than the answer */
+.progress-stream.thinking {
+  opacity: .62;
+  font-style: italic;
+}

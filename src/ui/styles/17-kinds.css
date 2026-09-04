@@ -1,0 +1,21 @@
+/* ---------- Entity kind toggles ---------- */
+.kinds { display: flex; flex-wrap: wrap; gap: 5px; }
+.kind {
+  display: flex; align-items: baseline; gap: 5px;
+  padding: 5px 10px; border-radius: 999px; font-size: var(--t-sm);
+  color: var(--fg-dim); background: color-mix(in srgb, var(--fg) 6%, transparent);
+  transition: color .16s var(--ease), background .16s var(--ease), transform .2s var(--spring);
+}
+.kind em { font-style: normal; font-size: var(--t-xs); opacity: .65; font-variant-numeric: tabular-nums; }
+.kind:hover { color: var(--fg); }
+.kind.on { color: var(--surface); background: var(--accent); }
+.kind.on em { opacity: .8; }
+.kind:active { transform: scale(.95); }
+
+/* Explicit-word categories: mild / maybe categories use a lighter fill when lit */
+.nsfw-kinds .kind.mild.on { color: var(--fg); background: color-mix(in srgb, var(--accent) 28%, transparent); }
+
+/* NSFW categories are collapsed behind a text button */
+.nsfw-toggle { display: inline-block; margin: 6px 0 4px; padding: 3px 10px; border-radius: 999px; font-size: var(--t-xs); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.nsfw-toggle:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.nsfw-toggle[aria-expanded="true"] { margin-bottom: 8px; }

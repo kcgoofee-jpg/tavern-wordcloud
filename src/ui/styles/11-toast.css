@@ -1,0 +1,44 @@
+/* ---------- Toast ---------- */
+.toast {
+  position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%);
+  display: flex; align-items: flex-start; gap: 10px; max-width: min(90vw, 520px);
+  padding: 12px 10px 12px 14px; border-radius: 14px; z-index: 8;
+  background: color-mix(in srgb, var(--surface2) 97%, transparent);
+  box-shadow: 0 20px 50px -22px rgb(0 0 0 / .6);
+  animation: toast-in .38s var(--spring) backwards;
+}
+@keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(14px) scale(.96); } }
+.toast-icon { display: grid; padding-top: 1px; color: var(--accent); flex: none; }
+.toast.unknown .toast-icon { color: #e2483d; }
+.toast-body { min-width: 0; }
+.toast-body b { font-size: var(--t-md); }
+.toast-body p { margin: 3px 0 0; font-size: var(--t-sm); color: var(--fg-dim); }
+.toast-body pre {
+  margin: 8px 0 0; padding: 8px; border-radius: 8px; max-height: 110px; overflow: auto;
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+  font-size: var(--t-xs); white-space: pre-wrap; color: var(--fg-dim);
+}
+.toast > button {
+  flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  color: var(--fg-dim); transition: color .16s, background .16s, transform .2s var(--spring);
+}
+.toast > button:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 9%, transparent); transform: scale(1.12); }
+
+.busy { position: absolute; top: 0; left: 0; right: 0; height: 2px; overflow: hidden; z-index: 9; }
+.busy::after {
+  content: ''; display: block; height: 100%; width: 36%;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: slide 1.05s linear infinite;
+}
+@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(380%); } }
+
+.dropveil {
+  position: absolute; inset: 12px; z-index: 7; display: grid; place-items: center;
+  border-radius: 22px; color: var(--accent);
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  outline: 2px dashed var(--accent); outline-offset: -2px;
+  animation: veil-in .25s var(--ease) backwards;
+}
+@keyframes veil-in { from { opacity: 0; } }
+.dropveil > svg { animation: bob 1.4s var(--ease) infinite; }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }

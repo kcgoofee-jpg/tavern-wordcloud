@@ -1,0 +1,4 @@
+/* ---------- Sheet title-bar actions ---------- */
+.sheet-acts { display: flex; gap: 2px; }
+.sheet-close:disabled { opacity: .3; cursor: default; }
+.sheet-close:disabled:hover { background: none; transform: none; }

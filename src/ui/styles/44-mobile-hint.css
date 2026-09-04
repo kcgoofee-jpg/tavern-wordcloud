@@ -1,0 +1,27 @@
+/* Dismissible narrow-viewport banner on Landing only; see Landing.tsx MobileHint. */
+.mobile-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin: 0 0 8px;
+  border-radius: calc(var(--r) * .5);
+  background: var(--surface2);
+  color: var(--fg-dim);
+  font-size: var(--t-sm);
+  line-height: 1.4;
+}
+
+.mobile-hint span { flex: 1; }
+
+.mobile-hint-close {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--fg-dim);
+}
+
+.mobile-hint-close:hover { background: var(--line); }

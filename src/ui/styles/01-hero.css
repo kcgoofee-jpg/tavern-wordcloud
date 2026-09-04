@@ -1,0 +1,37 @@
+/* ---------- Empty state ---------- */
+.hero {
+  position: absolute; inset: 0; margin: auto;
+  width: min(82vw, 340px); height: 220px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  color: var(--fg-dim); border-radius: 28px;
+  animation: hero-in .7s var(--spring) backwards;
+}
+@keyframes hero-in { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+.hero-ring {
+  position: absolute; width: 108px; height: 108px; top: 34px; border-radius: 50%;
+  border: 1.5px solid var(--accent); opacity: .2;
+  animation: ring 3.2s var(--ease) infinite;
+}
+@keyframes ring {
+  0% { transform: scale(.82); opacity: .28; }
+  70% { transform: scale(1.22); opacity: 0; }
+  100% { transform: scale(1.22); opacity: 0; }
+}
+.hero > svg { transition: transform .4s var(--spring); }
+.hero:hover > svg { transform: translateY(-4px) scale(1.06); }
+.hero-text { font-size: var(--t-lg); font-weight: 500; color: var(--fg); }
+.hero-sub { font-size: var(--t-sm); opacity: .75; }
+/* Entry card over the sample cloud: backdrop and blur */
+/* Sample stage: the whole canvas takes one click; the hint is a single pill */
+.demo-catch { position: absolute; inset: 0; z-index: 2; cursor: pointer; }
+.demo-hint {
+  position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 3;
+  padding: 9px 16px; border-radius: 999px; font-size: var(--t-sm); color: var(--fg);
+  background: color-mix(in srgb, var(--surface2) 88%, transparent); backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px -16px rgb(0 0 0 / .5); animation: card-in .5s var(--spring) backwards;
+}
+.demo-hint:hover { background: var(--surface2); }
+.hero-disclaimer { margin-top: 6px; font-size: var(--t-xs); line-height: 1.5; color: var(--fg-dim); opacity: .7; max-width: 30ch; }
+.note.disclaimer { margin-top: 10px; opacity: .75; }
+.note.disclaimer a { color: var(--fg-dim); text-decoration: underline; }
+.note.disclaimer a:hover { color: var(--accent); }

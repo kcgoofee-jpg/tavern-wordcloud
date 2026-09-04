@@ -1,0 +1,18 @@
+/* ---------- Top-right quick switches ---------- */
+.mode-quick, .lang-quick {
+  position: absolute; top: 14px; z-index: 5;
+  width: var(--tap); height: var(--tap); display: grid; place-items: center;
+  border-radius: 50%; color: var(--fg-dim);
+  background: color-mix(in srgb, var(--surface2) 80%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 6px 22px -12px rgb(0 0 0 / .4);
+  transition: color .18s, transform .24s var(--spring);
+  animation: card-in .5s var(--spring) backwards;
+}
+.mode-quick { right: 14px; }
+/* Language left of the scheme switch */
+.lang-quick { right: calc(14px + var(--tap) + 6px); }
+.mode-quick:hover, .lang-quick:hover { color: var(--fg); }
+.mode-quick:hover svg, .lang-quick:hover svg { transform: scale(1.16); }
+.mode-quick svg, .lang-quick svg { transition: transform .22s var(--spring); }
+.mode-quick:active, .lang-quick:active { transform: scale(.9); }

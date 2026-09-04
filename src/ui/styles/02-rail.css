@@ -1,0 +1,28 @@
+/* ---------- Tool rail ---------- */
+.rail {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  border-radius: 999px; z-index: 5;
+  background: color-mix(in srgb, var(--surface2) 84%, transparent);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: 0 8px 30px -14px rgb(0 0 0 / .38);
+  animation: rail-in .55s var(--spring) backwards;
+}
+@keyframes rail-in { from { opacity: 0; transform: translateY(-50%) translateX(-16px); } }
+
+.tool {
+  position: relative; width: var(--tap); height: var(--tap);
+  display: grid; place-items: center; border-radius: 50%;
+  color: var(--fg-dim);
+  transition: color .18s var(--ease), background .18s var(--ease), transform .24s var(--spring);
+  animation: tool-in .5s var(--spring) backwards;
+}
+@keyframes tool-in { from { opacity: 0; transform: scale(.6); } }
+.tool > svg { transition: transform .3s var(--spring); }
+.tool:hover:not(:disabled) { color: var(--fg); background: color-mix(in srgb, var(--fg) 8%, transparent); }
+.tool:hover:not(:disabled) > svg { transform: scale(1.14) rotate(-4deg); }
+.tool.on { color: var(--surface); background: var(--accent); box-shadow: 0 4px 14px -5px var(--accent); }
+.tool.on > svg { transform: scale(1.06); }
+.tool.ok { color: var(--accent); }
+.tool:disabled { opacity: .26; cursor: default; }
+.tool:active:not(:disabled) { transform: scale(.88); }

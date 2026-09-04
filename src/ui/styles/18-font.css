@@ -1,0 +1,29 @@
+/* ---------- Font ---------- */
+.fontlist { display: flex; flex-direction: column; gap: 5px; }
+.fontcard {
+  display: flex; align-items: center; gap: 10px; text-align: left;
+  padding: 9px 11px; border-radius: 10px;
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  outline: 2px solid transparent; outline-offset: 2px;
+  transition: outline-color .18s, background .18s, transform .22s var(--spring);
+}
+.fontcard:hover { background: color-mix(in srgb, var(--fg) 9%, transparent); transform: translateX(2px); }
+.fontcard.on { outline-color: var(--accent); }
+.fontcard-sample { font-size: 19px; line-height: 1.1; flex: none; min-width: 6.6em; }
+.fontcard-meta { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.fontcard-meta b { font-size: var(--t-sm); font-weight: 600; }
+.fontcard-meta em { font-style: normal; font-size: var(--t-xs); color: var(--fg-dim); }
+.fontcard-del {
+  flex: none; display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%; opacity: .45;
+  transition: opacity .18s, background .18s;
+}
+.fontcard-del:hover { opacity: 1; background: color-mix(in srgb, var(--fg) 12%, transparent); }
+
+.fontimport { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.fontimport-error { font-size: var(--t-xs); color: var(--danger, #e5484d); }
+
+.note {
+  margin: 14px 0 0; font-size: var(--t-xs); line-height: 1.6;
+  color: var(--fg-dim); opacity: .85;
+}

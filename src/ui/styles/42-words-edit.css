@@ -1,0 +1,69 @@
+/* ---------- Word table: in-place rename, forced rotation, non-collapsing search ----------
+   The search box used to drop down the panel as filtering shortened the list: the sheet
+   height follows its content. The list keeps a floor height and the box sticks to the top. */
+
+.words-search {
+  /* -14px cancels .sheet-body's top padding, so no row shows above the box while scrolling. */
+  position: sticky; top: -14px; z-index: 2;
+  margin: -14px 0 0;
+  /* The sheet body has no background of its own; borrow the panel's so rows scroll under. */
+  background: var(--surface2);
+  padding: 14px 0 6px;
+}
+/* With the edit chips above it, the negative margin would pull the box over the chips' last row. */
+.edits + .words-search { margin-top: 0; }
+.words-search .search { margin: 0; }
+
+.wordlist.words-edit {
+  min-height: 60vh;
+  /* Six row actions instead of three; the count column shrinks, not the word. */
+  --wl-acts: 148px;
+}
+.wordlist.words-edit li { grid-template-columns: 22px minmax(0, 1fr) 44px var(--wl-acts); }
+
+/* Renamed word: the original stays visible in small type so the row is still findable. */
+.wordlist.words-edit .word .orig {
+  font-style: normal; font-weight: 400; font-size: var(--t-xs);
+  color: var(--fg-dim); margin-right: 4px;
+}
+
+/* In-place editor: sits in the word column, same metrics as the word it replaces. */
+.wordlist.words-edit .word-edit {
+  min-width: 0; width: 100%;
+  font: inherit; font-weight: 600; font-size: var(--t-md);
+  color: var(--fg); background: color-mix(in srgb, var(--fg) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 6px; padding: 1px 6px;
+}
+.wordlist.words-edit .word-edit:focus { outline: none; border-color: var(--accent); }
+
+/* A forced rotation is a standing setting, so its button stays lit, not hover-only. */
+.wordlist.words-edit .btn-x.set { opacity: .95; color: var(--accent); }
+.wordlist.words-edit .btn-x.set:hover { color: var(--accent); }
+.wordlist.words-edit .btn-x:disabled { opacity: .18; cursor: not-allowed; }
+.wordlist.words-edit .btn-x:disabled:hover { opacity: .18 !important; color: var(--fg-dim); transform: none; }
+
+@media (max-width: 640px) {
+  .wordlist.words-edit { min-height: 50vh; --wl-acts: 116px; }
+}
+
+/* ---------- Equivalence mode (experimental): the search box becomes the merge input ---------- */
+.words-search { display: flex; align-items: center; gap: 6px; }
+.words-search .search { flex: 1; }
+.words-search.alias-mode .search { border-color: var(--accent); }
+.words-search .alias-exit { flex: none; opacity: .8; }
+
+.alias-cands { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+.alias-cands .note { margin: 0; }
+.alias-cand {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--t-sm); color: var(--fg);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: 999px; padding: 3px 10px;
+}
+/* The first candidate is what Enter takes; it reads as the default. */
+.alias-cand:first-child { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.alias-cand:hover { background: color-mix(in srgb, var(--accent) 36%, transparent); }
+.alias-cand em { font-style: normal; opacity: .6; font-variant-numeric: tabular-nums; }
+
+.alias-hint { margin: 4px 0 0; color: var(--accent); }

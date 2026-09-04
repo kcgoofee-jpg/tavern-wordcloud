@@ -1,0 +1,119 @@
+/* ---------- Landing page (empty state, no share link) ----------
+   Serif display stack mirrors src/theme/fonts.ts `palatino`; colors/sizes/radii
+   come from 00-tokens-base.css variables only. */
+.landing {
+  position: absolute; inset: 0; z-index: 4; overflow-y: auto;
+  background: var(--surface);
+  display: flex; flex-direction: column;
+  animation: card-in .4s var(--ease) backwards;
+}
+
+.land-top {
+  flex: none; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 12px 20px;
+}
+.land-logo {
+  font-family: var(--serif);
+  font-size: var(--t-lg); font-weight: 700; letter-spacing: .08em;
+}
+.land-top .seg { margin-inline: auto; }
+.land-top .seg button { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.land-acts { display: flex; align-items: center; gap: 6px; }
+.land-btn {
+  width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%;
+  color: var(--fg-dim); transition: color .18s, background .18s, transform .24s var(--spring);
+}
+.land-btn:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 7%, transparent); }
+.land-btn.on { color: var(--surface); background: var(--accent); }
+
+.land-hero {
+  flex: none; display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 56px 24px 40px;
+}
+.land-title {
+  margin: 0; max-width: 22em;
+  font-family: var(--serif);
+  font-size: clamp(26px, 4.6vw, 40px); font-weight: 700; letter-spacing: .04em;
+  line-height: 1.3;
+}
+.land-sub { margin: 14px 0 0; max-width: 34em; font-size: var(--t-md); color: var(--fg-dim); }
+/* Prose blocks: break at punctuation, balance ragged lines, never split a CJK word or a Latin token mid-way */
+.land-title { text-wrap: balance; word-break: keep-all; }
+/* Short prose with commas: break only at punctuation so a CJK word is never split (keep-all); long paragraphs in the feature cards wrap normally */
+.land-sub, .land-disclaimer, .land-drop-hint, .land-drop-big, .land-privacy { word-break: keep-all; }
+.land-sub, .land-disclaimer, .land-feat p, .land-drop-hint, .land-drop-big, .land-privacy, .land-steps li {
+  text-wrap: pretty; line-break: strict; overflow-wrap: anywhere;
+}
+
+/* The upload card is a real button: keyboard-reachable like the hero it replaces */
+.land-drop {
+  margin-top: 32px; width: min(520px, 100%); padding: 40px 28px;
+  border: 2px dashed var(--line); border-radius: var(--r);
+  background: var(--surface2); color: var(--fg);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  transition: border-color .18s, background .18s, transform .24s var(--spring);
+}
+.land-drop:hover, .land-drop:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface2));
+  transform: translateY(-2px);
+}
+.land-drop-big {
+  font-family: var(--serif);
+  font-size: var(--t-lg); letter-spacing: .03em;
+}
+.land-drop-hint { font-size: var(--t-sm); color: var(--fg-dim); opacity: .8; }
+
+.land-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 18px; }
+.land-chip {
+  font-size: var(--t-xs); color: var(--fg-dim);
+  border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px;
+  background: var(--surface2); font-variant-numeric: tabular-nums;
+}
+
+.land-privacy { margin: 14px 0 0; font-size: var(--t-sm); color: var(--fg-dim); }
+.land-privacy a { color: var(--accent); margin-left: 6px; }
+
+.land-guide { display: flex; align-items: center; gap: 28px; margin-top: 20px; font-size: var(--t-md); }
+.land-export { position: relative; }
+.land-export summary { cursor: pointer; color: var(--accent); list-style: none; }
+.land-export summary::-webkit-details-marker { display: none; }
+.land-export summary:hover { text-decoration: underline; }
+.land-steps {
+  position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+  width: min(400px, 88vw); margin: 0; padding: 16px 20px 16px 36px; z-index: 5;
+  background: var(--surface2); border-radius: var(--r);
+  box-shadow: 0 16px 40px -18px rgb(0 0 0 / .5);
+  text-align: left; color: var(--fg-dim); font-size: var(--t-sm);
+  /* Keyframes must carry translateX(-50%) in both frames: while the details is
+     closed the animation sits in backwards-fill and would otherwise drop the centering. */
+  animation: land-pop .2s var(--ease) backwards;
+}
+@keyframes land-pop {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.land-steps li { margin-bottom: 6px; }
+.land-sample { color: var(--accent); font-size: var(--t-md); }
+.land-sample:hover { text-decoration: underline; }
+
+.land-disclaimer { margin: 22px 0 0; max-width: 38em; font-size: var(--t-xs); color: var(--fg-dim); opacity: .8; }
+.land-disclaimer a { color: var(--fg-dim); text-decoration: underline; margin-left: 8px; }
+.land-disclaimer a:hover { color: var(--accent); }
+
+.land-feats {
+  flex: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  width: 100%; max-width: 980px; margin: 0 auto; padding: 8px 24px 40px;
+}
+.land-feat {
+  background: var(--surface2); border-radius: var(--r); padding: 20px;
+  transition: transform .24s var(--spring);
+}
+.land-feat:hover { transform: translateY(-2px); }
+.land-feat h2 {
+  margin: 0 0 8px; font-size: var(--t-lg); letter-spacing: .03em;
+  font-family: var(--serif);
+}
+.land-feat p { margin: 0; font-size: var(--t-sm); color: var(--fg-dim); }
+
+.landing .foot { margin-top: auto; }

@@ -1,0 +1,81 @@
+/* ---------- Controls ---------- */
+.group-label {
+  font-size: var(--t-xs); letter-spacing: .09em; color: var(--fg-dim);
+  margin: 16px 0 8px; opacity: .8;
+}
+.group-label:first-child { margin-top: 2px; }
+
+.slider { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; margin: 11px 0; }
+.slider-label {
+  grid-column: 1 / -1; font-size: var(--t-sm); color: var(--fg-dim);
+  display: flex; align-items: center; gap: 2px;
+}
+.slider b { font-size: var(--t-sm); font-variant-numeric: tabular-nums; color: var(--accent); min-width: 42px; text-align: right; }
+
+/* Custom range: 4px track, 16px thumb, 44px hit area. */
+.slider input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 22px; background: none; margin: 0; cursor: pointer;
+}
+.slider input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: var(--track, color-mix(in srgb, var(--fg) 14%, transparent));
+}
+.slider input[type="range"]::-moz-range-track {
+  height: 4px; border-radius: 2px;
+  background: var(--track, color-mix(in srgb, var(--fg) 14%, transparent));
+}
+.slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; margin-top: -6px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--surface2);
+  box-shadow: 0 1px 5px rgb(0 0 0 / .3);
+  transition: transform .18s var(--spring), box-shadow .18s;
+}
+.slider input[type="range"]::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--surface2);
+}
+.slider input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.18); }
+.slider input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.34); box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 18%, transparent); }
+
+.seg { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: color-mix(in srgb, var(--fg) 6%, transparent); }
+.seg.vertical { flex-direction: column; }
+.seg button {
+  flex: 1; padding: 7px 10px; border-radius: 8px; font-size: var(--t-sm); color: var(--fg-dim);
+  transition: background .22s var(--ease), color .18s, transform .22s var(--spring);
+  display: flex; align-items: baseline; justify-content: center; gap: 6px;
+  /* A segmented control never wraps: a two-line option reads as a broken layout.
+     Long labels are truncated; the full text stays in the title attribute. */
+  min-width: 0; white-space: nowrap;
+}
+.seg button > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seg.vertical button { justify-content: space-between; overflow: hidden; text-overflow: ellipsis; }
+.seg button em { font-style: normal; font-size: var(--t-xs); opacity: .7; }
+.seg button:hover { color: var(--fg); }
+.seg button.on { background: var(--surface2); color: var(--fg); font-weight: 500; box-shadow: 0 2px 8px -3px rgb(0 0 0 / .35); }
+.seg button:active { transform: scale(.96); }
+
+/* Multi-line inputs in the advanced panel */
+.field textarea {
+  width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid transparent;
+  font: inherit; font-size: var(--t-sm); line-height: 1.6; color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 6%, transparent); resize: vertical;
+  transition: border-color .18s, background .18s;
+}
+.field textarea:focus { outline: none; border-color: var(--accent); background: color-mix(in srgb, var(--fg) 9%, transparent); }
+/* Sub-label under a group label */
+.sub-label { font-size: var(--t-sm); color: var(--fg-dim); margin: 12px 0 7px; }
+.sub-label em { display: block; font-style: normal; font-size: var(--t-xs); opacity: .65; margin-top: 2px; }
+.field > span > em { font-style: normal; font-size: var(--t-xs); opacity: .6; margin-left: 6px; }
+.check { display: flex; gap: 9px; align-items: flex-start; margin: 9px 0; font-size: var(--t-sm); cursor: pointer; color: var(--fg-dim); transition: color .16s; }
+.check:hover { color: var(--fg); }
+.check input { margin-top: 2px; accent-color: var(--accent); width: 15px; height: 15px; flex: none; }
+
+.search {
+  width: 100%; margin: 10px 0 6px; padding: 7px 11px; border-radius: 9px;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  border: 1px solid transparent; color: var(--fg); font: inherit; font-size: var(--t-md);
+  transition: border-color .2s, background .2s;
+}
+.search:focus { outline: none; border-color: var(--accent); background: color-mix(in srgb, var(--fg) 9%, transparent); }

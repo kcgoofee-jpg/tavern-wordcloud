@@ -1,0 +1,51 @@
+/* ---------- Info popover ---------- */
+.note-dot { position: relative; display: inline-flex; vertical-align: -2px; margin-left: 4px; }
+.note-dot > button {
+  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+  color: var(--fg-dim); opacity: .55;
+  transition: opacity .18s, color .18s, transform .24s var(--spring);
+}
+.note-dot > button:hover { opacity: 1; color: var(--accent); transform: scale(1.18); }
+.note-dot > button:active { transform: scale(.9); }
+.note-dot.open > button { opacity: 1; color: var(--accent); }
+.note-pop {
+  /* fixed + portal: not clipped by panel overflow */
+  position: fixed; z-index: 60;
+  width: max-content; max-width: min(300px, 70vw);
+  padding: 10px 12px; border-radius: 12px;
+  font-size: var(--t-xs); line-height: 1.62; color: var(--fg-dim); text-align: left;
+  /* The note is one translatable string; paragraphs are separated by newlines */
+  white-space: pre-line;
+  background: color-mix(in srgb, var(--surface2) 98%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 14px 40px -16px rgb(0 0 0 / .5);
+  animation: card-in .26s var(--spring) backwards;
+}
+.note-pop b { color: var(--fg); }
+.note-pop code {
+  padding: 1px 4px; border-radius: 4px; font-size: .94em;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+
+/* Small reset next to a group label */
+.group-label { display: flex; align-items: center; gap: 6px; }
+.mini-reset {
+  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+  color: var(--fg-dim); opacity: .5;
+  transition: opacity .18s, color .18s, transform .24s var(--spring);
+}
+.mini-reset:hover:not(:disabled) { opacity: 1; color: var(--accent); transform: scale(1.18) rotate(-40deg); }
+.mini-reset:active:not(:disabled) { transform: scale(.9); }
+.mini-reset:disabled { opacity: .18; }
+/* Truncate long card names */
+.seg.vertical button .ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+
+/* Provider presets inside the popover */
+/* Still clickable */
+
+/* Inline hint after a field label */
+.field-hint { font-style: normal; font-size: var(--t-xs); opacity: .62; margin-left: 6px; }
+
+.provider-links { display: inline-flex; gap: 6px; margin-left: 8px; vertical-align: middle; }
