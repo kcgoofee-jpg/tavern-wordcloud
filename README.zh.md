@@ -109,3 +109,7 @@ test/         vitest
 ## 许可
 
 MIT
+
+## 许可证
+
+MIT，见 [LICENSE](LICENSE)。网页版由作者自行运营；这个仓库里的代码是给你自建用的。
