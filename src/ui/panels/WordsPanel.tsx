@@ -5,6 +5,7 @@ import type { WordCount, WordOverride } from '../../core/types';
 import { hasAliasCycle } from '../../core/overrides';
 import { rankAliasCandidates } from '../../core/aliasScore';
 import type { Cooccur } from '../../core/cooccur';
+import type { CorefGroup } from '../../core/entities';
 import Icon from '../Icons';
 import { NSFW_EXPLICIT_KINDS } from '../../core/nsfw';
 import { nsfwLabel } from '../nsfwLabels';
@@ -14,7 +15,7 @@ import { toTraditional } from '../../theme/s2t';
 const key = (w: string) => w.toLowerCase();
 
 export function WordsPanel({
-  words, options, setOptions, onHover, hovered, onReport, overrides, setOverrides, priority = [], cooccur,
+  words, options, setOptions, onHover, hovered, onReport, overrides, setOverrides, priority = [], cooccur, coref,
 }: {
   /** Report a word as noise: sends the word and a few context snippets. Hidden without a server. */
   onReport?: (word: string) => void;
@@ -29,6 +30,13 @@ export function WordsPanel({
   priority?: string[];
   /** Co-occurrence index from the analysis; drives the equivalence candidate ranking. */
   cooccur?: Cooccur | null;
+  /**
+   * Coreference proposals (core/entities.ts `detectCoref`). Suggestions only: the
+   * harness measures a 33% mis-merge rate on the local corpus, so nothing is merged
+   * until the user clicks. Clicking writes ordinary `alias` overrides, which means
+   * the existing 等价 chips above the list are the undo.
+   */
+  coref?: CorefGroup[];
 }) {
   const t = useT();
   const [q, setQ] = useState('');
@@ -151,6 +159,31 @@ export function WordsPanel({
 
   const priSet = useMemo(() => new Set(priority.map(key)), [priority]);
 
+  /**
+   * Full name -> the short forms still standing on their own. An alias already
+   * merged (or hidden) drops out, so the suggestion disappears once it is taken.
+   */
+  const corefBy = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const g of coref ?? []) {
+      const left = g.aliases.filter((a) => !aliased.has(key(a)) && words.some((w) => w.text === a));
+      if (left.length) m.set(g.full, left);
+    }
+    return m;
+  }, [coref, aliased, words]);
+
+  /** Take the whole suggestion: every alias merges into the full name. */
+  const applyCoref = (full: string, aliases: string[]) => {
+    setOverrides((o) => {
+      const out = { ...o };
+      for (const a of aliases) {
+        if (hasAliasCycle(out, a, full)) continue;
+        out[key(a)] = { ...out[key(a)], alias: full };
+      }
+      return out;
+    });
+  };
+
   const edits = [
     ...tok.forceWords.map((w) => ({ w, kind: t('合并'), run: () => undo(w) })),
     ...tok.splitWords.map((w) => ({ w, kind: t('拆开'), run: () => undo(w) })),
@@ -248,6 +281,15 @@ export function WordsPanel({
                   )}
                 </span>
               )}
+              {corefBy.has(w.text) && (
+                <button type="button" className="coref-tag"
+                  title={t('看起来是同一个人：{list}。点一下把它们并到「{w}」，可在上面的改动条里撤销', {
+                    list: corefBy.get(w.text)!.join('、'), w: w.text,
+                  })}
+                  onClick={() => applyCoref(w.text, corefBy.get(w.text)!)}>
+                  {t('同指？')}{corefBy.get(w.text)!.join('、')}
+                </button>
+              )}
               <span className="count">{w.count}</span>
               <span className="row-acts">
                 <button type="button" className="btn-x" title={t('改「{w}」在云上显示的字', { w: w.text })}
@@ -260,11 +302,13 @@ export function WordsPanel({
                     : rot === 'v' ? t('「{w}」强制竖排；再点一次恢复自动', { w: w.text })
                       : t('「{w}」的横竖由程序随机决定；点一下强制横排', { w: w.text })}
                   onClick={() => cycleRotate(w.text)}><Icon name={rot === 'v' ? 'rotateV' : 'rotateH'} size={13} /></button>
-                {w.text.length >= 3 && (
-                  <button type="button" className="btn-x" disabled={renamed}
-                    title={renamed ? t('已改显示名的词不能再拆') : t('把「{w}」拆开，不当成一个词', { w: w.text })}
-                    onClick={() => splitWord(w.text)}><Icon name="unsplit" size={13} /></button>
-                )}
+                {/* Always occupies its slot: a missing button used to shift every icon after it,
+                    so the action columns zig-zagged from row to row. */}
+                <button type="button" className="btn-x" disabled={renamed || w.text.length < 3}
+                  aria-hidden={w.text.length < 3} tabIndex={w.text.length < 3 ? -1 : undefined}
+                  style={w.text.length < 3 ? { visibility: 'hidden' } : undefined}
+                  title={renamed ? t('已改显示名的词不能再拆') : t('把「{w}」拆开，不当成一个词', { w: w.text })}
+                  onClick={() => splitWord(w.text)}><Icon name="unsplit" size={13} /></button>
                 <button type="button" className="btn-x" title={t('不显示「{w}」', { w: w.text })}
                   onClick={() => hideWord(w.text)}><Icon name="close" size={13} /></button>
                 {onReport && (

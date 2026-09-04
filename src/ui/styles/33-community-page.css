@@ -43,3 +43,9 @@
   margin: 2px 0 0; font-size: var(--t-sm); color: var(--fg);
   font-variant-numeric: tabular-nums;
 }
+
+/* Offline (single-file) build: there is no server to read, so the page holds one sentence.
+   A full-bleed sheet around one line looked broken — shrink to a centred card instead. */
+.community-page.compact { inset: auto; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 40px)); height: auto; max-height: none; }
+.community-page.compact .community-body { display: block; padding: 4px 20px 20px; }
+

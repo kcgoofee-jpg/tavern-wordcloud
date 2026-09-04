@@ -1,6 +1,7 @@
 import type { AnalyzeOptions } from '../core/analyze';
 // From the split-out module, not `core/analyze`: the pipeline itself belongs to the worker.
 import { DEFAULT_ANALYZE_OPTIONS } from '../core/analyzeOptions';
+import type { CardRules } from '../core/cardRules';
 import type { EntityKind } from '../core/entities';
 import { detectLang, type Lang } from './i18n';
 import { DEFAULT_WATERMARK_TEXT, type WatermarkPos } from './watermark';
@@ -93,6 +94,12 @@ export interface Settings {
   priority: string;
   /** Per-word display/alias/rotate/kind overrides, keyed by lowercased word. */
   overrides: Record<string, import('../core/types').WordOverride>;
+  /**
+   * Per-card saved fixes (notes/docs/23), keyed by the card's fingerprint (`core/cardRules.ts`).
+   * Local only — never uploaded. Auto-applied on top of `overrides`/`options.tokenize.extraStopwords`
+   * when the same card is imported again; the current session's own edits always win.
+   */
+  cardRules: CardRules;
 }
 
 /**
@@ -132,6 +139,7 @@ export const DEFAULT_SETTINGS: Settings = {
   options: { ...DEFAULT_ANALYZE_OPTIONS, ai: { ...DEFAULT_ANALYZE_OPTIONS.ai, ...devAi } },
   priority: '',
   overrides: {},
+  cardRules: {},
 };
 
 /** Panel -> settings paths it owns. Reset touches only those. */

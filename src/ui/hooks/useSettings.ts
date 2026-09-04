@@ -4,6 +4,10 @@ import type { AnalyzeOptions } from '../../core/analyze';
 import { setCurrentLang, translate } from '../i18n';
 import { themeById } from '../../theme/themes';
 import { DEFAULT_SETTINGS, type ExportOpts, type Settings } from '../settings';
+import { ALL_KINDS, type EntityKind } from '../../core/entities';
+
+/** The kinds a pre-60-design save could have stored; anything outside this list is new and starts on. */
+const OLD_KINDS: EntityKind[] = ['plain', 'person', 'place', 'time', 'generic', 'brand', 'wear', 'title'];
 
 const KEY = 'tw-settings';
 
@@ -62,6 +66,10 @@ export function loadSettings(): Settings {
       clean: { ...DEFAULT_SETTINGS.options.clean, ...saved.options?.clean },
       tokenize: { ...DEFAULT_SETTINGS.options.tokenize, ...saved.options?.tokenize },
       ai: { ...DEFAULT_SETTINGS.options.ai, ...saved.options?.ai },
+      // Kinds added after a save default to on, the same as a fresh install: a save
+      // from the 8-kind era must not silently hide every word the new rules tag.
+      kinds: [...new Set([...(saved.options?.kinds ?? DEFAULT_SETTINGS.options.kinds), ...ALL_KINDS.filter((k) => !OLD_KINDS.includes(k))])]
+        .filter((k) => ALL_KINDS.includes(k)),
       // System messages are UI notices, not chat content; drop a stale selection from old saves
       roles: (saved.options?.roles ?? DEFAULT_SETTINGS.options.roles).filter((r) => r !== 'system'),
       // Old saves used two booleans (hide / only); migrate to the three-state mode

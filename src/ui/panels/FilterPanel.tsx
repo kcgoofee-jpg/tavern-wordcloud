@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useT, tx } from '../i18n';
 import type { AnalyzeOptions } from '../../core/analyze';
-import { ENTITY_LABEL, EXPERIMENTAL_KINDS, type EntityKind } from '../../core/entities';
+import { ALL_KINDS, ENTITY_LABEL, type EntityKind } from '../../core/entities';
+import { KindGroups, KindMenuItems } from '../KindGroups';
 import { NSFW_KINDS, NSFW_EXPLICIT_KINDS } from '../../core/nsfw';
 import { nsfwLabel } from '../nsfwLabels';
 import type { AnalysisResult, Role } from '../../core/types';
@@ -10,10 +11,8 @@ import Slider from './Slider';
 /** A function of `t` so labels are literal `t('…')` calls. */
 const roleLabel = (t: (s: string) => string): Record<Role, string> =>
   ({ user: t('我说的'), char: t('角色说的'), system: '' });
-/** Two rows of four in the button grid. */
-const KIND_ORDER: EntityKind[] = ['plain', 'person', 'place', 'time', 'generic', 'brand', 'wear', 'title'];
 /** Kinds listed under 「看看各类都有哪些词」; `plain` is everything else and would be the whole table. */
-const LISTED_KINDS: EntityKind[] = ['person', 'place', 'time', 'generic', 'brand', 'wear', 'title'];
+const LISTED_KINDS: EntityKind[] = ALL_KINDS.filter((k) => k !== 'plain');
 const nsfwModeLabel = (t: (s: string) => string): Record<AnalyzeOptions['nsfwMode'], string> =>
   ({ show: t('全部显示'), hide: t('隐藏 NSFW'), only: t('只看 NSFW') });
 
@@ -59,25 +58,14 @@ export function FilterPanel({
 
       {/* Entity kinds. Person names are off by default because they dominate the counts. */}
       <div className="group-label">{t('显示哪几类词')}</div>
-      <div className="kinds">
-        {KIND_ORDER.map((k) => {
-          const on = options.kinds.includes(k);
-          const n = countOf(k);
-          return (
-            <button key={k} type="button" className={`kind${on ? ' on' : ''}`}
-              aria-pressed={on}
-              title={EXPERIMENTAL_KINDS.includes(k) ? t('实验，可能有误判')
-                : k === 'person' ? t('人名频率远高于其他词，嫌挤就关掉') : undefined}
-              onClick={() => setOptions((o) => ({
-                ...o, kinds: on ? o.kinds.filter((x) => x !== k) : [...o.kinds, k],
-              }))}
-            >
-              <span>{tx(ENTITY_LABEL[k])}</span>
-              <em>{n}</em>
-            </button>
-          );
-        })}
-      </div>
+      <KindGroups
+        value={options.kinds}
+        countOf={countOf}
+        title={(k) => (k === 'person' ? t('人名频率远高于其他词，嫌挤就关掉') : undefined)}
+        onToggle={(k) => setOptions((o) => ({
+          ...o, kinds: o.kinds.includes(k) ? o.kinds.filter((x) => x !== k) : [...o.kinds, k],
+        }))}
+      />
 
       {/* Which words landed in the person / place / time / common buckets: the counts alone hide what was taken out of the cloud */}
       {result && LISTED_KINDS.some((k) => countOf(k) > 0) && (
@@ -109,11 +97,8 @@ export function FilterPanel({
                       ))}
                       {menuWord === w.text && (
                         <span className="kw-menu" role="menu">
-                          {KIND_ORDER.map((target) => (
-                            <button key={target} type="button" role="menuitem"
-                              className={(kindOverrides[w.text] ?? w.kind) === target ? 'on' : ''}
-                              onClick={() => refile(w.text, target)}>{tx(ENTITY_LABEL[target])}</button>
-                          ))}
+                          <KindMenuItems current={kindOverrides[w.text] ?? w.kind}
+                            onPick={(target) => refile(w.text, target)} />
                           {kindOverrides[w.text] && (
                             <button type="button" role="menuitem" onClick={() => refile(w.text, null)}>{t('取消改动')}</button>
                           )}

@@ -71,6 +71,33 @@ export function joinTokens(parts: readonly string[]): string {
 }
 
 /**
+ * `X是` atoms that Intl.Segmenter emits as one word but that straddle a real word
+ * boundary: 通告单是A4纸 comes back as 通告 / 单是, so no dictionary entry can ever
+ * match 通告单 there (2026-09-05, the one item the 108-question eval was missing).
+ * The copula is not part of the noun in front of it, so the atom is split.
+ *
+ * `COPULA_KEEP` is the closed set of conjunctions and adverbs that genuinely end in
+ * 是; they stay whole so their counts do not move. Everything else the rule reaches
+ * (单是 / 像是 / 全是 / 我是 / 你是) is a function word or a pronoun plus copula, and
+ * splitting it leaves two single characters, which `acceptable()` drops at the
+ * default minLength of 2.
+ */
+const COPULA_ATOM = /^[㐀-䶿一-鿿豈-﫿]是$/;
+const COPULA_KEEP = new Set([
+  '不是', '就是', '还是', '只是', '但是', '而是', '也是', '都是', '总是', '真是',
+  '可是', '于是', '凡是', '要是', '若是', '或是', '的是', '那是', '这是', '才是',
+  '又是', '倒是', '越是', '既是', '算是', '仍是', '硬是', '正是', '尽是', '老是',
+]);
+/** Push a word-like atom, splitting off a trailing copula when it is a boundary artefact. */
+function pushAtom(cur: Chunk, atom: string): void {
+  if (COPULA_ATOM.test(atom) && !COPULA_KEEP.has(atom)) {
+    cur.push(atom[0], atom[1]);
+    return;
+  }
+  cur.push(atom);
+}
+
+/**
  * Segment into chunks with Intl.Segmenter. A single space does not break a chunk
  * (needed for multi-word English names); newlines, tabs and punctuation do.
  */
@@ -92,7 +119,7 @@ export function segmentToChunks(text: string): Chunk[] {
     if (expectedIndex !== -1 && s.index !== expectedIndex) {
       if (cur.length) { chunks.push(cur); cur = []; }
     }
-    cur.push(s.segment);
+    pushAtom(cur, s.segment);
     expectedIndex = s.index + s.segment.length;
   }
   if (cur.length) chunks.push(cur);
@@ -100,21 +127,40 @@ export function segmentToChunks(text: string): Chunk[] {
 }
 
 /**
+ * Cohesion threshold for step 2 of `discoverPhrases`.
+ *
+ * 2026-09-05 sweep (`npm run eval:sweep cohesion`, 0.30–0.40 by 0.02 on the local logs): the
+ * 108-item eval is 107/108 and over-merging is 0 at every step, and `eval:junk` is 0/40 at every
+ * step, so neither gate discriminates. The TOP 60 does: every step upward drops a proper noun out
+ * of it and replaces it with a fragment or a filler word — 0.32 loses 周叔, 0.34 loses 霁明影业
+ * and gains its fragment 影业 plus 一件, 0.40 loses 笔账. Lowered 0.34 -> 0.30, which keeps both
+ * names; the price is 336 discovered phrases instead of 309 (+9 %), i.e. memory only, since
+ * over-merging stays at zero.
+ */
+export const DISCOVER_COHESION = 0.30;
+
+/**
  * New-word discovery.
  *
  * Candidates are 2..4 adjacent tokens inside a chunk. A candidate is kept when:
  *   1. it occurs at least `discoverMinCount` times;
- *   2. cohesion = count(candidate) / count(most frequent part) is high enough;
+ *   2. cohesion = count(candidate) / count(most frequent part) is at least `cohesion`;
  *   3. no part is a function word;
  *   4. (optional, `discoverFreedom`) both sides have diverse neighbours (branching entropy),
  *      with chunk boundaries counted as a separate symbol.
  *
  * Entropy is computed in a second pass over the candidates that passed 1..3.
  */
-export function discoverPhrases(chunks: Chunk[], minCount: number, stop: ReadonlySet<string>, freedom = true): string[] {
+export function discoverPhrases(
+  chunks: Chunk[],
+  minCount: number,
+  stop: ReadonlySet<string>,
+  freedom = true,
+  cohesion: number = DISCOVER_COHESION,
+): string[] {
   const MAX_ATOMS = 3;
   const MAX_CHARS = 6;
-  const COHESION = 0.34;
+  const COHESION = cohesion;
 
   const atomCount = new Map<string, number>();
   const candCount = new Map<string, number>();
@@ -293,7 +339,7 @@ function chunksFromTokens(tokens: string[]): Chunk[] {
       if (cur.length) { out.push(cur); cur = []; }
       continue;
     }
-    cur.push(w);
+    pushAtom(cur, w);
   }
   if (cur.length) out.push(cur);
   return out;
@@ -378,7 +424,7 @@ export async function tokenizeCorpusAsync(
 /** Everything after segmentation: discovery, dictionary merge, stop words, counting, lemmatization. */
 function finishTokenize(allChunks: Chunk[], opts: TokenizeOptions, stop: Set<string>): TokenizeResult {
   const discovered = opts.discoverPhrases
-    ? discoverPhrases(allChunks, Math.max(2, opts.discoverMinCount), stop, opts.discoverFreedom !== false)
+    ? discoverPhrases(allChunks, Math.max(2, opts.discoverMinCount), stop, opts.discoverFreedom !== false, opts.discoverCohesion ?? DISCOVER_COHESION)
     : [];
 
   const lexicon = new Set<string>(discovered.map((d) => d.toLowerCase()));

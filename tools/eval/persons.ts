@@ -18,6 +18,8 @@ import { fileURLToPath } from 'node:url';
 import { corpusSentences } from './run';
 import { GROUND_TRUTH } from './groundtruth';
 import { detectEntities } from '../../src/core/entities';
+import { detectEnglishNames, ENGLISH_SINGLE_MIN } from '../../src/core/english';
+import { tokenizeCorpus } from '../../src/core/tokenize';
 import { localCorpusRoots } from '../../tools/localCorpus';
 
 /* ---------- Positives ---------- */
@@ -129,9 +131,54 @@ console.log(`门禁召回        = ${gated.length - gatedLost.length}/${gated.le
 if (fp.length) console.log(`\n误判成人名的负例 ${fp.length} 个：` + fp.join(' '));
 if (fn.length) console.log(`\n没被认成人名的正例 ${fn.length} 个：` + fn.map((p) => p.word + (p.gate ? '(门禁)' : '')).join(' '));
 
-if (fp.length || gatedLost.length) {
+/* ---------- English names ---------- */
+
+/**
+ * The Chinese corpora above say nothing about `detectEnglishNames`, so the English half runs on
+ * `fixtures/ceo-en.jsonl`. Positives are the people and places the log is about; negatives are
+ * the words the capitalization rule has actually produced that are not names. Gated on the
+ * 2026-09-05 baseline: `ENGLISH_SINGLE_MIN = 4` misses Delgado and accepts three non-names,
+ * and the possessive / all-caps folding must keep every spelling of a name on one entry.
+ */
+const EN_POSITIVE = [
+  'Adrian', 'Nora', 'Eleanor', 'Dominic', 'Marcus', 'Priya', 'Elena', 'Cole',
+  'Vance', 'Kestrel', 'Whitlock', 'Aurelian', 'Ravensmoor', 'Halcyon',
+];
+const EN_NEGATIVE_GATED = ['Sunday', 'Level', 'Sat', 'Group'];
+
+const enTexts = fixtureTexts().filter((t) => (t.match(/[A-Za-z]/g)?.length ?? 0) > t.length * 0.3);
+let enFailed = false;
+if (!enTexts.length) {
+  console.log('\n（fixtures 里没有英文语料，跳过英文人名部分）');
+} else {
+  const enNames = new Set(detectEnglishNames(enTexts));
+  const enFn = EN_POSITIVE.filter((w) => !enNames.has(w));
+  const enFp = EN_NEGATIVE_GATED.filter((w) => enNames.has(w));
+
+  // Possessive and shouted spellings must land on the same word as the plain one.
+  const shout = [
+    "Nicole walked in. The room was cold and Nicole's coat was wet.",
+    "Later Nicole's brother arrived. NICOLE shouted at him.",
+    'Maya said hello to Nicole. NICOLE waved back.',
+    "NICOLE and Maya left. Nicole's keys were gone.",
+    'It was Nicole who found them. Maya thanked Nicole.',
+  ];
+  const shoutNames = detectEnglishNames(shout);
+  const forms = tokenizeCorpus(shout, { dictionary: shoutNames }).allWords.filter((w) => w.text.startsWith('nicole'));
+  const folded = forms.length === 1 && forms[0].text === 'nicole' && forms[0].count === 10;
+
+  console.log(`\n英文语料 ${enTexts.length} 条：正例 ${EN_POSITIVE.length}  门禁负例 ${EN_NEGATIVE_GATED.length}  SINGLE_MIN = ${ENGLISH_SINGLE_MIN}`);
+  console.log(`英文准确率 = ${EN_POSITIVE.length - enFn.length}/${EN_POSITIVE.length - enFn.length + enFp.length}`);
+  if (enFn.length) console.log(`  没被认成人名的英文正例：${enFn.join(' ')}`);
+  if (enFp.length) console.log(`  误判成人名的英文负例：${enFp.join(' ')}`);
+  console.log(`所有格 / 全大写归并：${folded ? '✅ Nicole / Nicole\'s / NICOLE 合成一条（10 次）' : `❌ 拆成了 ${forms.map((w) => `${w.text}×${w.count}`).join(' ')}`}`);
+  enFailed = enFn.length > 0 || enFp.length > 0 || !folded;
+}
+
+if (fp.length || gatedLost.length || enFailed) {
   console.log('\n❌ 不通过' + (fp.length ? `：${fp.length} 个负例被当成人名` : '') +
-    (gatedLost.length ? `：${gatedLost.length} 个门禁正例丢了` : ''));
+    (gatedLost.length ? `：${gatedLost.length} 个门禁正例丢了` : '') +
+    (enFailed ? '：英文人名部分退步了' : ''));
   process.exit(1);
 }
-console.log('\n✅ 通过：负例全部拒绝，门禁正例全部保留');
+console.log('\n✅ 通过：负例全部拒绝，门禁正例全部保留，英文人名与归并未退步');

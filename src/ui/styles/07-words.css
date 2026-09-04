@@ -23,7 +23,9 @@
 .wordlist .nsfw-tag.sure { color: #b0433a; background: color-mix(in srgb, #b0433a 12%, transparent); }
 .wordlist .nsfw-tag.mild { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .wordlist .nsfw-tag.maybe { color: var(--fg-dim); background: color-mix(in srgb, var(--fg) 8%, transparent); }
+/* Fixed-width slots so every row's icons line up in columns. */
 .wordlist .row-acts { display: flex; justify-content: flex-end; gap: 2px; }
+.wordlist .row-acts > .btn-x { flex: 0 0 22px; display: inline-flex; align-items: center; justify-content: center; }
 /* Community panel: distinctive words under the card name; mini bars */
 .wordlist.cards .word { white-space: normal; }
 .wordlist.cards .sig { display: block; font-weight: 400; font-size: var(--t-xs); color: var(--fg-dim); font-style: normal; }

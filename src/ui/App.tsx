@@ -23,7 +23,7 @@ import { relayFetch } from '../net/relay';
 import { loadQr } from '../render/qrLoad';
 import { resolveMode } from '../theme/themes';
 import { toTraditional } from '../theme/s2t';
-import { isDirty, resetSlice, type ResetScope } from './settings';
+import { isDirty, resetSlice, type ResetScope, type Settings } from './settings';
 import { useSettings } from './hooks/useSettings';
 import { useAnalyzeWorker } from './hooks/useAnalyzeWorker';
 import { useOverlay } from './hooks/useOverlay';
@@ -40,6 +40,7 @@ import type { AnalysisResult, WordCount } from '../core/types';
 import type { CurateResult } from '../core/curate';
 import type { WorkerProgress } from '../worker/analyze.worker';
 import type { DataBundle } from '../core/bundle';
+import { applyCardRule, cardFingerprint, revertCardRule, saveCardRule } from '../core/cardRules';
 import './styles/index.css';
 
 /**
@@ -132,6 +133,13 @@ export default function App() {
   const [copiedWords, flashCopiedWords] = useFlash(1800);
   /** Confirmation panel for large imports: reports what was read and lets the user change re-run options first. */
   const [importAsk, setImportAsk] = useState<ImportSummary | null>(null);
+  /**
+   * Card rule packs (notes/docs/23, local-only first step): the current import's card
+   * fingerprint, and what a saved rule pack contributed on top of the session's own
+   * overrides/stopwords (shown as a note in the import panel, with a one-click undo).
+   */
+  const [cardFp, setCardFp] = useState<string | null>(null);
+  const [cardRuleApplied, setCardRuleApplied] = useState<{ appliedOverrideKeys: string[]; appliedStopwords: string[] } | null>(null);
   /** Keyword-mode result. Kept alongside `result` so switching modes does not recompute or re-pay. */
   const [curation, setCuration] = useState<{ words: WordCount[]; result: CurateResult } | null>(null);
 
@@ -237,6 +245,65 @@ export default function App() {
     return () => window.removeEventListener('hashchange', apply);
   }, [patch]);
 
+  /**
+   * Card rule packs (notes/docs/23): fingerprint the card being imported (weak — name only,
+   * this first step never reads first_mes/description) and, if this browser has saved fixes
+   * for it, auto-apply them on top of the session's own overrides/stopwords. The current
+   * session always wins on a conflicting key. Only called for imports that go through the
+   * confirmation panel, so the note below has somewhere to show.
+   */
+  const applyCardRuleForCharacter = useCallback(async (name: string | undefined) => {
+    if (!name) { setCardFp(null); setCardRuleApplied(null); return; }
+    const { fp } = await cardFingerprint(name);
+    setCardFp(fp);
+    const result = applyCardRule(settings.cardRules, fp, settings.overrides, settings.options.tokenize.extraStopwords);
+    if (!result.appliedOverrideKeys.length && !result.appliedStopwords.length) { setCardRuleApplied(null); return; }
+    setSettings((s) => ({
+      ...s, overrides: result.overrides,
+      options: { ...s.options, tokenize: { ...s.options.tokenize, extraStopwords: result.extraStopwords } },
+    }));
+    setCardRuleApplied({ appliedOverrideKeys: result.appliedOverrideKeys, appliedStopwords: result.appliedStopwords });
+  }, [settings.cardRules, settings.overrides, settings.options.tokenize.extraStopwords, setSettings]);
+
+  /** One-click undo for the note above: removes exactly what the saved rule pack contributed, leaving any edit made since alone. */
+  const undoCardRuleApply = useCallback(() => {
+    if (!cardRuleApplied) return;
+    setSettings((s) => {
+      const { overrides, extraStopwords } = revertCardRule(s.overrides, s.options.tokenize.extraStopwords, cardRuleApplied);
+      return { ...s, overrides, options: { ...s.options, tokenize: { ...s.options.tokenize, extraStopwords } } };
+    });
+    setCardRuleApplied(null);
+  }, [cardRuleApplied, setSettings]);
+
+  /**
+   * Word-table / review-panel overrides also get remembered under the current card's
+   * fingerprint, restricted to words that are actually part of this analysis — `overrides`
+   * is otherwise session-global and would leak unrelated cards' fixes into this pack.
+   */
+  const setOverridesTracked = useCallback((fn: (o: Settings['overrides']) => Settings['overrides']) => {
+    setSettings((s) => {
+      const overrides = fn(s.overrides);
+      if (!cardFp) return { ...s, overrides };
+      const wordSet = new Set(words.map((w) => w.text.toLowerCase()));
+      const changed: Settings['overrides'] = {};
+      for (const k of Object.keys(overrides)) if (wordSet.has(k) && overrides[k] !== s.overrides[k]) changed[k] = overrides[k];
+      return Object.keys(changed).length
+        ? { ...s, overrides, cardRules: saveCardRule(s.cardRules, cardFp, { overrides: changed }) }
+        : { ...s, overrides };
+    });
+  }, [cardFp, words, setSettings]);
+
+  const setExtraStopwordsTracked = useCallback((v: string[]) => {
+    setSettings((s) => {
+      const added = cardFp ? v.filter((w) => !s.options.tokenize.extraStopwords.includes(w)) : [];
+      return {
+        ...s,
+        options: { ...s.options, tokenize: { ...s.options.tokenize, extraStopwords: v } },
+        ...(cardFp && added.length ? { cardRules: saveCardRule(s.cardRules, cardFp, { extraStopwords: added }) } : {}),
+      };
+    });
+  }, [cardFp, setSettings]);
+
   /** Parse warnings: the toast shows the first with a count; all of them land in the progress log. */
   const showWarnings = useCallback((warnings: UserText[]) => {
     if (!warnings.length) return;
@@ -254,6 +321,7 @@ export default function App() {
     if (replace) {
       filesRef.current = [];
       setHasFiles(false); setResult(null); setSharedWords(null); setShare(null); setBundle(null);
+      setCardFp(null); setCardRuleApplied(null);
       // Regex from the previous zip/script must not leak into the next chat.
       setOptions((o) => (o.clean.customRules?.length ? { ...o, clean: { ...o.clean, customRules: [] } } : o));
     }
@@ -317,6 +385,7 @@ export default function App() {
             fileCount: res.fileCount, chars: res.chars,
             characters: res.characters, bundle: res.bundle, fromZip: true,
           });
+          void applyCardRuleForCharacter(res.characters[0]);
           setLoadSeq((n) => n + 1);
         } else if (!res.ok) {
           setError(classifyError(new Error(res.error)));
@@ -352,6 +421,7 @@ export default function App() {
       setLoadSeq((n) => n + 1);
       if (res.ok && res.kind === 'load' && (filesRef.current.length >= 3 || chars > 1_500_000)) {
         setImportAsk({ fileCount: res.fileCount, chars, characters: res.characters, bundle: null, fromZip: false });
+        void applyCardRuleForCharacter(res.characters[0]);
       } else {
         setHasFiles(true);
       }
@@ -361,12 +431,13 @@ export default function App() {
       setBusy(false);
       setProgress(null);
     }
-  }, [send, setOptions, t, setProgress, setProgressLog, patch, settings.font, showWarnings, closeSample, result, sharedWords]);
+  }, [send, setOptions, t, setProgress, setProgressLog, patch, settings.font, showWarnings, closeSample, result, sharedWords, applyCardRuleForCharacter]);
 
   const clearAll = useCallback(() => {
     filesRef.current = [];
     setHasFiles(false); setResult(null); setSharedWords(null);
     setShare(null); closeAll(); setError(null); setBundle(null);
+    setCardFp(null); setCardRuleApplied(null);
     void send({ kind: 'load', files: [] });
   }, [send, closeAll]);
 
@@ -969,7 +1040,7 @@ export default function App() {
       </button>
       )}
       {noticeOpen && siteNotice && (
-        <div className="notice-pop" role="note" aria-label={t('站内通知')}>
+        <div className="notice-pop" role="note" tabIndex={-1} aria-label={t('站内通知')}>
           {/* Either half may be empty: an old notice is a body alone, a short one a title alone */}
           {siteNotice.title && <p className="notice-title">{siteNotice.title}</p>}
           {siteNotice.text && <p>{siteNotice.text}</p>}
@@ -989,14 +1060,14 @@ export default function App() {
       </button>
       )}
       {versionOpen && updateAvailable && (
-        <div className="version-pop" role="note" aria-label={t('网站更新了')}>
+        <div className="version-pop" role="note" tabIndex={-1} aria-label={t('网站更新了')}>
           <p>{t('网站更新了，刷新一下用新版；不刷新也能继续用，正在算的结果不受影响')}</p>
           <button type="button" className="version-reload" onClick={() => location.reload()}>{t('刷新')}</button>
         </div>
       )}
 
       {panel === 'community' && (
-        <section className="community-page" role="dialog" aria-label={t('社区排行榜')}>
+        <section className={`community-page${health?.ok ? '' : ' compact'}`} role="dialog" tabIndex={-1} aria-label={t('社区排行榜')}>
           <div className="community-head">
             <h2>{t('社区排行榜')}</h2>
             <button type="button" className="sheet-close" title={t("关闭")} onClick={() => openPanel(null)}>
@@ -1050,7 +1121,7 @@ export default function App() {
       {panel && panel !== 'community' && (
         <aside
           className={`sheet${panel === 'words' ? ' wide' : ''}${narrow && panel === 'export' ? ' fullscreen' : ''}`}
-          role="dialog" aria-label={panelTitle}
+          role="dialog" tabIndex={-1} aria-label={panelTitle}
         >
           <div className="sheet-bar">
             <span className="sheet-title">{panelTitle}</span>
@@ -1099,17 +1170,18 @@ export default function App() {
             {panel === 'words' && (
               <WordsPanel words={words} options={options} setOptions={setOptions}
                 overrides={settings.overrides}
-                setOverrides={(fn) => setSettings((s) => ({ ...s, overrides: fn(s.overrides) }))}
+                setOverrides={setOverridesTracked}
                 priority={parsePriority(settings.priority)}
                 cooccur={result?.cooccur}
+                coref={result?.coref}
                 onHover={setHovered} hovered={hovered} onReport={health?.ok ? (w) => void reportWord(w) : undefined} />
             )}
             {panel === 'review' && (
               <ReviewPanel words={result?.allWords ?? words}
                 overrides={settings.overrides}
-                setOverrides={(fn) => setSettings((s) => ({ ...s, overrides: fn(s.overrides) }))}
+                setOverrides={setOverridesTracked}
                 extraStopwords={options.tokenize.extraStopwords}
-                setExtraStopwords={(v) => setOptions((o) => ({ ...o, tokenize: { ...o.tokenize, extraStopwords: v } }))} />
+                setExtraStopwords={setExtraStopwordsTracked} />
             )}
             {panel === 'export' && (
               <ExportPanel opts={settings.exportOpts} setOpts={(o) => patch({ exportOpts: o })}
@@ -1245,6 +1317,8 @@ export default function App() {
           onCancel={() => { setImportAsk(null); clearAll(); }}
           onConfigureAi={() => { setImportAsk(null); setHasFiles(true); openPanel('ai'); }}
           contribute={settings.contribute}
+          cardRuleApplied={cardRuleApplied ? cardRuleApplied.appliedOverrideKeys.length + cardRuleApplied.appliedStopwords.length : null}
+          onUndoCardRule={undoCardRuleApply}
         />
       )}
 

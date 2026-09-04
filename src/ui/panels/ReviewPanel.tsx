@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useT, tx } from '../i18n';
-import { ENTITY_LABEL, type EntityKind } from '../../core/entities';
+import { ENTITY_LABEL, KIND_GROUPS, type EntityKind } from '../../core/entities';
+import { KindMenuItems } from '../KindGroups';
 import type { WordCount, WordOverride } from '../../core/types';
 import Icon from '../Icons';
 
 /** Overrides are keyed by the lowercased original word (core/overrides.ts). */
 const key = (w: string) => w.toLowerCase();
 
-/** Same order as the filter panel's kind grid, so the two pages read alike. */
-const REVIEW_KINDS: EntityKind[] = ['plain', 'person', 'place', 'time', 'generic', 'brand', 'wear', 'title'];
+
+/** Tabs are per group; 60 flat tabs would not fit (docs/33 §3). */
+const COMMON_TAB_KINDS = KIND_GROUPS[0].kinds;
 
 const PAGE = 100;
 
@@ -99,11 +101,24 @@ export function ReviewPanel({
       <div className="review-tabs">
         <button type="button" className={tab === 'all' ? 'on' : ''} aria-pressed={tab === 'all'}
           onClick={() => { setTab('all'); setLimit(PAGE); }}>{t('全部')}</button>
-        {REVIEW_KINDS.map((k) => (
+        {COMMON_TAB_KINDS.map((k) => (
           <button key={k} type="button" className={tab === k ? 'on' : ''} aria-pressed={tab === k}
             onClick={() => { setTab(k); setLimit(PAGE); }}>{tx(ENTITY_LABEL[k])}</button>
         ))}
       </div>
+      {/* The other groups fold away: only 「常用」 is worth a permanent row of tabs. */}
+      <details className="review-more-tabs">
+        <summary>{t('更多类别')}</summary>
+        {KIND_GROUPS.slice(1).map((g) => (
+          <div key={g.id} className="review-tabs">
+            <b>{tx(g.label)}</b>
+            {g.kinds.map((k) => (
+              <button key={k} type="button" className={tab === k ? 'on' : ''} aria-pressed={tab === k}
+                onClick={() => { setTab(k); setLimit(PAGE); }}>{tx(ENTITY_LABEL[k])}</button>
+            ))}
+          </div>
+        ))}
+      </details>
 
       <input className="review-q" type="search" value={q} aria-label={t('搜词')}
         placeholder={t('搜词')} onChange={(e) => { setQ(e.target.value); setLimit(PAGE); }} />
@@ -143,11 +158,7 @@ export function ReviewPanel({
               </button>
               {menuWord === w.text && (
                 <span className="review-menu" role="menu">
-                  {REVIEW_KINDS.map((k) => (
-                    <button key={k} type="button" role="menuitem"
-                      className={ks.includes(k) ? 'on' : ''}
-                      onClick={() => setKind(w.text, k)}>{tx(ENTITY_LABEL[k])}</button>
-                  ))}
+                  <KindMenuItems current={ks[0]} onPick={(k) => setKind(w.text, k)} />
                 </span>
               )}
             </li>

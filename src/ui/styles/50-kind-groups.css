@@ -1,0 +1,58 @@
+/* Kind buttons, grouped. 60 kinds cannot be laid out flat (notes/docs/33 §3):
+   「常用」 stays a plain grid and every other group is a <details> section. */
+
+.kind-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs, 6px);
+}
+
+.kind-group {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--card);
+}
+
+.kind-group > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-xs, 6px);
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  list-style: none;
+}
+
+.kind-group > summary::-webkit-details-marker { display: none; }
+.kind-group > summary::before { content: '▸'; font-size: 0.8em; opacity: 0.6; }
+.kind-group[open] > summary::before { content: '▾'; }
+.kind-group > summary > em { font-style: normal; opacity: 0.6; margin-left: auto; }
+.kind-group > .kinds { padding: 0 8px 8px; }
+
+/* «experimental» marker on a kind button */
+.kind-exp {
+  font-style: normal;
+  font-size: 0.78em;
+  opacity: 0.65;
+  margin-left: 4px;
+}
+
+/* Re-file menus: one collapsible heading per group, so the menu never runs off screen. */
+.kind-menu-group { display: contents; }
+.kind-menu-head { font-weight: 600; opacity: 0.75; }
+
+/* Review page: the non-common tab groups fold away. */
+.review-more-tabs > summary {
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  padding: 4px 0;
+}
+.review-more-tabs .review-tabs > b {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  align-self: center;
+}

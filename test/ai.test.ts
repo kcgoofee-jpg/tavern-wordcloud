@@ -133,7 +133,7 @@ describe('integration', () => {
   const base = {
     ...DEFAULT_ANALYZE_OPTIONS,
     tokenize: { ...DEFAULT_ANALYZE_OPTIONS.tokenize, minCount: 1, minLength: 2 },
-    kinds: ['plain', 'place', 'time', 'person'] as EntityKind[],
+    kinds: [...DEFAULT_ANALYZE_OPTIONS.kinds] as EntityKind[],
   };
 
   it('prepareTexts returns exactly the texts sent to the tokenizer', () => {

@@ -4,7 +4,7 @@ import { collectNames, parseChatFile } from './parse';
 import type { AiTokenizerConfig } from './aiTokenizer';
 import { cleanMessageText } from './clean';
 import { cleanReasoning, COT_SCHEMA_STOPWORDS } from './cot';
-import { classifyKinds, detectEntities, systemWords, type EntityKind } from './entities';
+import { ALL_KINDS, classifyKinds, detectCoref, detectEntities, markGeneric, systemWords, type CorefGroup, type EntityKind } from './entities';
 import { detectEnglishNames } from './english';
 import { countSensitive, NSFW_KINDS, nsfwKind, type NsfwKind } from './nsfw';
 import { applyBlocklist } from './blocklist';
@@ -43,21 +43,104 @@ export interface AnalyzeOptions {
   nsfwKinds: NsfwKind[];
   /** Skip the owner-maintained manual and auto blocklists. */
   ignoreOwnerBlocklist: boolean;
+  /** Calibration hook for `tools/eval/sweep.ts`; unset means the shipped thresholds. */
+  genericTuning?: GenericTuning;
 }
 
 /**
- * Generic-word detection (see finish()). DP below the threshold = the word's occurrences follow
- * the message lengths, i.e. it belongs to the language, not to this story. Calibrated on the
- * local 200-message logs: story nouns sit above 0.5 (办公室 .54, 合同 .65), narrative filler below 0.35 (窗外 .33).
+ * Generic-word detection (see `detectGenericWords`). DP below the threshold = the word's
+ * occurrences follow the message lengths, i.e. it belongs to the language, not to this story.
+ * Calibrated on the local 200-message logs: story nouns sit above 0.5 (办公室 .54, 合同 .65),
+ * narrative filler below 0.35 (窗外 .33).
+ *
+ * 2026-09-05 grid sweep (`npm run eval:sweep generic`, 4 local logs, DP {.30 .33 .35 .38 .40 .45}
+ * × per-message {1.5 1.8 2.0 2.3 2.5}): the 108-item eval is 107/108 and `eval:junk` is 0/40 on
+ * every cell — the tag is applied after tokenization, so it cannot move a segmentation — which
+ * leaves the TOP 60 as the only thing to decide on, word by word. The shipped .35 / 2.0 tagged
+ * three words, and two of them were content (北京, 我妈); .45 / 1.5 tags five, all of them filler
+ * or tokenizer debris (窗外 我没 停了 我是 那句话), and none of the content pair. So the cell was
+ * chosen for removing the most junk from the TOP 60 at zero measured false positives, not for
+ * removing the most words: .45 / 2.0 filters six more TOP-60 slots and every one of them is a
+ * 北京 or 我妈, and 2.3 additionally pulls in 个人.
+ * Margin, measured past the grid on the same logs: story words only start falling at DP .55
+ * (书包) and .60 (台词 走廊 霁明), two grid steps above the chosen value.
  */
-const GENERIC_DP = 0.35;
-const GENERIC_MIN_MESSAGES = 8;
+export const GENERIC_DP = 0.45;
+export const GENERIC_MIN_MESSAGES = 8;
 /** Words checked (the frequency list head is all that can reach the cloud). */
-const GENERIC_SCAN = 150;
+export const GENERIC_SCAN = 150;
 /** Filler appears about once per message where it appears; a word repeated inside messages is content. */
-const GENERIC_PER_MESSAGE = 2.0;
+export const GENERIC_PER_MESSAGE = 1.5;
+
+/** The four thresholds above, so `tools/eval/sweep.ts` can vary them without editing the source. */
+export interface GenericTuning {
+  dp: number;
+  perMessage: number;
+  minMessages: number;
+  scan: number;
+}
+
+export const DEFAULT_GENERIC_TUNING: GenericTuning = {
+  dp: GENERIC_DP,
+  perMessage: GENERIC_PER_MESSAGE,
+  minMessages: GENERIC_MIN_MESSAGES,
+  scan: GENERIC_SCAN,
+};
+
+/**
+ * Words spread evenly over the messages, about once per message (那只 / 几乎 / 顺着 … that escaped
+ * the stop list). Story words cluster in a few messages. Gries' DP over the message partition;
+ * only the words that could reach the cloud are measured, and `skip` excludes dictionary words
+ * and anything the entity layer already claimed.
+ */
+export function detectGenericWords(
+  allowed: readonly { text: string; count: number }[],
+  texts: readonly string[],
+  skip: (word: string) => boolean,
+  tuning: GenericTuning = DEFAULT_GENERIC_TUNING,
+): Set<string> {
+  const generic = new Set<string>();
+  if (texts.length < tuning.minMessages) return generic;
+  const totalLen = texts.reduce((a, t) => a + t.length, 0) || 1;
+  // The expected share of each message is the same for every word, so it is computed once
+  // instead of `t.length / totalLen` inside the per-word loop; `occ` is a reused typed
+  // array rather than a fresh 1500-element array per word.
+  const share = texts.map((t) => t.length / totalLen);
+  const occ = new Int32Array(texts.length);
+  for (const w of allowed.slice(0, tuning.scan)) {
+    if (w.count < 4 || skip(w.text)) continue;
+    let dp = 0, inMsgs = 0, total = 0;
+    const word = w.text, wlen = word.length;
+    for (let k = 0; k < texts.length; k++) {
+      const t = texts[k];
+      let n = 0, i = 0;
+      while ((i = t.indexOf(word, i)) >= 0) { n++; i += wlen; }
+      occ[k] = n; total += n;
+    }
+    if (!total) continue;
+    for (let k = 0; k < texts.length; k++) { if (occ[k]) inMsgs++; dp += Math.abs(occ[k] / total - share[k]); }
+    if (dp * 0.5 < tuning.dp && total <= inMsgs * tuning.perMessage) generic.add(w.text);
+  }
+  return generic;
+}
 
 export { DEFAULT_ANALYZE_OPTIONS } from './analyzeOptions';
+
+/**
+ * Keeps the coreference proposals the word table can act on: the full name has to
+ * be in the table, and an alias that never became a word of its own has nothing to
+ * fold in. Returns undefined rather than an empty array so the field stays absent
+ * for the usual case of no proposals.
+ */
+function corefForWords(groups: CorefGroup[], words: { text: string }[]): CorefGroup[] | undefined {
+  if (!groups.length) return undefined;
+  const have = new Set(words.map((w) => w.text));
+  const out = groups
+    .filter((g) => have.has(g.full))
+    .map((g) => ({ full: g.full, aliases: g.aliases.filter((a) => have.has(a)) }))
+    .filter((g) => g.aliases.length > 0);
+  return out.length ? out : undefined;
+}
 
 /**
  * Parse, filter and clean the input, returning the texts to tokenize.
@@ -180,6 +263,9 @@ function prepare(
   const entities = detectEntities(allTexts, systemWords(scoped.flatMap((c) => c.messages)));
   // English proper nouns use capitalization as evidence; both name sets feed the dictionary.
   const englishNames = detectEnglishNames(allTexts);
+  // Coreference runs before the lower-casing below, so `Maya Torres` is still spelt
+  // the way the variant generator needs it. Proposal only: nothing here changes a count.
+  const coref = detectCoref(allTexts, [...entities.personNames, ...englishNames], entities);
   for (const n of englishNames) entities.kindOf.set(n.toLowerCase(), 'person');
   const dictionary = options.useNamesAsDictionary ? collectNames(scoped) : [];
 
@@ -223,38 +309,18 @@ function prepare(
       for (let i = allowed.length - 1; i >= 0; i--) if (drop.has(allowed[i].text)) allowed.splice(i, 1);
     }
   }
-  // Generic words: spread evenly over the messages, about once per message (那只 / 几乎 / 顺着 …
-  // that escaped the stop list). Story words cluster in a few messages. Gries' DP over the message
-  // partition; only the words that could reach the cloud are measured, dictionary words and names never.
-  const generic = new Set<string>();
-  if (msgN >= GENERIC_MIN_MESSAGES) {
-    const dict = new Set(tokOpts.dictionary);
-    const totalLen = texts.reduce((a, t) => a + t.length, 0) || 1;
-    // The expected share of each message is the same for every word, so it is computed once
-    // instead of `t.length / totalLen` inside the per-word loop; `occ` is a reused typed
-    // array rather than a fresh 1500-element array per word.
-    const share = texts.map((t) => t.length / totalLen);
-    const occ = new Int32Array(texts.length);
-    for (const w of allowed.slice(0, GENERIC_SCAN)) {
-      if (w.count < 4 || dict.has(w.text) || entities.kindOf.has(w.text)) continue;
-      let dp = 0, inMsgs = 0, total = 0;
-      const word = w.text, wlen = word.length;
-      for (let k = 0; k < texts.length; k++) {
-        const t = texts[k];
-        let n = 0, i = 0;
-        while ((i = t.indexOf(word, i)) >= 0) { n++; i += wlen; }
-        occ[k] = n; total += n;
-      }
-      if (!total) continue;
-      for (let k = 0; k < texts.length; k++) { if (occ[k]) inMsgs++; dp += Math.abs(occ[k] / total - share[k]); }
-      if (dp * 0.5 < GENERIC_DP && total <= inMsgs * GENERIC_PER_MESSAGE) generic.add(w.text);
-    }
-  }
+  const genericDict = new Set(tokOpts.dictionary);
+  const generic = detectGenericWords(
+    allowed,
+    texts,
+    (w) => genericDict.has(w) || entities.kindOf.has(w),
+    options.genericTuning ?? DEFAULT_GENERIC_TUNING,
+  );
   const typed = allowed.map((w) => {
     const n = nsfwKind(w.text);
     // A word can match several kinds (赵总 is a person and a title); `kind` stays the strongest.
     let kinds = classifyKinds(w.text, entities);
-    if (kinds.length === 1 && kinds[0].kind === 'plain' && generic.has(w.text)) kinds = [{ kind: 'generic' as const, conf: kinds[0].conf }];
+    if (generic.has(w.text)) kinds = markGeneric(kinds);
     return { ...w, kind: kinds[0].kind, kinds, ...(n ? { nsfw: n } : {}) };
   });
   // Explicitness is decided by the selected categories; detection always runs so the word table can label every hit.
@@ -310,12 +376,14 @@ function prepare(
         .sort((a, b) => b.confidence - a.confidence),
       // Per-kind counts so the UI can show what enabling a kind would add.
       // Counted on any hit, so the sum can exceed the number of words.
-      byKind: (['person', 'time', 'place', 'system', 'plain', 'generic', 'brand', 'wear', 'title'] as EntityKind[]).map((k) => ({
+      byKind: ([...ALL_KINDS, 'system'] as EntityKind[]).map((k) => ({
         kind: k,
         words: typed.filter((w) => w.kinds.some((x) => x.kind === k) && w.count >= options.tokenize.minCount).length,
       })),
     },
     cooccur: buildCooccur(texts, visible),
+    // Only groups whose full name actually reached the table are worth showing.
+    coref: corefForWords(coref, typed),
     elapsedMs: Date.now() - t0,
     groups,
     meta: scoped.length

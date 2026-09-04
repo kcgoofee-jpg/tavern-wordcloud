@@ -1,7 +1,7 @@
 import type { AnalyzeOptions } from '../core/analyze';
-import { useT, tx } from './i18n';
+import { useT } from './i18n';
 import type { DataBundle } from '../core/bundle';
-import { ENTITY_LABEL, EXPERIMENTAL_KINDS, type EntityKind } from '../core/entities';
+import { KindGroups } from './KindGroups';
 import type { Role } from '../core/types';
 import Icon from './Icons';
 import Note from './Note';
@@ -30,7 +30,8 @@ export interface ImportSummary {
 const roleLabel = (t: (s: string) => string): Record<Role, string> =>
   ({ user: t('我说的'), char: t('角色说的'), system: '' });
 /** The `system` kind is not offered here: it is always 0 words in practice. It is still detected and filtered in core. */
-const KINDS: EntityKind[] = ['plain', 'person', 'place', 'time', 'generic', 'brand', 'wear', 'title'];
+/** The import panel shows only the 「常用」 group; the other 19 kinds live in the filter panel (docs/33 §3). */
+const IMPORT_GROUPS = ['common'] as const;
 
 /** Rough tokenization time estimate: ~40k chars/s locally; with a model, ~3 s per chunk, `concurrency` chunks in parallel. */
 function estimate(chars: number, ai: AnalyzeOptions['ai'] | null, t: (s: string, v?: Record<string, string | number>) => string): string {
@@ -47,6 +48,7 @@ function estimate(chars: number, ai: AnalyzeOptions['ai'] | null, t: (s: string,
 
 export default function ImportPanel({
   summary, options, setOptions, busy, progress, onStart, onCancel, onConfigureAi, contribute, hasServer, load,
+  cardRuleApplied, onUndoCardRule,
 }: {
   /** On by default; only a notice on import, switchable in the community panel */
   contribute: boolean;
@@ -63,6 +65,10 @@ export default function ImportPanel({
   onCancel: () => void;
   /** Render with default tokenization first, then open the endpoint panel */
   onConfigureAi: () => void;
+  /** Card rule packs (notes/docs/23): how many overrides/stopwords a saved pack for this card just auto-applied. Null/0 shows nothing. */
+  cardRuleApplied?: number | null;
+  /** One-click undo for the note above. */
+  onUndoCardRule?: () => void;
 }) {
   const t = useT();
   const aiOn = options.ai.enabled && !!options.ai.endpoint && !!options.ai.model;
@@ -102,6 +108,13 @@ export default function ImportPanel({
             ) : null}
           </ul>
 
+          {!!cardRuleApplied && (
+            <p className="note">
+              {t('这张卡有你之前保存的 {n} 条修正，已自动套用。', { n: cardRuleApplied })}
+              <button type="button" className="field-act" onClick={onUndoCardRule}>{t('撤销本次套用')}</button>
+            </p>
+          )}
+
           {/* Only the options that require a re-run */}
           <div className="group-label">
             {t('统计谁的话')}
@@ -120,19 +133,14 @@ export default function ImportPanel({
             {t('显示哪几类词')}
             <Note>{t('人名几乎每句都出现，频率远高于其他词；嫌它们占满词云就关掉「人物」。地点和时间按句法位置识别，可能有漏判。')}</Note>
           </div>
-          <div className="kinds">
-            {KINDS.map((k) => {
-              const on = options.kinds.includes(k);
-              return (
-                <button key={k} type="button" className={`kind${on ? ' on' : ''}`}
-                  title={EXPERIMENTAL_KINDS.includes(k) ? t('实验，可能有误判')
-                    : k === 'person' ? t('人名频率远高于其他词，嫌挤就关掉') : undefined}
-                  onClick={() => setOptions((o) => ({
-                    ...o, kinds: on ? o.kinds.filter((x) => x !== k) : [...o.kinds, k],
-                  }))}>{tx(ENTITY_LABEL[k])}</button>
-              );
-            })}
-          </div>
+          <KindGroups
+            value={options.kinds}
+            groups={IMPORT_GROUPS}
+            title={(k) => (k === 'person' ? t('人名频率远高于其他词，嫌挤就关掉') : undefined)}
+            onToggle={(k) => setOptions((o) => ({
+              ...o, kinds: o.kinds.includes(k) ? o.kinds.filter((x) => x !== k) : [...o.kinds, k],
+            }))}
+          />
 
           <div className="seg vertical">
             <button type="button" className={!aiOn ? 'on' : ''}

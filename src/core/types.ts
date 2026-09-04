@@ -111,6 +111,8 @@ export interface TokenizeOptions {
   discoverFreedom?: boolean;
   /** Minimum count for a discovered word. */
   discoverMinCount: number;
+  /** Cohesion threshold for discovery. Unset means `DISCOVER_COHESION`; only `tools/eval/sweep.ts` varies it. */
+  discoverCohesion?: number;
   /** Filter stop words. */
   useStopwords: boolean;
   /** Remove narrative filler words (looked / stood / nodded). On by default. */
@@ -170,6 +172,16 @@ export interface AnalysisResult {
     persons: { text: string; confidence: number }[];
     byKind: { kind: import('./entities').EntityKind; words: number }[];
   };
+  /**
+   * Proposed coreference groups: a full name and the short forms that refer to
+   * the same person (entities.ts `detectCoref`).
+   *
+   * **A proposal, not a merge.** `words` / `allWords` are untouched: the local
+   * corpus measures the rule's mis-merge rate at 40% (`npm run eval:persons`),
+   * far above the 5% bar in the design note, so the UI only offers the grouping
+   * and the user applies it through the ordinary `alias` override.
+   */
+  coref?: import('./entities').CorefGroup[];
   /** Results grouped by character card. */
   groups: import('./meta').CharacterGroup[];
   /** Card info for the current scope. */

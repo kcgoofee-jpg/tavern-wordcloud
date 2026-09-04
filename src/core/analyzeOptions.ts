@@ -9,6 +9,7 @@ import { DEFAULT_CLEAN_OPTIONS } from './clean';
 import { DEFAULT_TOKENIZE_OPTIONS } from './tokenize';
 import { DEFAULT_AI_CONFIG } from './aiTokenizer';
 import { NSFW_EXPLICIT_KINDS } from './nsfw';
+import { ALL_KINDS } from './entities';
 
 export const DEFAULT_ANALYZE_OPTIONS: AnalyzeOptions = {
   clean: { ...DEFAULT_CLEAN_OPTIONS },
@@ -19,7 +20,7 @@ export const DEFAULT_ANALYZE_OPTIONS: AnalyzeOptions = {
   useNamesAsDictionary: true,
   onlyCharacter: null,
   // Every kind on by default (user decision 2026-09-04): the kind buttons are the way to hide names, not a hidden default.
-  kinds: ['plain', 'person', 'place', 'time', 'generic', 'brand', 'wear', 'title'],
+  kinds: [...ALL_KINDS],
   source: 'mes',
   onlyModel: null,
   ai: DEFAULT_AI_CONFIG,

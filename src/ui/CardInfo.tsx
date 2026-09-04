@@ -68,7 +68,7 @@ export default function CardInfo({
   return (
     <div className={`cardinfo${open ? ' open' : ''}`}>
       {/* Floats above the button; the button stays put and closes the panel */}
-      <div className="cardinfo-body" hidden={!open}>
+      <div className="cardinfo-body" tabIndex={-1} hidden={!open}>
         {stats && (
           <div className="card-stats" role="status">
             <span title={t('统计了 {kept} 条消息，共 {all} 条', { kept: stats.messages, all: stats.total })}>

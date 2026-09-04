@@ -80,6 +80,35 @@ export function corpusSentences(): string[] {
   return out;
 }
 
+/**
+ * Whole cleaned messages, not sentences. The coreference harness measures
+ * co-occurrence per message, so it needs the message boundaries that
+ * `corpusSentences` throws away (it also drops anything outside 12..90 chars).
+ */
+export function corpusMessages(): string[] {
+  const files: string[] = [];
+  const walk = (d: string) => {
+    let e; try { e = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+    for (const x of e) {
+      const p = path.join(d, x.name);
+      if (x.isDirectory()) walk(p); else if (x.name.endsWith('.jsonl')) files.push(p);
+    }
+  };
+  for (const r of ROOTS) walk(path.join(r, 'default-user/chats'));
+
+  const out: string[] = [];
+  for (const f of files) {
+    for (const line of fs.readFileSync(f, 'utf8').split('\n')) {
+      if (!line.trim()) continue;
+      let o; try { o = JSON.parse(line); } catch { continue; }
+      if (typeof o.mes !== 'string') continue;
+      const clean = cleanMessageText(o.mes, DEFAULT_CLEAN_OPTIONS).trim();
+      if (clean) out.push(clean);
+    }
+  }
+  return out;
+}
+
 export interface EvalItem {
   sentence: string;
   /** Proper noun that must be segmented whole in this sentence */

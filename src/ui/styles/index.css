@@ -37,6 +37,7 @@
 @import './36-legal.css';
 @import './38-export.css';
 @import './40-kind-list.css';
+@import './50-kind-groups.css';
 @import './41-dock-stats.css';
 @import './41-motion.css';
 @import './42-ai-panel.css';
@@ -50,5 +51,7 @@
 @import './47-claim.css';
 @import './48-review.css';
 @import './49-wrong-words.css';
+@import './50-focus.css';
+@import './50-coref.css';
 /* Mobile overrides must stay last: media queries do not add specificity. */
 @import './37-mobile-overrides.css';

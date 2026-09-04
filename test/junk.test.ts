@@ -38,9 +38,11 @@ describe('generic words', () => {
       `第${i}天早上，${cups[i % 4]}，${i % 7 === 0 ? '冰箱坏了，冰箱里的牛奶全酸了，冰箱门关不上，冰箱嗡嗡响，冰箱要换。' : tails[i % 4]}`);
     // Every kind is on by default now; turn generic off to check the button hides it from the cloud
     const r = analyze([{ name: 'a.jsonl', content: chatOf(texts) }], { ...DEFAULT_ANALYZE_OPTIONS, roles: ['user', 'char'], kinds: ['plain', 'person', 'place', 'time'] });
-    const kind = (w: string) => r.allWords.find((x) => x.text === w)?.kind;
-    expect(kind('咖啡')).toBe('generic');
-    expect(kind('冰箱')).toBe('plain');
+    // A word can carry a construction tag as well as `generic` since the 60-kind
+    // design (docs/33): 咖啡 is a 饮品 *and* filler here, 冰箱 is a 容器 and a story word.
+    const kinds = (w: string) => r.allWords.find((x) => x.text === w)?.kinds?.map((k) => k.kind) ?? [];
+    expect(kinds('咖啡')).toContain('generic');
+    expect(kinds('冰箱')).not.toContain('generic');
     // Generic words leave the cloud when their kind is off but stay in the full table
     expect(r.words.some((w) => w.text === '咖啡')).toBe(false);
     expect(r.entities.byKind.find((k) => k.kind === 'generic')?.words).toBeGreaterThan(0);

@@ -105,9 +105,16 @@ export function FontPanel({
             {font.custom && font.cloud === name && <Icon name="check" size={14} />}
             <span
               role="button"
+              tabIndex={0}
               className="fontcard-del"
               title={t('删除自定义字体')}
               onClick={(e) => { e.stopPropagation(); onDeleteCustom(name); }}
+              onKeyDown={(e) => {
+                // Nested inside the font card's <button>, so it cannot be a <button> itself;
+                // Enter/Space have to be wired by hand.
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault(); e.stopPropagation(); onDeleteCustom(name);
+              }}
             >
               <Icon name="close" size={12} />
             </span>

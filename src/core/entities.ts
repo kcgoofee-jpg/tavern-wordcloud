@@ -9,10 +9,33 @@ import type { ChatMessage } from './types';
  * more frequent.
  */
 
-/** `generic`: evenly spread across messages (low dispersion), assigned in analyze.ts; hidden from the cloud by default. */
+/**
+ * `generic`: evenly spread across messages (low dispersion), assigned in analyze.ts;
+ * hidden from the cloud by default.
+ *
+ * The full 60-kind target is designed in notes/docs/33; this union carries the
+ * kinds that are actually implemented and measured by `npm run eval:kinds`.
+ * Every rule below is a **construction** (suffix, prefix, closed form-class of
+ * at most ~40 seeds), not a word list to look words up in — see docs/33 §2 for
+ * why that stays inside AGENTS.md hard rule 3.
+ */
 export type EntityKind =
   | 'person' | 'time' | 'place' | 'system' | 'plain' | 'generic'
-  | 'brand' | 'wear' | 'title';
+  | 'brand' | 'wear' | 'title'
+  // Group 2 people and identity
+  | 'kinship' | 'occupation' | 'relation'
+  // Group 3 places and buildings
+  | 'building' | 'room' | 'nature'
+  // Group 4 quantities
+  | 'money'
+  // Group 5 things
+  | 'food' | 'drink' | 'furniture' | 'container' | 'vehicle'
+  // Group 7 body and senses
+  | 'body' | 'color'
+  // Group 8 behaviour and feeling
+  | 'emotion'
+  // Group 9 society
+  | 'org';
 
 /** User-visible kind names, translated at display time via tx(). */
 export const ENTITY_LABEL: Record<EntityKind, string> = {
@@ -25,7 +48,50 @@ export const ENTITY_LABEL: Record<EntityKind, string> = {
   brand: zh('品牌'),
   wear: zh('服饰'),
   title: zh('称谓'),
+  kinship: zh('亲属'),
+  occupation: zh('职业'),
+  relation: zh('人际关系'),
+  building: zh('建筑'),
+  room: zh('室内空间'),
+  nature: zh('自然景观'),
+  money: zh('钱'),
+  food: zh('食物'),
+  drink: zh('饮品'),
+  furniture: zh('家具'),
+  container: zh('容器'),
+  vehicle: zh('交通工具'),
+  body: zh('身体部位'),
+  color: zh('色彩'),
+  emotion: zh('情绪'),
+  org: zh('机构'),
 };
+
+/**
+ * Kind groups. 60 buttons cannot be laid out flat (docs/33 §3), so the filter,
+ * review and import panels render one collapsible section per group. `common`
+ * is the group that opens by default and the only one the import panel shows.
+ * Groups whose kinds are all still unimplemented (docs/33's 暂缓 and later
+ * batches) simply have no entry here yet.
+ */
+export const KIND_GROUPS = [
+  { id: 'common', label: zh('常用'), kinds: ['plain', 'person', 'place', 'time', 'generic'] },
+  { id: 'people', label: zh('人物与身份'), kinds: ['title', 'kinship', 'occupation', 'relation'] },
+  { id: 'space', label: zh('地点与建筑'), kinds: ['building', 'room', 'nature'] },
+  { id: 'thing', label: zh('物品'), kinds: ['brand', 'wear', 'food', 'drink', 'furniture', 'container', 'vehicle'] },
+  { id: 'sense', label: zh('身体与感官'), kinds: ['body', 'color'] },
+  { id: 'act', label: zh('行为与情绪'), kinds: ['emotion'] },
+  { id: 'social', label: zh('社会与组织'), kinds: ['org', 'money'] },
+] as const satisfies readonly { id: string; label: string; kinds: readonly EntityKind[] }[];
+
+export type KindGroupId = (typeof KIND_GROUPS)[number]['id'];
+
+/**
+ * Every implemented, user-facing kind, in group order — the kind buttons and the
+ * default `options.kinds` both read this. `system` is deliberately absent: it
+ * marks SillyTavern's own fields, has never had a button, and must stay out of
+ * the cloud by default.
+ */
+export const ALL_KINDS: EntityKind[] = KIND_GROUPS.flatMap((g) => [...g.kinds]);
 
 /**
  * Kinds the UI marks as experimental. `npm run eval:kinds` forces any kind whose
@@ -61,7 +127,31 @@ const CONF = {
   brand: 0.88,
   wear: 0.8,
   title: 0.7,
+  /**
+   * Batch-2 kinds (docs/33 §4). All of them sit **below** `title`, so the
+   * strongest tag of every word that already had one is unchanged: 公司 stays
+   * `place`, 赵总 stays `person`, 衬衫 stays `wear`. Within the batch the order
+   * is specificity: a closed form-class outranks a suffix rule.
+   */
+  kinship: 0.68,
+  body: 0.66,
+  org: 0.66,
+  money: 0.64,
+  occupation: 0.62,
+  building: 0.6,
+  room: 0.6,
+  nature: 0.58,
+  food: 0.55,
+  drink: 0.55,
+  vehicle: 0.54,
+  furniture: 0.52,
+  container: 0.52,
+  relation: 0.5,
+  color: 0.5,
+  emotion: 0.5,
   plain: 0.3,
+  /** Dispersion-based, assigned in analyze.ts; never outranks a construction. */
+  generic: 0.3,
 } as const;
 
 const NAME = '([\\u4e00-\\u9fff]{2,4})';
@@ -88,6 +178,20 @@ const PERSON_PATTERNS: { id: string; re: RegExp }[] = [
 
 /** Leading function characters swallowed by the greedy capture. */
 const HEAD_JUNK = /^[的了在是和都也就还又很不个们过着与把被向对从但而且或到当让给跟比你我他她它您咱谁]+/;
+/**
+ * Single-character verbs that take a person as their object. `PERSON_PATTERNS`
+ * only anchors on what follows the name, so the 2..4 character capture is greedy
+ * to the **left** and a verb sitting in front of the name lands inside it:
+ * 看见沈砚秋坐在… captured 见沈砚秋, 推门看见高飞 captured 看见高飞 (both reached
+ * `personNames` on the local logs, 2026-09-05, and then won maximal matching, so
+ * the verb disappeared into the person token).
+ *
+ * Trimming is safe because none of these characters is a Chinese surname — the
+ * capture starts at a surname whenever it really is a name — and the trim is only
+ * applied when at least two characters are left, so it can shorten a candidate to
+ * its true left edge but never delete one.
+ */
+const VERB_HEAD = /^[见看找问叫喊等送接陪跟带劝骂夸推拉抱]+/;
 /** Strings that cannot be names: function characters inside, colour words, address terms. */
 const NOT_NAME = /[以于之乎者及或而且但则即若]|[色后前里中边旁上下内外]$/;
 /** Kinship terms and job titles: frequent in name positions but not names. Closed list. */
@@ -116,7 +220,16 @@ function looksTransliterated(w: string): boolean {
  * Honorific / title suffixes (X总 / X老师 / X哥). The form itself marks a person.
  * Applied only to tokenizer output, never to sliding-window substrings.
  */
-const TITLE_RE = /^[一-鿿]{1,3}(总|老师|导演|副导演|经理|医生|主任|哥|姐|叔|姨|先生|小姐|女士|同学|队长|教授)$/;
+/**
+ * The honorific seeds themselves, shared with the coreference stage below so
+ * that 赵总 / 赵老师 / 赵律师 are built from exactly the list that recognises
+ * them. Order matters only for readability; the regex is an alternation.
+ */
+const TITLE_SUFFIXES = [
+  '总', '老师', '导演', '副导演', '经理', '医生', '律师', '主任',
+  '哥', '姐', '叔', '姨', '先生', '小姐', '女士', '同学', '队长', '教授',
+] as const;
+const TITLE_RE = new RegExp(`^[一-鿿]{1,3}(?:${TITLE_SUFFIXES.join('|')})$`);
 
 /** Names do not end with a function word; used to trim greedy matches. */
 const TAIL_JUNK = /[的了没在是和都也就还又很不个们过着与把被向对从地得]$/;
@@ -247,6 +360,198 @@ const BRAND_TAIL = /(?:牌|公司|集团|工作室|官方)$/;
 /** Corpus context for the transliterated-Chinese shape. */
 const BRAND_CONTEXT = /[穿买牌款]/;
 
+/* ==========================================================================
+   Batch-2 kinds (notes/docs/33). Each block is: a *construction* — a suffix, a
+   prefix or a closed form-class of at most 40 seeds — plus the exceptions the
+   local TOP list produced. None of these is a lexicon: a seed is a morpheme
+   that closes a word class (…杯 …椅 …师), and the closed sets are the ones whose
+   class is closed in the language itself (kinship, colours, emotions), not
+   samples of an open one. docs/33 §2 argues why hard rule 3 still holds.
+   ========================================================================== */
+
+/** Quantifier / demonstrative head: 一件, 那顶, 三辆. Shared by every suffix rule below. */
+const QUANT_HEAD = /^(?:[一二两三四五六七八九十几半这那每某另整]|\d+)/;
+/** Applies a suffix rule: long enough, no quantifier head, not a function word. */
+const suffixHit = (w: string, re: RegExp, min = 2) =>
+  w.length >= min && re.test(w) && !QUANT_HEAD.test(w) && !DEFAULT_STOPWORDS.has(w);
+
+/* ---------- 亲属 (`kinship`) ----------
+   The kinship system is a genuinely closed class, so a 40-term list is a form
+   class and not a dictionary. `KINSHIP_TERMS` above cannot be reused: it mixes
+   in job titles (老师 / 医生 / 警察) because it exists to keep those *out* of the
+   person layer. */
+const KINSHIP_WORDS = new Set([
+  '妈妈', '母亲', '娘亲', '爸爸', '父亲', '爹娘', '父母', '儿子', '女儿', '哥哥',
+  '大哥', '姐姐', '弟弟', '妹妹', '爷爷', '奶奶', '外公', '外婆', '姥姥', '姥爷',
+  '叔叔', '阿姨', '舅舅', '姑姑', '婶婶', '嫂子', '侄子', '外甥', '孙子', '孙女',
+  '表哥', '表姐', '堂哥', '老公', '老婆', '丈夫', '妻子', '家人', '亲戚', '兄妹',
+]);
+
+/* ---------- 职业 (`occupation`) ----------
+   Two productive agent suffixes (…师 / …员) plus the closed set of two-character
+   occupation words that carry no suffix at all. Length >= 3 on the suffix rule:
+   人员 / 成员 / 会员 are role words, 服务员 / 摄影师 are occupations. */
+const OCCUPATION_TAIL = /(?:师|员)$/;
+const OCCUPATION_WORDS = new Set([
+  '医生', '律师', '教师', '警察', '护士', '司机', '厨师', '演员', '导演', '作家',
+  '记者', '编剧', '保安', '会计', '秘书', '模特', '歌手', '画家', '舞者', '翻译',
+  '士兵', '将军', '农民', '工人', '商人', '学生', '主播', '裁缝', '铁匠', '猎人',
+  '侍女', '丫鬟', '管家', '佣人', '保姆', '教练', '法官', '牧师', '道士', '和尚',
+]);
+/** …师 / …员 words that name a thing or a state, not the person doing it. */
+const NOT_OCCUPATION = new Set(['工作人员', '大师兄', '出人员', '动员', '幅员']);
+
+/* ---------- 人际关系 (`relation`) ----------
+   Closed class: the words that name a tie between two people. Distinct from
+   `title` (how you address someone) and `kinship` (blood and marriage). */
+const RELATION_WORDS = new Set([
+  '朋友', '好友', '闺蜜', '恋人', '情人', '爱人', '男友', '女友', '男朋友', '女朋友',
+  '同事', '同学', '同伴', '伙伴', '搭档', '队友', '邻居', '房东', '客人', '客户',
+  '下属', '上司', '领导', '对手', '敌人', '仇人', '陌生人', '熟人', '前任', '未婚妻',
+  '未婚夫', '情敌', '知己', '战友', '室友', '学弟', '学妹', '徒弟', '师兄', '师姐',
+]);
+
+/* ---------- 建筑 (`building`) ----------
+   Suffix seeds are the characters that essentially only end building words.
+   堂 / 城 / 坊 / 阁 were dropped from the suffix and moved into the closed list:
+   课堂 / 天堂, 进城 / 全城, 街坊, 内阁 are far more common than their building
+   readings. */
+const BUILDING_TAIL = /(?:楼|塔|桥|殿|宫|寺|庙|亭|墅)$/;
+const BUILDING_WORDS = new Set([
+  '大厦', '公寓', '教堂', '礼堂', '食堂', '祠堂', '城堡', '别墅', '房屋', '屋子',
+  '帐篷', '木屋', '小屋', '城墙', '围墙', '烟囱', '台阶', '屋顶', '地基', '电梯',
+  '楼梯', '长城', '古城', '宫殿', '庭院',
+]);
+
+/* ---------- 室内空间 (`room`) ----------
+   A subset of `place`: the 室 / 厅 suffixes are already place suffixes, so these
+   words carry both tags and `place` (higher conf) stays the primary one. 间 is
+   deliberately not a seed — 时间 / 中间 / 瞬间 / 之间 swamp 房间. */
+const ROOM_TAIL = /(?:室|厅)$/;
+const ROOM_WORDS = new Set([
+  '卧室', '客厅', '厨房', '浴室', '书房', '卫生间', '洗手间', '阳台', '走廊', '玄关',
+  '储藏室', '地下室', '更衣室', '会议室', '办公室', '教室', '病房', '客房', '包间',
+  '隔间', '楼道', '过道', '天井', '后院', '前厅', '房间',
+]);
+
+/* ---------- 自然景观 (`nature`) ----------
+   海 alone would take 脑海 / 人海 / 花海 with it, so those are excluded by name.
+   The rest of the seeds (山 河 湖 林 岛 峰 崖 溪 泉 滩) have no common figurative
+   reading in chat logs. */
+const NATURE_TAIL = /(?:山|河|湖|海|林|岛|峰|崖|溪|泉|滩)$/;
+const NOT_NATURE = new Set(['脑海', '人海', '火海', '花海', '苦海', '学海', '林林', '下山', '上山']);
+const NATURE_WORDS = new Set([
+  '天空', '太阳', '月亮', '星星', '星空', '云朵', '大地', '沙漠', '草原', '森林',
+  '瀑布', '山谷', '悬崖', '河流', '溪流', '湖泊', '海洋', '海边', '沙滩', '荒野',
+  '田野', '山顶', '山脚', '树林', '旷野', '沼泽', '冰川', '峡谷',
+]);
+
+/* ---------- 食物 (`food`) / 饮品 (`drink`) ----------
+   Food takes a suffix rule (饭 菜 汤 粥 糕 饼 肉) with the verb-object phrases
+   built on the same characters excluded by name. Drinks are a closed list only:
+   酒 / 茶 end as many verb-object phrases (喝酒 敬酒 品茶) as drink names, so no
+   suffix rule is safe. */
+const FOOD_TAIL = /(?:饭|菜|汤|粥|糕|饼|肉)$/;
+const NOT_FOOD = new Set(['肌肉', '吃饭', '做饭', '煮饭', '喝汤', '点菜', '做菜', '上菜', '炒菜', '洗菜', '心肉', '血肉']);
+const FOOD_WORDS = new Set([
+  '米饭', '面条', '面包', '包子', '馒头', '饺子', '蛋糕', '巧克力', '饼干', '早餐',
+  '午餐', '晚餐', '宵夜', '零食', '水果', '苹果', '蔬菜', '鸡蛋', '海鲜', '火锅',
+  '沙拉', '三明治', '泡面', '便当', '甜点', '点心',
+]);
+const DRINK_WORDS = new Set([
+  '咖啡', '红茶', '绿茶', '奶茶', '牛奶', '果汁', '汽水', '可乐', '啤酒', '白酒',
+  '红酒', '香槟', '威士忌', '鸡尾酒', '白开水', '温水', '冰水', '矿泉水', '热水',
+  '饮料', '酒精', '茶水', '开水', '柠檬水',
+]);
+
+/* ---------- 家具 (`furniture`) / 容器 (`container`) ----------
+   Both are suffix classes with a short exclusion list. 同桌 is a classmate;
+   脑袋 is a head; 键盘 / 音箱 / 邮箱 are devices, not vessels. */
+const FURNITURE_TAIL = /(?:桌|椅|柜|凳)$/;
+const NOT_FURNITURE = new Set(['同桌', '上桌', '一桌']);
+const FURNITURE_WORDS = new Set([
+  '桌子', '椅子', '沙发', '书桌', '餐桌', '茶几', '柜子', '衣柜', '书架', '书柜',
+  '抽屉', '板凳', '梳妆台', '床头柜', '屏风', '地毯', '窗帘', '台灯', '落地灯',
+  '靠垫', '枕头', '被子', '床单', '床垫', '吧台', '大床',
+]);
+const CONTAINER_TAIL = /(?:杯|碗|盘|瓶|箱|袋|盒|罐|壶|篮|桶)$/;
+const NOT_CONTAINER = new Set(['脑袋', '全盘', '地盘', '通盘', '棋盘', '键盘', '音箱', '邮箱', '心碗', '一箱']);
+const CONTAINER_WORDS = new Set([
+  '玻璃杯', '保温杯', '水杯', '茶杯', '咖啡杯', '盘子', '瓶子', '箱子', '袋子', '盒子',
+  '罐子', '水壶', '篮子', '水桶', '花瓶', '行李箱', '购物袋', '塑料袋', '碗筷',
+]);
+
+/* ---------- 交通工具 (`vehicle`) ----------
+   车 is the seed, but it also ends a whole family of verb-object phrases
+   (开车 停车 打车 …). Those are listed; everything else ending in 车 is a
+   vehicle. */
+const VEHICLE_TAIL = /(?:车|船|艇|舰)$/;
+const NOT_VEHICLE = new Set([
+  '开车', '停车', '上车', '下车', '打车', '塞车', '堵车', '骑车', '坐车', '修车',
+  '洗车', '倒车', '刹车', '让车', '搭车', '飙车', '晕车', '翻车', '上船', '下船',
+]);
+const VEHICLE_WORDS = new Set([
+  '汽车', '出租车', '公交车', '地铁', '火车', '高铁', '飞机', '直升机', '摩托车',
+  '自行车', '电动车', '轿车', '卡车', '货车', '救护车', '消防车', '警车', '轮船',
+  '游艇', '快艇', '马车',
+]);
+
+/* ---------- 身体 (`body`) ----------
+   Closed list of the parts that actually appear in narration, plus the
+   anatomy-character rule already used to keep body parts out of `place`:
+   any word ending in 部 or 口 that contains an anatomy character is a body part
+   (胸口 / 裆部 / 腰部), which is exactly the negative set of the place eval. */
+const BODY_WORDS = new Set([
+  '头发', '脸颊', '眼睛', '眉毛', '鼻子', '嘴唇', '牙齿', '舌头', '耳朵', '脖子',
+  '喉咙', '肩膀', '手臂', '手腕', '手指', '手掌', '手心', '指尖', '胸膛', '后背',
+  '肚子', '屁股', '大腿', '小腿', '膝盖', '脚踝', '脚趾', '皮肤', '骨头', '肌肉',
+  '心脏', '血液', '指甲', '睫毛', '乳房', '额头', '下巴', '锁骨', '腰肢', '脊背',
+]);
+
+/* ---------- 颜色 (`color`) ----------
+   Suffix 色 plus the closed set of bare colour words. 角色 / 神色 / 脸色 / 景色
+   share the suffix without being colours, so they are excluded by name. */
+const NOT_COLOR = new Set([
+  '角色', '特色', '出色', '神色', '脸色', '气色', '音色', '景色', '好色', '姿色',
+  '声色', '各色', '一色', '本色', '有色', '无色', '女色', '秀色', '色色', '货色',
+  '菜色', '血色', '起色', '难色', '正色', '喜色',
+]);
+const COLOR_WORDS = new Set([
+  '深蓝', '浅蓝', '深红', '大红', '雪白', '漆黑', '通红', '惨白', '乌黑', '金黄',
+  '墨绿', '淡粉', '殷红', '苍白', '黝黑', '洁白',
+]);
+
+/* ---------- 情绪 (`emotion`) ----------
+   Emotion vocabulary is open in principle but its core is small and closed in
+   practice; 40 seeds cover what narration actually names. No suffix rule: 情 /
+   心 / 感 end far too many non-emotion words. */
+const EMOTION_WORDS = new Set([
+  '高兴', '开心', '快乐', '兴奋', '激动', '喜悦', '幸福', '满足', '欣慰', '感动',
+  '愤怒', '生气', '恼火', '烦躁', '焦虑', '紧张', '不安', '害怕', '恐惧', '惊恐',
+  '慌乱', '悲伤', '难过', '伤心', '痛苦', '绝望', '失望', '沮丧', '委屈', '心疼',
+  '心酸', '孤独', '寂寞', '羞耻', '害羞', '尴尬', '内疚', '愧疚', '嫉妒', '崩溃',
+]);
+
+/* ---------- 钱 (`money`) ----------
+   A number followed by a currency unit, three-character …费 compounds
+   (医药费 / 手续费), and the closed set of money words. */
+const MONEY_RE = /^(?:\d+|[一二两三四五六七八九十百千万亿零]+)(?:块钱|块|元|万|亿|美元|欧元|日元|英镑|万元)$/;
+const FEE_RE = /^[一-鿿]{2}费$/;
+const MONEY_WORDS = new Set([
+  '金钱', '现金', '工资', '薪水', '存款', '押金', '房租', '红包', '零钱', '钞票',
+  '硬币', '银行卡', '信用卡', '报酬', '佣金', '转账', '欠款', '账单', '发票', '预算',
+]);
+
+/* ---------- 机构 (`org`) ----------
+   Institution suffixes. 公司 also carries a `place` tag (it is in AMBIG_PLACE2)
+   and `place` has the higher confidence, so nothing that used to read as a place
+   changes its primary kind. */
+const ORG_TAIL = /(?:公司|集团|学校|大学|学院|医院|银行|警局|派出所|政府|部门|协会|工会|剧组|工作室|事务所|研究所|基金会|委员会|法院|检察院|大使馆)$/;
+const ORG_WORDS = new Set([
+  '公会', '商会', '军队', '部队', '团队', '组织', '机构', '单位', '企业', '工厂',
+  '联盟', '门派', '宗门', '家族', '公司',
+]);
+
 export interface EntityIndex {
   kindOf: Map<string, EntityKind>;
   /** Words the corpus pass accepted as brands (Latin forms are lower-cased). */
@@ -271,7 +576,10 @@ export function detectEntities(texts: string[], known: string[] = []): EntityInd
   const patHits = new Map<string, number>();
   for (const { id, re } of PERSON_PATTERNS) {
     for (const m of joined.matchAll(re)) {
-      const name = (m[1] ?? '').replace(HEAD_JUNK, '');
+      let name = (m[1] ?? '').replace(HEAD_JUNK, '');
+      // Trim a leading object-taking verb, but only while a two-character name is left.
+      const trimmed = name.replace(VERB_HEAD, '');
+      if (trimmed.length >= 2) name = trimmed;
       if (!name || name.length < 2) continue;
       (hits.get(name) ?? hits.set(name, new Set()).get(name)!).add(id);
       counts.set(name, (counts.get(name) ?? 0) + 1);
@@ -421,8 +729,53 @@ export function classifyKinds(word: string, index: EntityIndex): KindTag[] {
     tags.push({ kind: 'brand', conf: CONF.brand });
   }
 
+  /* ---- Batch-2 kinds (docs/33 §4). Additive: a word keeps every tag it earns. ----
+     Person names are exempt from all of them. A given name can end in a seed
+     character by coincidence — 周敬亭 was read as a 建筑 on the local logs because
+     of 亭 — and a name is never also a piece of furniture. This is the only
+     cross-kind exclusion; everything else is allowed to multi-tag. */
+  if (tags.some((t) => t.kind === 'person')) return tags.sort((a, b) => b.conf - a.conf);
+  const add = (kind: EntityKind) => tags.push({ kind, conf: CONF[kind] });
+
+  if (KINSHIP_WORDS.has(word)) add('kinship');
+  if (RELATION_WORDS.has(word)) add('relation');
+  if (OCCUPATION_WORDS.has(word)
+      || (!NOT_OCCUPATION.has(word) && suffixHit(word, OCCUPATION_TAIL, 3))) add('occupation');
+
+  if (BUILDING_WORDS.has(word) || suffixHit(word, BUILDING_TAIL)) add('building');
+  if (ROOM_WORDS.has(word) || suffixHit(word, ROOM_TAIL)) add('room');
+  if (NATURE_WORDS.has(word) || (!NOT_NATURE.has(word) && suffixHit(word, NATURE_TAIL))) add('nature');
+
+  if (FOOD_WORDS.has(word) || (!NOT_FOOD.has(word) && suffixHit(word, FOOD_TAIL))) add('food');
+  if (DRINK_WORDS.has(word)) add('drink');
+  if (FURNITURE_WORDS.has(word) || (!NOT_FURNITURE.has(word) && suffixHit(word, FURNITURE_TAIL))) add('furniture');
+  if (CONTAINER_WORDS.has(word) || (!NOT_CONTAINER.has(word) && suffixHit(word, CONTAINER_TAIL))) add('container');
+  if (VEHICLE_WORDS.has(word) || (!NOT_VEHICLE.has(word) && suffixHit(word, VEHICLE_TAIL))) add('vehicle');
+
+  // Anatomy character + 部/口 is the same test that keeps body parts out of `place`.
+  if (BODY_WORDS.has(word) || (word.length >= 2 && BODY_RE.test(word) && /[部口]$/.test(word))) add('body');
+  if (COLOR_WORDS.has(word) || (!NOT_COLOR.has(word) && suffixHit(word, /色$/))) add('color');
+  if (EMOTION_WORDS.has(word)) add('emotion');
+
+  if (MONEY_WORDS.has(word) || MONEY_RE.test(word) || FEE_RE.test(word)) add('money');
+  if (ORG_WORDS.has(word) || (word.length >= 2 && ORG_TAIL.test(word))) add('org');
+
   if (!tags.length) return [{ kind: 'plain', conf: CONF.plain }];
   return tags.sort((a, b) => b.conf - a.conf);
+}
+
+/**
+ * Mark a word as `generic` (evenly spread over the messages, see analyze.ts).
+ *
+ * Before the 60-kind design a generic word could only ever be `plain`, and the
+ * tag replaced it. Now a filler word may also carry a batch-2 construction tag
+ * (`颜色`, `情绪` …), and dropping those would hide the word from its own kind
+ * button. So: `plain` is still replaced outright — the counts the UI shows for
+ * 其他 / 常见词 are unchanged — and any other tag is kept alongside.
+ */
+export function markGeneric(tags: KindTag[]): KindTag[] {
+  const kept = tags.filter((t) => t.kind !== 'plain');
+  return [...kept, { kind: 'generic' as const, conf: CONF.generic }].sort((a, b) => b.conf - a.conf);
 }
 
 /** Kind of a single word: the highest-confidence tag. Kept for callers that want one label. */
@@ -495,4 +848,228 @@ export function looksLikePerson(word: string): boolean {
   if (NOUN_TAIL.test(w) || TAIL_JUNK.test(w) || DEFAULT_STOPWORDS.has(w)) return false;
   if (!SURNAMES.has(w[0]) && !COMPOUND_SURNAMES.includes(w.slice(0, 2)) && !looksTransliterated(w)) return false;
   return isOov(w);   // A word the segmenter knows is a word, not a name.
+}
+
+/* ---------- Coreference candidates (task T6) ----------
+   A full name is written out once and then shortened: 赵一文 becomes 一文, 小赵,
+   赵先生. The word list shows those as four unrelated words, each carrying a
+   fraction of the count.
+
+   This stage proposes the grouping. It does **not** touch the frequency table —
+   `analyze()` reports the groups and the UI folds them into one row, so a wrong
+   proposal costs a display row, not a corrupted count.
+
+   No dictionary is involved (hard rule 3): the variants are generated from the
+   full name by morphology, and the corpus only ever *rejects* them. */
+
+/** A full name and the surface forms judged to refer to the same person. */
+export interface CorefGroup {
+  full: string;
+  /** Variants, most frequent first. Never contains `full`. */
+  aliases: string[];
+}
+
+/**
+ * Full names considered, most frequent first. The pass costs one corpus scan per
+ * candidate string, and the tail of `personNames` (hundreds of entries on a real
+ * export, mostly two-character noise) is not worth scanning.
+ */
+const COREF_MAX_FULL = 24;
+/**
+ * Rule 1 — a variant must occur **on its own** at least this many times. Three is
+ * the floor `detectEntities` already uses for a name candidate: below it a string
+ * is as likely to be a typo or a one-off as a nickname.
+ */
+const COREF_MIN_COUNT = 3;
+/**
+ * Rule 3 — the variant and the full name share at least this share of the rarer
+ * form's messages. 0.15 is deliberately low: an alias is used *instead of* the
+ * full name, so a high rate is not expected; the floor only rules out a pair that
+ * meets by accident.
+ */
+const COREF_MIN_COOCCUR = 0.15;
+/**
+ * Distinct syntactic positions (`EntityIndex.personConfidence`) a Chinese full
+ * name must hit before it may absorb other words. Calibrated on the local
+ * 473-message export: the eight real characters score 5..7, the mis-captures the
+ * positional rules also promote (沈好放, 钱一并, 王德海) score 1..3.
+ */
+const COREF_MIN_CONFIDENCE = 4;
+
+/** Occurrences of `needle` in `hay`, counted without overlap. */
+function countOf(hay: string, needle: string): number {
+  let n = 0, i = 0;
+  while ((i = hay.indexOf(needle, i)) >= 0) { n++; i += needle.length; }
+  return n;
+}
+
+/** English honorifics; each needs the surname spelt exactly as in the full name. */
+const EN_HONORIFICS = ['Mr.', 'Mrs.', 'Ms.', 'Miss', 'Dr.'];
+
+/**
+ * Honorifics used only here, not in `TITLE_RE`. 赵导 is how a director is
+ * addressed on set, but `^[一-鿿]{1,3}导$` also matches 领导 / 报导 / 主导 /
+ * 教导, so the suffix cannot join the context-free title rule. It is safe in
+ * this stage because the prefix is not any character — it is the surname of a
+ * full name the corpus already established.
+ */
+const COREF_EXTRA_SUFFIXES = ['导'];
+
+/**
+ * The forms a full name can be shortened to. Morphology only — every string here
+ * still has to survive the corpus tests in `detectCoref`.
+ *
+ * Chinese, surname `A` + given name `BC`: `BC` (drop the surname), `小A`, `老A`,
+ * `A` + each honorific seed (`TITLE_SUFFIXES`, so 赵总 / 赵先生 / 赵律师 are
+ * exactly the forms `TITLE_RE` recognises), and the doubled-syllable nicknames
+ * `BB` / `CC`. A compound surname (欧阳) drops two characters instead of one.
+ *
+ * English, `First Last`: `First`, `Last`, `Mr./Mrs./Ms. Last`, `First's`.
+ */
+function corefVariants(full: string): { v: string; title: boolean }[] {
+  const out: { v: string; title: boolean }[] = [];
+  const bare = (v: string) => out.push({ v, title: false });
+  const titled = (v: string) => out.push({ v, title: true });
+  if (EN_FULLNAME_RE.test(full)) {
+    const [first, last] = full.split(' ');
+    bare(first); bare(last); bare(`${first}'s`); bare(`${first}’s`);
+    for (const h of EN_HONORIFICS) titled(`${h} ${last}`);
+    return out;
+  }
+  if (!/^[一-鿿]{3,4}$/.test(full)) return out;
+  const compound = COMPOUND_SURNAMES.includes(full.slice(0, 2));
+  const surname = compound ? full.slice(0, 2) : full[0];
+  const given = full.slice(surname.length);
+  // Only 姓 + 双字名 has a short form that is still a name: dropping the surname of
+  // 李明 leaves a single character, which is an ordinary word far more often.
+  if (given.length === 2) { bare(given); bare(given[0] + given[0]); bare(given[1] + given[1]); }
+  bare(`小${surname}`); bare(`老${surname}`);
+  for (const s of [...TITLE_SUFFIXES, ...COREF_EXTRA_SUFFIXES]) titled(surname + s);
+  return out;
+}
+
+/**
+ * Group the surface forms that refer to the same person.
+ *
+ * @param texts one cleaned message per entry — co-occurrence is measured per message
+ * @param names full-name candidates (`EntityIndex.personNames` plus the English pairs)
+ * @param index the entity index; unused for now beyond keeping the signature honest
+ *
+ * A variant is accepted only when **all four** conditions hold:
+ *
+ *  1. it occurs at least `COREF_MIN_COUNT` times *outside* every tracked full name
+ *     that contains it. Without the subtraction 砚秋 would "occur" 680 times purely
+ *     as the tail of 沈砚秋 and every full name would merge with its own substring;
+ *  2. it is not a name in its own right: `looksLikePerson` must reject it (a string
+ *     that parses as surname + given name is a different person, not a short form),
+ *     it must not be one of the tracked full names, and it must not be proposed by
+ *     two different full names — 沈砚秋 and 沈高飞 both generate 小沈 and 沈老师,
+ *     and nothing in the text says which one is meant;
+ *  3. it either shares at least `COREF_MIN_COOCCUR` of the rarer form's messages
+ *     with the full name, or never appears in the same message at all
+ *     (complementary distribution: the writer uses one form or the other);
+ *  4. it is not a stop word, a kinship term, a form of address, or a word the
+ *     segmenter already knows — 老公 and 小三 are built by the same morphology as
+ *     老沈 and 小赵 and are ordinary words.
+ *
+ * On condition 2: the drop-surname form of a real name is itself almost always
+ * detected as a person (高飞 is, with ~980 standalone occurrences), so "not an
+ * independently recognised person" is read as "not an independently recognised
+ * **full** name". Read literally the condition rejects every true alias and leaves
+ * the rule with zero recall.
+ */
+export function detectCoref(
+  texts: readonly string[],
+  names: readonly string[],
+  index: EntityIndex,
+  /**
+   * `allowComplementary: false` drops the second half of condition 3. The
+   * harness (`npm run eval:persons`) sweeps it, because that branch is what
+   * admits both of the mis-merges measured on the local corpus.
+   */
+  opts: { allowComplementary?: boolean } = {},
+): CorefGroup[] {
+  const allowComplementary = opts.allowComplementary ?? true;
+  const joined = texts.join('\n');
+  // Only a string that reads as a complete name has short forms. `looksLikePerson`
+  // is the corpus-free half of the person rules and already demands a surname and
+  // an out-of-vocabulary reading, which is what keeps 这句话 / 两个字 — three-character
+  // strings the positional rules do promote to `person` — out of this stage.
+  // 姓 + 称谓 (周叔叔, 尹阿姨, 沈老师) is excluded as well: it is already a short
+  // form, and treating it as a full name makes every *real* 周x short form look
+  // ambiguous between it and 周敬亭.
+  const isAddressForm = (n: string) => TITLE_RE.test(n)
+    || [...KINSHIP_TERMS, ...ADDRESS].some((k) => n !== k && n.endsWith(k));
+  const shaped = names.filter((n) => looksLikePerson(n) && !isAddressForm(n)
+    // A full name only gets to absorb other words when the positional evidence
+    // behind it is strong: on the local logs the real names sit at 5..7 distinct
+    // patterns and the mis-captures (沈好放, 钱一并) at 1..3. English pairs carry
+    // capitalisation evidence instead (english.ts) and have no entry here.
+    && (EN_FULLNAME_RE.test(n) || (index.personConfidence.get(n) ?? 0) >= COREF_MIN_CONFIDENCE));
+  if (!shaped.length) return [];
+
+  const fullCount = new Map<string, number>();
+  for (const n of shaped) fullCount.set(n, countOf(joined, n));
+  const fulls = [...fullCount.entries()]
+    .filter(([, c]) => c >= COREF_MIN_COUNT)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, COREF_MAX_FULL)
+    .map(([n]) => n);
+  const fullSet = new Set(fulls);
+
+  // Condition 2, ambiguity half: a variant proposed by two full names is dropped.
+  const proposedBy = new Map<string, Set<string>>();
+  const variantsOf = new Map<string, { v: string; title: boolean }[]>();
+  for (const full of fulls) {
+    const seen = new Set<string>([full]);
+    const vs = corefVariants(full).filter((x) => x.v && !seen.has(x.v) && seen.add(x.v));
+    variantsOf.set(full, vs);
+    for (const { v } of vs) (proposedBy.get(v) ?? proposedBy.set(v, new Set()).get(v)!).add(full);
+  }
+
+  /** Full names that contain `v`; their occurrences are not occurrences of `v`. */
+  const containers = new Map<string, string[]>();
+  const standalone = (hay: string, v: string) => {
+    let owners = containers.get(v);
+    if (!owners) containers.set(v, (owners = fulls.filter((f) => f !== v && f.includes(v))));
+    let n = countOf(hay, v);
+    for (const f of owners) n -= countOf(hay, f);
+    return Math.max(0, n);
+  };
+
+  const out: CorefGroup[] = [];
+  for (const full of fulls) {
+    const docsFull = texts.reduce((a, t) => a + (t.includes(full) ? 1 : 0), 0);
+    const kept: { v: string; n: number }[] = [];
+    for (const { v, title } of variantsOf.get(full)!) {
+      if (proposedBy.get(v)!.size > 1) continue;                        // 2: ambiguous
+      // 2: a name of its own. The honorific forms are exempt because they *are*
+      // built from this full name's surname — `looksLikePerson` recognises 周老师
+      // as a person precisely because of the construction we just applied.
+      if (fullSet.has(v) || (!title && looksLikePerson(v))) continue;
+      if (DEFAULT_STOPWORDS.has(v) || KINSHIP_TERMS.has(v)
+        || ADDRESS.has(v) || TITLE_WORDS.has(v)) continue;              // 4: closed lists
+      if (/^[一-鿿]+$/.test(v) && !isOov(v)) continue;                   // 4: a word the segmenter knows
+      const n = standalone(joined, v);
+      if (n < COREF_MIN_COUNT) continue;                                // 1
+      let both = 0, docsVar = 0;
+      for (const t of texts) {
+        if (!standalone(t, v)) continue;
+        docsVar++;
+        if (t.includes(full)) both++;
+      }
+      if (!docsVar) continue;
+      const denom = Math.min(docsFull, docsVar);
+      // Complementary distribution (both === 0) is accepted; a low but non-zero
+      // overlap is the shape of two words that merely share a scene.
+      if (both === 0 ? !allowComplementary
+        : (denom <= 0 || both / denom < COREF_MIN_COOCCUR)) continue;               // 3
+      kept.push({ v, n });
+    }
+    if (kept.length) {
+      kept.sort((a, b) => b.n - a.n || a.v.localeCompare(b.v));
+      out.push({ full, aliases: kept.map((k) => k.v) });
+    }
+  }
+  return out;
 }

@@ -54,6 +54,8 @@ describe('ReviewPanel', () => {
     const user = userEvent.setup();
     const s = harness();
     await user.click(screen.getAllByTitle('改类别')[1]);
+    // The menu is grouped since the 60-kind design: open 「物品」 before picking 品牌
+    await user.click(screen.getByRole('menuitem', { name: '物品' }));
     await user.click(screen.getByRole('menuitem', { name: '品牌' }));
     expect(s.ov['咖啡馆'].kind).toBe('brand');
     await user.click(screen.getByRole('button', { name: '品牌' }));

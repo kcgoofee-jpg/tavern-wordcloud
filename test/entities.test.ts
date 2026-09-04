@@ -1,6 +1,6 @@
 /** Entity layer: names bypass cohesion (沈高飞 358 vs 高飞 1789 = 0.20) and can be hidden as a kind. */
 import { describe, expect, it } from 'vitest';
-import { classify, classifyKinds, detectEntities, looksLikePerson, systemWords } from '../src/core/entities';
+import { classify, classifyKinds, detectCoref, detectEntities, looksLikePerson, systemWords } from '../src/core/entities';
 import { analyze, DEFAULT_ANALYZE_OPTIONS } from '../src/core/analyze';
 
 const story = [
@@ -156,7 +156,12 @@ describe('place detection ignores quantifier phrases', () => {
     '虎口', '背部', '中部', '内部', '外部', '底部', '尾部', '大腿根部',
     '吐司', '查房', '接口', '磁场', '一路', '当场', '现场',
   ])('%s 不是地点', (w) => {
-    expect(classify(w, idx)).toBe('plain');
+    // Since the 60-kind design the anatomy half of this list carries a `body` tag
+    // (docs/33); what the place rule must never do is claim any of them.
+    expect(classifyKinds(w, idx).map((k) => k.kind)).not.toContain('place');
+  });
+  it.each(['胸口', '乳房', '裆部', '腰部', '臀部', '背部', '大腿根部'])('%s 是身体', (w) => {
+    expect(classifyKinds(w, idx).map((k) => k.kind)).toContain('body');
   });
   it.each([
     '片场', '餐厅', '厨房', '浴室', '卧室', '客厅', '二楼', '一楼', '门口', '出口',
@@ -237,5 +242,69 @@ describe('looksLikePerson（无上下文的人名判断）', () => {
 
   it('两字候选不按「姓+名」判（白裙 / 陈醋 跟 林薇 一样像，错删比漏删更贵）', () => {
     expect(looksLikePerson('白裙')).toBe(false);
+  });
+});
+
+/**
+ * Coreference proposals. `detectCoref` never touches counts, so these tests only
+ * check which strings it is willing to put in one group.
+ */
+describe('detectCoref（同指候选）', () => {
+  /** 赵一文 hits five distinct person patterns, which is what the confidence gate wants. */
+  const zhao = [
+    '赵一文说道："这个方案我看过了。"',
+    '赵一文点了点头，没有说话。',
+    '赵一文的声音很轻。',
+    '林岚和赵一文说了几句。',
+    '赵一文，你先坐。',
+  ];
+  const shortForms = [
+    '小赵今天来得早。',
+    '小赵把文件放在桌上。',
+    '小赵笑了笑，没有接话。',
+    '赵先生请进。',
+    '赵先生把伞收起来。',
+    '赵先生看了看表。',
+  ];
+  const run = (msgs: string[], opts?: { allowComplementary?: boolean }) => {
+    const index = detectEntities(msgs);
+    return detectCoref(msgs, index.personNames, index, opts);
+  };
+
+  it('姓 + 称谓和 小姓 都并到全名上', () => {
+    const groups = run([...zhao, ...shortForms]);
+    expect(groups.map((g) => g.full)).toContain('赵一文');
+    const aliases = groups.find((g) => g.full === '赵一文')!.aliases;
+    expect(aliases).toContain('小赵');
+    expect(aliases).toContain('赵先生');
+  });
+
+  it('两个同姓全名时，同姓的短称是歧义的，不并（条件 2）', () => {
+    const other = [
+      '赵明远说道："我知道了。"',
+      '赵明远点了点头。',
+      '赵明远的眼睛很亮。',
+      '她和赵明远说了几句。',
+      '赵明远，你等一下。',
+    ];
+    const groups = run([...zhao, ...other, ...shortForms]);
+    for (const g of groups) {
+      expect(g.aliases).not.toContain('小赵');
+      expect(g.aliases).not.toContain('赵先生');
+    }
+  });
+
+  it('出现不到三次的变体不并（条件 1）', () => {
+    const groups = run([...zhao, '小赵今天来得早。', '小赵把文件放在桌上。']);
+    expect(groups.find((g) => g.full === '赵一文')?.aliases ?? []).not.toContain('小赵');
+  });
+
+  it('互补分布这一支可以关掉，关掉后从不同时出现的变体就不再提出（消融开关）', () => {
+    const groups = run([...zhao, ...shortForms], { allowComplementary: false });
+    expect(groups.find((g) => g.full === '赵一文')?.aliases ?? []).toHaveLength(0);
+  });
+
+  it('没有全名就没有候选', () => {
+    expect(run(['今天天气不错。', '他把文件放在桌上。'])).toEqual([]);
   });
 });

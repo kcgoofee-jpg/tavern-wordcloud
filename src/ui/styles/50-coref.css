@@ -1,0 +1,13 @@
+/* Coreference suggestion chip in the word list (WordsPanel).
+   A proposal, not a state: it is quieter than the priority and NSFW tags next to
+   it, and it disappears from the row as soon as the merge is taken. */
+.coref-tag {
+  flex: 0 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--t-xs); line-height: 1.5;
+  color: var(--fg); opacity: .72;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 999px; padding: 0 7px; margin-left: 6px;
+}
+.coref-tag:hover { opacity: 1; background: color-mix(in srgb, var(--accent) 26%, transparent); }

@@ -7,6 +7,7 @@ import { DEFAULT_ANALYZE_OPTIONS } from '../../src/core/analyze';
 import type { WordCount, WordOverride } from '../../src/core/types';
 import { WordsPanel } from '../../src/ui/panels';
 import type { Cooccur } from '../../src/core/cooccur';
+import type { CorefGroup } from '../../src/core/entities';
 
 afterEach(cleanup);
 
@@ -16,7 +17,12 @@ const WORDS: WordCount[] = [
 ];
 
 /** Renders the panel over a mutable override map and re-renders after every change. */
-function harness(init: Record<string, WordOverride> = {}, words: WordCount[] = WORDS, cooccur?: Cooccur) {
+function harness(
+  init: Record<string, WordOverride> = {},
+  words: WordCount[] = WORDS,
+  cooccur?: Cooccur,
+  coref?: CorefGroup[],
+) {
   let current = init;
   const setOverrides = vi.fn((fn: (o: Record<string, WordOverride>) => Record<string, WordOverride>) => {
     current = fn(current);
@@ -26,7 +32,7 @@ function harness(init: Record<string, WordOverride> = {}, words: WordCount[] = W
     <WordsPanel
       words={words} options={DEFAULT_ANALYZE_OPTIONS} setOptions={() => {}}
       onHover={() => {}} hovered={null}
-      overrides={current} setOverrides={setOverrides} cooccur={cooccur} />
+      overrides={current} setOverrides={setOverrides} cooccur={cooccur} coref={coref} />
   );
   const view = render(ui());
   return { get: () => current };
@@ -192,5 +198,41 @@ describe('WordsPanel equivalence mode', () => {
     const h = harness({ 'sydney': { alias: '西德妮' } }, KINDED);
     await user.click(screen.getByTitle('撤销这条改动'));
     expect(h.get()['sydney']).toBeUndefined();
+  });
+});
+
+/**
+ * Coreference is a suggestion, never an automatic merge: the harness measures a
+ * 33% mis-merge rate on the local corpus (`npm run eval:persons`).
+ */
+describe('WordsPanel coreference suggestion', () => {
+  const NAMES: WordCount[] = [
+    { text: '赵一文', count: 40 },
+    { text: '小赵', count: 9 },
+    { text: '咖啡馆', count: 5 },
+  ];
+  const GROUPS: CorefGroup[] = [{ full: '赵一文', aliases: ['小赵'] }];
+
+  it('shows the proposal without changing any count', () => {
+    const h = harness({}, NAMES, undefined, GROUPS);
+    expect(screen.getByTitle(/看起来是同一个人/)).toBeTruthy();
+    expect(screen.getByText('9')).toBeTruthy();   // 小赵 still counted on its own
+    expect(h.get()).toEqual({});
+  });
+
+  it('clicking it writes an ordinary alias override, which the 等价 chip undoes', async () => {
+    const user = userEvent.setup();
+    const h = harness({}, NAMES, undefined, GROUPS);
+    await user.click(screen.getByTitle(/看起来是同一个人/));
+    expect(h.get()['小赵'].alias).toBe('赵一文');
+    // Taken: the suggestion leaves the row, and the undo chip is the existing one.
+    expect(screen.queryByTitle(/看起来是同一个人/)).toBeNull();
+    await user.click(screen.getByTitle('撤销这条改动'));
+    expect(h.get()['小赵']).toBeUndefined();
+  });
+
+  it('no proposal, no chip', () => {
+    harness({}, NAMES);
+    expect(screen.queryByTitle(/看起来是同一个人/)).toBeNull();
   });
 });

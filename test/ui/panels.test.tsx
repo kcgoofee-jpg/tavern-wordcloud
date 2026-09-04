@@ -30,7 +30,7 @@ describe('FilterPanel', () => {
     expect(h.get().roles).toEqual(['user']);
   });
 
-  it('eight kind buttons; the experimental ones say so, and clicking toggles that kind', async () => {
+  it('the common kind buttons; the experimental ones say so, and clicking toggles that kind', async () => {
     const user = userEvent.setup();
     const h = optionsHarness();
     render(<FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}} rotateRatio={0} setRotateRatio={() => {}} result={null} />);
@@ -51,6 +51,37 @@ describe('FilterPanel', () => {
     fireEvent.change(slider, { target: { value: '3' } });
     expect(h.get().tokenize.minLength).toBe(3);
     expect(h.get().tokenize.minCount).toBe(DEFAULT_ANALYZE_OPTIONS.tokenize.minCount);
+  });
+});
+
+/** The 60-kind design (notes/docs/33 §3): the buttons are grouped, not a flat row of 24. */
+describe('FilterPanel kind groups', () => {
+  const panel = (h: ReturnType<typeof optionsHarness>) => (
+    <FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}}
+      rotateRatio={0} setRotateRatio={() => {}} result={null} />
+  );
+
+  it('only the common kinds are on screen until a group is opened', () => {
+    const h = optionsHarness();
+    render(panel(h));
+    // 常用 is flat…
+    expect(screen.getByRole('button', { name: /^Names/ })).toBeTruthy();
+    // …every other group is a collapsed <details> with a summary
+    for (const g of ['People & identity', 'Things', 'Body & senses', 'Society & organisations']) {
+      expect(screen.getByText(new RegExp(g)), g).toBeTruthy();
+    }
+    // A kind inside a closed group is still in the DOM (details keeps its children) but its
+    // group is not open: what matters is that the summary exists and is clickable.
+    expect(document.querySelectorAll('.kind-group').length).toBeGreaterThan(3);
+  });
+
+  it('toggling a kind inside a group updates options.kinds', async () => {
+    const user = userEvent.setup();
+    const h = optionsHarness();
+    render(panel(h));
+    expect(h.get().kinds).toContain('emotion');
+    await user.click(screen.getByRole('button', { name: /^Feelings/ }));
+    expect(h.get().kinds).not.toContain('emotion');
   });
 });
 
