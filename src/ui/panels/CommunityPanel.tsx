@@ -1,4 +1,8 @@
+import { useState } from 'react';
 import { useT } from '../i18n';
+
+/** One leaderboard row: count, share, and the 95% Wilson bounds the server computed. */
+export interface BoardRow { name: string; n: number; share: number; low: number; high: number }
 
 export interface CommunityStats {
   contributors: number; contributions: number; messages: number; chars: number;
@@ -8,6 +12,14 @@ export interface CommunityStats {
   hours: number[];
   sizes: { label: string; n: number }[];
   zhRatio: number | null;
+  /** Model leaderboard; only models >= minContributors people used are named. */
+  models: BoardRow[];
+  /** Endpoint classes, same k-anonymity rule. */
+  endpoints: BoardRow[];
+  /** Word counts per entity kind, over everyone. */
+  kinds: { kind: string; words: number; share: number }[];
+  /** Median generation time in ms, when logs carried timings. */
+  genMs: number | null;
   updated: number;
 }
 
@@ -83,6 +95,140 @@ function medianBucket(sizes: { label: string; n: number }[]): string | null {
   return sizes[sizes.length - 1]?.label ?? null;
 }
 
+type T = ReturnType<typeof useT>;
+/** Endpoint classes and entity kinds arrive as stable machine strings; translate for display. */
+function endpointLabel(t: T, kind: string): string {
+  switch (kind) {
+    case 'official': return t('厂商官方');
+    case 'openrouter': return t('OpenRouter');
+    case 'relay': return t('第三方中转');
+    case 'local': return t('本机 / 局域网');
+    default: return t('其他');
+  }
+}
+/** person / place / time stay separate; every other kind (plain, generic, system) is one row. */
+function foldKinds(kinds: { kind: string; share: number }[]): { kind: string; share: number }[] {
+  const keep = ['person', 'place', 'time'];
+  const rows = keep.map((k) => ({ kind: k, share: kinds.filter((x) => x.kind === k).reduce((a, b) => a + b.share, 0) }));
+  const other = kinds.filter((x) => !keep.includes(x.kind)).reduce((a, b) => a + b.share, 0);
+  return [...rows, { kind: 'other', share: other }].filter((r) => r.share > 0);
+}
+function kindLabel(t: T, kind: string): string {
+  switch (kind) {
+    case 'person': return t('人物');
+    case 'place': return t('地点');
+    case 'time': return t('时间');
+    default: return t('其他');
+  }
+}
+
+/** A share as a percentage; one decimal below 10% so small rows are not all "0%". */
+const pct = (x: number) => (x * 100 < 10 ? (x * 100).toFixed(1) : String(Math.round(x * 100)));
+
+/**
+ * Ranked list: place, name, a bar for the share, the count, and the 95% interval in
+ * grey. Bars are scaled to the leader, not to 100%, so the tail stays readable.
+ */
+function Board({ rows, label }: { rows: BoardRow[]; label?: (name: string) => string }) {
+  const t = useT();
+  const max = Math.max(1e-4, ...rows.map((r) => r.share));
+  return (
+    <ol className="board">
+      {rows.map((r, i) => (
+        <li key={r.name} className="board-row">
+          <span className="board-rank">{i + 1}</span>
+          <span className="board-name">{label ? label(r.name) : r.name}</span>
+          <span className="board-bar"><i style={{ width: `${Math.max(2, (r.share / max) * 100)}%` }} /></span>
+          <span className="board-n">{pct(r.share)}%<em>{t('{n} 份', { n: r.n })}</em></span>
+          <span className="board-ci">{t('95% {a}–{b}%', { a: pct(r.low), b: pct(r.high) })}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** 16 hex characters, stable for the session so a reopened form keeps the same string. */
+function claimToken(): string {
+  try {
+    const cached = sessionStorage.getItem('wc-claim-token');
+    if (cached && /^[0-9a-f]{16}$/.test(cached)) return cached;
+  } catch { /* storage can be blocked; fall through to a fresh one */ }
+  const bytes = new Uint8Array(8);
+  if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  const tok = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  try { sessionStorage.setItem('wc-claim-token', tok); } catch { /* ignore */ }
+  return tok;
+}
+
+/**
+ * Author claim: card name, a public link that proves authorship, and the challenge
+ * string this site hands out. No e-mail, no identity — the operator opens the link.
+ * The payload is shown before it is sent, like the cleaning-feedback dialog.
+ */
+function ClaimForm() {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const [token, setToken] = useState('');
+  const [card, setCard] = useState('');
+  const [url, setUrl] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [state, setState] = useState<'idle' | 'sent' | 'failed'>('idle');
+  const toggle = () => {
+    setOpen((v) => {
+      if (!v) setToken(claimToken());
+      return !v;
+    });
+  };
+  const send = () => {
+    setConfirming(false);
+    fetch('/api/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card: card.trim(), url: url.trim(), token }) })
+      .then((r) => setState(r.ok ? 'sent' : 'failed'))
+      .catch(() => setState('failed'));
+  };
+  return (
+    <div className="claim">
+      <button type="button" className="claim-toggle" aria-expanded={open} onClick={toggle}>
+        {t('认领我的角色卡')}
+      </button>
+      {open && (
+        <div className="claim-body">
+          <p className="note">{t('只需要一个公开链接：在您公开发布这张卡的页面里临时加一行下面的校验串，再把该页面链接填进来。不要发邮箱、身份证件、聊天记录或卡文件。')}</p>
+          <label className="claim-field"><span>{t('卡名')}</span>
+            <input type="text" value={card} maxLength={60} onChange={(e) => { setCard(e.target.value); setState('idle'); }} />
+          </label>
+          <label className="claim-field"><span>{t('公开链接')}</span>
+            <input type="url" value={url} maxLength={300} placeholder="https://" onChange={(e) => { setUrl(e.target.value); setState('idle'); }} />
+          </label>
+          <label className="claim-field"><span>{t('校验串')}</span>
+            <input type="text" readOnly value={token} onFocus={(e) => e.currentTarget.select()} />
+          </label>
+          {confirming ? (
+            <div className="claim-confirm">
+              <p className="note">{t('将发送这三项，别的什么都不发：')}</p>
+              <ul className="claim-preview">
+                <li>{t('卡名')}：{card.trim()}</li>
+                <li>{t('公开链接')}：{url.trim()}</li>
+                <li>{t('校验串')}：{token}</li>
+              </ul>
+              <div className="claim-actions">
+                <button type="button" className="claim-btn" onClick={() => setConfirming(false)}>{t('取消')}</button>
+                <button type="button" className="claim-btn primary" onClick={send}>{t('发送')}</button>
+              </div>
+            </div>
+          ) : (
+            <div className="claim-actions">
+              <button type="button" className="claim-btn primary" disabled={!card.trim() || !url.trim()} onClick={() => setConfirming(true)}>{t('提交认领')}</button>
+            </div>
+          )}
+          {state === 'sent' && <p className="stat-line">{t('已收到，站长核对后加入榜单')}</p>}
+          {state === 'failed' && <p className="note">{t('没发出去，检查一下链接是不是完整的 https 网址')}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Community board: aggregate cloud on the canvas; counts and trend. Words only, each shared by >= N contributors; card names are not collected. */
 export function CommunityPanel({ stats, contribute, setContribute, loading, offline }: {
   stats: CommunityStats | null; contribute: boolean; setContribute: (v: boolean) => void; loading: boolean;
@@ -101,6 +247,8 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
   const today = views.length ? views[views.length - 1] : 0;
   const avg = views.length ? Math.round(views.reduce((a, b) => a + b, 0) / views.length) : 0;
   const median = medianBucket(stats.sizes);
+  // A server one deploy behind returns none of the leaderboard fields; render the rest.
+  const models = stats.models ?? [], endpoints = stats.endpoints ?? [], kinds = foldKinds(stats.kinds ?? []);
   return (
     <>
       <section className="community-sec">
@@ -120,6 +268,32 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
         ? t('画布上暂时没有词：一个词要有至少 {n} 个不同的人都用过才会出现', { n: stats.minContributors })
         : t('画布上是 {n} 个词，每个都至少 {m} 个人用过；字号是所有人加起来的次数', { n: stats.words.length, m: stats.minContributors })}</p>
       </section>
+      <section className="community-sec community-sec-wide">
+      <div className="group-label">{t('模型榜')}</div>
+      {models.length === 0
+        ? <p className="note">{t('还没有足够的人填过模型名：一个模型要有至少 {n} 个不同的人用过才会具名上榜，其余并进「其他」。', { n: stats.minContributors })}</p>
+        : <>
+          <Board rows={models} />
+          <p className="note">{t('按贡献份数排名；括号里是 95% 置信区间（Wilson）。少于 {n} 人用过的模型并进「其他」，不具名。', { n: stats.minContributors })}</p>
+          {stats.genMs != null && <p className="stat-line">{t('生成耗时中位数 {s} 秒', { s: (stats.genMs / 1000).toFixed(1) })}</p>}
+        </>}
+      </section>
+      {endpoints.length > 0 && (
+      <section className="community-sec">
+      <div className="group-label">{t('接口类型')}</div>
+      <Board rows={endpoints} label={(n) => endpointLabel(t, n)} />
+      <p className="note">{t('只记地址的粗类，不记地址本身。')}</p>
+      </section>
+      )}
+      {kinds.length > 0 && (
+      <section className="community-sec">
+      <div className="group-label">{t('词都是些什么')}</div>
+      <ul className="found">
+        {kinds.map((k) => <li key={k.kind}><b>{pct(k.share)}%</b> {kindLabel(t, k.kind)}</li>)}
+      </ul>
+      <p className="note">{t('所有人加起来的词类占比。')}</p>
+      </section>
+      )}
       <section className="community-sec">
       <div className="group-label">{t('大家写多长')}</div>
       <Bars values={stats.sizes.map((s) => s.n)} labels={stats.sizes.map((s) => s.label)} />
@@ -139,6 +313,7 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
         <span>{t('把我的匿名统计贡献给排行榜')}<em>{t('只发前 100 个词及次数、条数和字数；不发正文、不发角色卡名、不存 IP。请仅在您有权分享这份记录的统计时参与。')} <a href="#/privacy">{t('详见《隐私政策》')}</a></em></span>
       </label>
       <p className="note">{t('榜单只统计词，不显示角色卡名。若您是某张卡的作者、希望它出现在榜单上：请在您公开发布这张卡的页面（角色卡站、频道帖）里临时加一行本站给的校验串，再把该页面链接贴到 issue。只需要公开链接，不要发身份证件、聊天记录或卡文件。')} <a href="https://github.com/kcgoofee-jpg/tavern-wordcloud/issues" target="_blank" rel="noopener noreferrer">{t('GitHub Issues')}</a></p>
+      <ClaimForm />
       </section>
     </>
   );

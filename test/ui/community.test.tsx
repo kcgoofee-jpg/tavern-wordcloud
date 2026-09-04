@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /** Community board: chart axes and the one key number under each chart. */
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CommunityPanel, type CommunityStats } from '../../src/ui/panels';
 
 afterEach(cleanup);
@@ -18,7 +18,15 @@ const STATS: CommunityStats = {
   // 100 samples total; 21:00 holds 50 of them.
   hours: Array.from({ length: 24 }, (_, h) => (h === 21 ? 50 : h < 10 ? 5 : 0)),
   sizes: [{ label: '<1万', n: 2 }, { label: '1-5万', n: 8 }, { label: '>5万', n: 2 }],
-  zhRatio: 0.8, updated: 0,
+  zhRatio: 0.8,
+  models: [
+    { name: 'gemini-2.5-pro', n: 6, share: 0.5, low: 0.25, high: 0.75 },
+    { name: '其他', n: 6, share: 0.5, low: 0.25, high: 0.75 },
+  ],
+  endpoints: [{ name: 'relay', n: 12, share: 1, low: 0.76, high: 1 }],
+  kinds: [{ kind: 'person', words: 5, share: 0.5 }, { kind: 'plain', words: 5, share: 0.5 }],
+  genMs: 4200,
+  updated: 0,
 };
 
 const view = (s: CommunityStats = STATS) =>
@@ -69,5 +77,71 @@ describe('CommunityPanel charts', () => {
   it('with no data the hour and size lines say so instead of showing NaN', () => {
     view({ ...STATS, hours: new Array(24).fill(0), sizes: [{ label: '<1万', n: 0 }] });
     expect(screen.getAllByText('还没有数据').length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('CommunityPanel model board', () => {
+  it('ranks models with share, count and the confidence interval', () => {
+    const { container } = view();
+    expect(screen.getByText('模型榜')).toBeTruthy();
+    const rows = container.querySelectorAll('.board-row');
+    expect(rows.length).toBe(3);   // two models + one endpoint row
+    expect(rows[0].textContent).toContain('gemini-2.5-pro');
+    expect(rows[0].textContent).toContain('50%');
+    expect(rows[0].textContent).toContain('6 份');
+    expect(rows[0].textContent).toContain('95% 25–75%');
+    // Bars are scaled to the leader
+    expect((rows[0].querySelector('.board-bar i') as HTMLElement).style.width).toBe('100%');
+    expect(screen.getByText('生成耗时中位数 4.2 秒')).toBeTruthy();
+  });
+
+  it('says why nothing is named when no model clears the minimum', () => {
+    view({ ...STATS, models: [] });
+    expect(screen.getByText(/一个模型要有至少 3 个不同的人用过/)).toBeTruthy();
+  });
+
+  it('shows the endpoint class and the word-kind split, folding the rest into 其他', () => {
+    view();
+    expect(screen.getByText('第三方中转')).toBeTruthy();
+    expect(screen.getByText('人物')).toBeTruthy();
+    // plain is not a public kind; it lands in the catch-all row (as does the merged model row)
+    expect(screen.getAllByText('其他').length).toBe(2);
+  });
+});
+
+describe('CommunityPanel author claim', () => {
+  beforeEach(() => { sessionStorage.clear(); });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const open = () => {
+    view();
+    fireEvent.click(screen.getByText('认领我的角色卡'));
+  };
+
+  it('hands out a 16-hex challenge string and keeps it in sessionStorage', () => {
+    open();
+    const tok = (screen.getByLabelText('校验串') as HTMLInputElement).value;
+    expect(tok).toMatch(/^[0-9a-f]{16}$/);
+    expect(sessionStorage.getItem('wc-claim-token')).toBe(tok);
+  });
+
+  it('shows the payload first and only sends after confirmation', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true } as Response);
+    vi.stubGlobal('fetch', fetchMock);
+    open();
+    fireEvent.change(screen.getByLabelText('卡名'), { target: { value: '小红' } });
+    fireEvent.change(screen.getByLabelText('公开链接'), { target: { value: 'https://example.com/card' } });
+    fireEvent.click(screen.getByText('提交认领'));
+    // Nothing has been sent yet; the three items are shown for review
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByText('将发送这三项，别的什么都不发：')).toBeTruthy();
+    fireEvent.click(screen.getByText('发送'));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/claim');
+    const body = JSON.parse(String(init.body)) as Record<string, string>;
+    expect(Object.keys(body).sort()).toEqual(['card', 'token', 'url']);   // no identity fields
+    expect(body.card).toBe('小红');
+    await waitFor(() => expect(screen.getByText('已收到，站长核对后加入榜单')).toBeTruthy());
   });
 });

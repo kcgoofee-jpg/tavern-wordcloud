@@ -91,5 +91,16 @@
     padding: 12px 18px; border-radius: var(--r);
     background: var(--surface2); box-shadow: 0 12px 32px -14px rgb(0 0 0 / .5);
   }
-}
 
+  /* Leaderboards: one column on a phone — the bar and the interval do not fit beside the name. */
+  .board-row {
+    grid-template-columns: 1.4em 1fr auto;
+    grid-template-areas: 'rank name n' 'bar bar bar' 'ci ci ci';
+    row-gap: 2px; padding: 5px 0;
+  }
+  .board-rank { grid-area: rank; }
+  .board-name { grid-area: name; }
+  .board-bar { grid-area: bar; }
+  .board-n { grid-area: n; }
+  .board-ci { grid-area: ci; }
+}

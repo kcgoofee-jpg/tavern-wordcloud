@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { copyText } from './clipboard';
+import { endpointKind } from './endpointKind';
 import { LangContext, tx, txv, type UserText } from './i18n';
 import { probeServer, analyzeOnServer, type ServerHealth } from '../net/server';
 import CardInfo from './CardInfo';
@@ -696,9 +697,17 @@ export default function App() {
       messages: result.messageCount, chars: result.cleanChars,
       // Share of CJK words; a ratio, not text
       zh: result.allWords.length ? result.allWords.filter((w) => /[\u4e00-\u9fff]/.test(w.text)).length / result.allWords.length : 0,
+      // The model name the visitor typed themselves, else the one the log records.
+      // Never the address and never the key: only the class of the address goes out.
+      model: (settings.options.ai.model || result.meta?.models[0] || '').trim().slice(0, 60) || undefined,
+      endpointKind: endpointKind(settings.options.ai.endpoint),
+      // Only present when the log carried gen_started / gen_finished timings.
+      avgGenMs: result.meta?.avgGenSeconds != null ? Math.round(result.meta.avgGenSeconds * 1000) : undefined,
+      // Word counts per category, for the community's person / place / time split.
+      kinds: (result.entities?.byKind ?? []).map((k) => ({ kind: k.kind, words: k.words })),
     };
     void fetch('/api/contribute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
-  }, [result, settings.contribute, health?.ok]);
+  }, [result, settings.contribute, settings.options.ai.model, settings.options.ai.endpoint, health?.ok]);
 
   const copyLink = useCallback(async () => {
     if (!share) return;
