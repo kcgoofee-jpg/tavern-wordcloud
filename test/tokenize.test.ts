@@ -53,7 +53,9 @@ describe('tokenization', () => {
 describe('async tokenization progress', () => {
   /**
    * A 5 MB export used to report per file, so the ring sat at 0/1 until the whole
-   * thing was done. Progress is counted in characters now, one report per batch.
+   * thing was done. Progress is counted in characters now, one report per batch —
+   * and the total carries a reserve above the corpus for the discovery/count/lemma
+   * pass that follows segmentation, which used to report nothing at all.
    */
   it('reports characters at least 20 times, monotonically, for a 1500-message log', async () => {
     const texts = Array.from({ length: 1500 }, (_, i) => `第${i}天，沈砚秋走进房间，看了他一眼。`);
@@ -65,9 +67,14 @@ describe('async tokenization progress', () => {
     );
     expect(seen.length).toBeGreaterThanOrEqual(20);
     const totalChars = texts.reduce((n, t) => n + t.length, 0);
+    const total = seen[0][1];
     for (let i = 1; i < seen.length; i++) expect(seen[i][0]).toBeGreaterThan(seen[i - 1][0]);
-    expect(seen[seen.length - 1][0]).toBe(totalChars);
-    for (const [, total] of seen) expect(total).toBe(totalChars);
+    // Segmentation ends exactly on the corpus size; the rest of the ticks are the
+    // stages after it, and the last one lands on the total.
+    expect(seen.some(([done]) => done === totalChars)).toBe(true);
+    expect(seen[seen.length - 1][0]).toBe(total);
+    expect(total).toBeGreaterThan(totalChars);
+    for (const [, t] of seen) expect(t).toBe(total);
     expect(res.words.length).toBeGreaterThan(0);
   });
 

@@ -32,6 +32,36 @@ export function hasIntlSegmenter(): boolean {
  */
 type Chunk = string[];
 
+/**
+ * Atom string table: first sighting of a token wins, every later sighting stores
+ * that same instance instead of the fresh string `Intl.Segmenter` just allocated.
+ *
+ * Segmenting a 5 MB export produces ~520 k atoms drawn from a few thousand distinct
+ * tokens, and every one of them used to be a separate live string held by `allChunks`
+ * for the whole run — the longest-lived structure in the pipeline, and the one that
+ * pushes the old generation (and with it RSS) up. Interning makes the duplicates
+ * die in the young generation instead: measured on the 5 MB benchmark, the heap
+ * retained after segmentation drops 30.3 MB -> 18.4 MB, and the phase peak
+ * 59.8 MB -> 43.5 MB (notes/docs/31 §11).
+ *
+ * Values are `===` the strings that would have been produced without the table, so
+ * nothing downstream can observe the difference.
+ */
+type AtomTable = Map<string, string>;
+/**
+ * Ceiling on distinct atoms kept. Chinese tops out in the low tens of thousands and
+ * English in the hundreds of thousands; past the cap the table simply stops growing
+ * and later atoms are used as-is, which is exactly the old behaviour.
+ */
+const ATOM_TABLE_MAX = 400_000;
+function intern(table: AtomTable | undefined, s: string): string {
+  if (!table) return s;
+  const hit = table.get(s);
+  if (hit !== undefined) return hit;
+  if (table.size < ATOM_TABLE_MAX) table.set(s, s);
+  return s;
+}
+
 let segmenter: Intl.Segmenter | null = null;
 function getSegmenter(): Intl.Segmenter | null {
   if (!hasIntlSegmenter()) return null;
@@ -40,7 +70,7 @@ function getSegmenter(): Intl.Segmenter | null {
 }
 
 /** Fallback when Intl.Segmenter is unavailable: CJK per character, Latin per letter run. */
-function fallbackChunks(text: string): Chunk[] {
+function fallbackChunks(text: string, table?: AtomTable): Chunk[] {
   const chunks: Chunk[] = [];
   for (const raw of text.split(/[^\p{L}\p{N}']+/u)) {
     if (!raw) continue;
@@ -48,13 +78,13 @@ function fallbackChunks(text: string): Chunk[] {
     let buf = '';
     for (const ch of raw) {
       if (HAN.test(ch)) {
-        if (buf) { atoms.push(buf); buf = ''; }
-        atoms.push(ch);
+        if (buf) { atoms.push(intern(table, buf)); buf = ''; }
+        atoms.push(intern(table, ch));
       } else {
         buf += ch;
       }
     }
-    if (buf) atoms.push(buf);
+    if (buf) atoms.push(intern(table, buf));
     if (atoms.length) chunks.push(atoms);
   }
   return chunks;
@@ -89,21 +119,21 @@ const COPULA_KEEP = new Set([
   '又是', '倒是', '越是', '既是', '算是', '仍是', '硬是', '正是', '尽是', '老是',
 ]);
 /** Push a word-like atom, splitting off a trailing copula when it is a boundary artefact. */
-function pushAtom(cur: Chunk, atom: string): void {
+function pushAtom(cur: Chunk, atom: string, table?: AtomTable): void {
   if (COPULA_ATOM.test(atom) && !COPULA_KEEP.has(atom)) {
-    cur.push(atom[0], atom[1]);
+    cur.push(intern(table, atom[0]), intern(table, atom[1]));
     return;
   }
-  cur.push(atom);
+  cur.push(intern(table, atom));
 }
 
 /**
  * Segment into chunks with Intl.Segmenter. A single space does not break a chunk
  * (needed for multi-word English names); newlines, tabs and punctuation do.
  */
-export function segmentToChunks(text: string): Chunk[] {
+export function segmentToChunks(text: string, table?: AtomTable): Chunk[] {
   const seg = getSegmenter();
-  if (!seg) return fallbackChunks(text);
+  if (!seg) return fallbackChunks(text, table);
 
   const chunks: Chunk[] = [];
   let cur: Chunk = [];
@@ -119,7 +149,7 @@ export function segmentToChunks(text: string): Chunk[] {
     if (expectedIndex !== -1 && s.index !== expectedIndex) {
       if (cur.length) { chunks.push(cur); cur = []; }
     }
-    pushAtom(cur, s.segment);
+    pushAtom(cur, s.segment, table);
     expectedIndex = s.index + s.segment.length;
   }
   if (cur.length) chunks.push(cur);
@@ -330,7 +360,7 @@ export interface TokenizeResult {
 }
 
 /** Rebuild chunks from an external token list, breaking at punctuation tokens. */
-function chunksFromTokens(tokens: string[]): Chunk[] {
+function chunksFromTokens(tokens: string[], table?: AtomTable): Chunk[] {
   const out: Chunk[] = [];
   let cur: Chunk = [];
   for (const t of tokens) {
@@ -339,7 +369,7 @@ function chunksFromTokens(tokens: string[]): Chunk[] {
       if (cur.length) { out.push(cur); cur = []; }
       continue;
     }
-    pushAtom(cur, w);
+    pushAtom(cur, w, table);
   }
   if (cur.length) out.push(cur);
   return out;
@@ -358,19 +388,22 @@ export function tokenizeCorpus(
   const stop = buildStopwords(opts.extraStopwords, opts.useStopwords, opts.useNarrativeStopwords);
 
   const allChunks: Chunk[] = [];
-  segmentRange(texts, presegmented, 0, texts.length, allChunks);
-  return finishTokenize(allChunks, opts, stop);
+  segmentRange(texts, presegmented, 0, texts.length, allChunks, new Map());
+  const it = finishTokenizeSteps(allChunks, opts, stop, 0, 1);
+  let r = it.next();
+  while (!r.done) r = it.next();
+  return r.value;
 }
 
 /** Segment texts[from, to) into chunks and append to `out`. */
-function segmentRange(texts: string[], presegmented: (string[] | undefined)[] | undefined, from: number, to: number, out: Chunk[]): void {
+function segmentRange(texts: string[], presegmented: (string[] | undefined)[] | undefined, from: number, to: number, out: Chunk[], table?: AtomTable): void {
   for (let i = from; i < to; i++) {
     const t = texts[i];
     if (!t) continue;
     const pre = presegmented?.[i];
     // push(...arr) copies through the argument list; a plain loop avoids that (and the
     // stack limit on very long chunk lists).
-    const cs = pre?.length ? chunksFromTokens(pre) : segmentToChunks(t);
+    const cs = pre?.length ? chunksFromTokens(pre, table) : segmentToChunks(t, table);
     for (const c of cs) out.push(c);
   }
 }
@@ -379,6 +412,19 @@ function segmentRange(texts: string[], presegmented: (string[] | undefined)[] | 
  * huge file still produces dozens of updates instead of a single 0/1. */
 const BATCH_TEXTS = 40;
 const BATCH_CHARS = 300_000;
+
+/**
+ * Progress reserve for `finishTokenize`, as a share of the corpus. Segmentation is
+ * only half the work: discovery, the merge/count pass and lemmatization together take
+ * about a third as long again on the 20 MB benchmark, and used to be reported as
+ * nothing at all — the ring sat at 100% for 350 ms. Counting them in the same
+ * character-shaped total keeps one monotonic 0 → total for the whole phase.
+ */
+const FINISH_SHARE = 0.35;
+/** Stages `finishTokenizeSteps` reports: discovery, lexicon, counting, lemmas, sort. */
+const FINISH_STAGES = 5;
+/** Chunks counted between two ticks inside the counting stage. */
+const COUNT_TICK = 20_000;
 
 /**
  * Async tokenization: reports progress and yields to the event loop between batches.
@@ -400,10 +446,18 @@ export async function tokenizeCorpusAsync(
   const opts: TokenizeOptions = { ...DEFAULT_TOKENIZE_OPTIONS, ...options };
   const stop = buildStopwords(opts.extraStopwords, opts.useStopwords, opts.useNarrativeStopwords);
   const allChunks: Chunk[] = [];
+  // One table for the whole corpus, dropped as soon as segmentation is done: past that
+  // point the chunks are the only thing that has to stay alive.
+  let atomTable: AtomTable | undefined = new Map();
   let totalChars = 0;
   for (const t of texts) totalChars += t?.length ?? 0;
   let doneChars = 0;
   let i = 0;
+  const segTotal = Math.max(1, totalChars);
+  // Segmentation owns [0, segTotal]; `finishTokenizeSteps` owns the reserve above it.
+  // `+ FINISH_STAGES` keeps the reserve non-empty for a corpus of zero characters,
+  // so the stage ticks below stay strictly increasing there too.
+  const total = Math.max(segTotal + FINISH_STAGES, Math.round(segTotal * (1 + FINISH_SHARE)));
   while (i < texts.length) {
     let to = i;
     let chars = 0;
@@ -411,21 +465,42 @@ export async function tokenizeCorpusAsync(
       chars += texts[to]?.length ?? 0;
       to++;
     }
-    segmentRange(texts, presegmented, i, to, allChunks);
+    segmentRange(texts, presegmented, i, to, allChunks, atomTable);
     doneChars += chars;
-    onProgress?.(doneChars, Math.max(1, totalChars));
+    onProgress?.(doneChars, total);
     await yieldFn();
     i = to;
   }
-  if (texts.length === 0) onProgress?.(1, 1);
-  return finishTokenize(allChunks, opts, stop);
+  atomTable = undefined;
+  const it = finishTokenizeSteps(allChunks, opts, stop, segTotal, total);
+  let r = it.next();
+  while (!r.done) {
+    onProgress?.(r.value, total);
+    await yieldFn();
+    r = it.next();
+  }
+  return r.value;
 }
 
-/** Everything after segmentation: discovery, dictionary merge, stop words, counting, lemmatization. */
-function finishTokenize(allChunks: Chunk[], opts: TokenizeOptions, stop: Set<string>): TokenizeResult {
+/**
+ * Everything after segmentation: discovery, dictionary merge, stop words, counting,
+ * lemmatization. A generator so the async caller can report and yield between stages
+ * without a second copy of the code; each yield is the `done` value to report, rising
+ * from `base` to `total` as real stages complete.
+ */
+function* finishTokenizeSteps(
+  allChunks: Chunk[],
+  opts: TokenizeOptions,
+  stop: Set<string>,
+  base: number,
+  total: number,
+): Generator<number, TokenizeResult, void> {
+  const at = (stage: number): number => base + ((total - base) * stage) / FINISH_STAGES;
   const discovered = opts.discoverPhrases
     ? discoverPhrases(allChunks, Math.max(2, opts.discoverMinCount), stop, opts.discoverFreedom !== false, opts.discoverCohesion ?? DISCOVER_COHESION)
     : [];
+
+  yield at(1);
 
   const lexicon = new Set<string>(discovered.map((d) => d.toLowerCase()));
   // Dictionary and user-forced words bypass the cohesion test.
@@ -437,16 +512,20 @@ function finishTokenize(allChunks: Chunk[], opts: TokenizeOptions, stop: Set<str
   for (const t of opts.splitWords) lexicon.delete(t.trim().toLowerCase());
 
   const prefixes = lexiconPrefixes(lexicon);
+  yield at(2);
   const counts = new Map<string, number>();
   let totalTokens = 0;
-  for (const chunk of allChunks) {
-    for (const tok of mergeChunk(chunk, lexicon, prefixes)) {
+  // The merge/count pass is the longest stretch here; it reports as it goes.
+  for (let c = 0; c < allChunks.length; c++) {
+    if (c > 0 && c % COUNT_TICK === 0) yield at(2) + ((at(3) - at(2)) * c) / allChunks.length;
+    for (const tok of mergeChunk(allChunks[c], lexicon, prefixes)) {
       const w = normalize(tok);
       totalTokens++;
       if (!acceptable(w, opts.minLength, stop)) continue;
       counts.set(w, (counts.get(w) ?? 0) + 1);
     }
   }
+  yield at(3);
 
   /** English lemmatization, after counting so per-form counts are available. */
   if (opts.mergeEnglishForms !== false) {
@@ -461,6 +540,8 @@ function finishTokenize(allChunks: Chunk[], opts: TokenizeOptions, stop: Set<str
     }
   }
 
+  yield at(4);
+
   const allWords: WordCount[] = [...counts.entries()]
     .map(([text, count]) => ({ text, count }))
     .sort((a, b) => b.count - a.count || a.text.localeCompare(b.text));
@@ -469,6 +550,7 @@ function finishTokenize(allChunks: Chunk[], opts: TokenizeOptions, stop: Set<str
     .filter((w) => w.count >= opts.minCount)
     .slice(0, opts.maxWords);
 
+  yield total;
   return {
     words,
     allWords,

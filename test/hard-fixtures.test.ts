@@ -44,8 +44,15 @@ const nonEmpty = (s: string) => s.split('\n').filter((l) => l.trim()).length;
  * known and tracked in notes/docs/32, so a single miss must not turn the whole suite red —
  * instead every miss is recorded and the run fails only if the total grows past the ratchet
  * below. Lower the number whenever a gap is closed; never raise it without saying why.
+ *
+ * 2026-09-05: 5 → 1. Both remaining misses are closed — 04-instruct by the paired-delimiter
+ * and prompt-block rules in instructLines.ts, 09-attachment by fixing an expectation that
+ * asserted the wrong boundary (see the note in tools/make-fixtures-hard.mjs). Zero would be
+ * the honest number for today's fixtures, but one slot is kept so that adding a fixture for a
+ * newly discovered shape lands as a recorded miss with the file names in the log, instead of
+ * a bare red suite. A second miss still fails the run.
  */
-const MAX_MISSES = 5;
+const MAX_MISSES = 1;
 const misses: string[] = [];
 const soft = (label: string, check: () => void) => { try { check(); } catch (e) { misses.push(`${label}: ${(e as Error).message.split('\n')[0]}`); } };
 

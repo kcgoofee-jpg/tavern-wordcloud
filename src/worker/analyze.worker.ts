@@ -44,7 +44,7 @@ export type WorkerRequest = WorkerRequestBody & { id: number };
 export interface WorkerProgress {
   id: number;
   progress: true;
-  phase: 'unzip' | 'scan' | 'read' | 'parse' | 'tokenize' | 'ai' | 'aicache' | 'curate';
+  phase: 'unzip' | 'scan' | 'read' | 'parse' | 'tokenize' | 'count' | 'ai' | 'aicache' | 'curate';
   done: number;
   total: number;
   label: UserText;
@@ -443,6 +443,13 @@ async function handle(req: WorkerRequest): Promise<void> {
         label: { key: zh('正在分词 {done}/{total} 千字'), params: { done: Math.round(done / 1000), total: Math.max(1, Math.round(total / 1000)) } },
         detail: pace(done, total, jobT0),
       });
+    }, undefined, (done, total) => {
+      // Counting, generic detection and co-occurrence: half a second on a big corpus,
+      // and the last thing the ring shows before the result appears.
+      const now = Date.now();
+      if (done < total && now - lastTick < 120) return;
+      lastTick = now;
+      report({ id: req.id, phase: 'count', done, total, label: zh('正在汇总'), detail: pace(done, total, jobT0) });
     });
     report({
       id: req.id, phase: 'tokenize', done: 1, total: 1, label: zh('完成'),

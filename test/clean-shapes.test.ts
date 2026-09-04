@@ -100,6 +100,32 @@ describe('shipped cleaner on each structure class', () => {
     expect(out).not.toContain('[INST]');
   });
 
+  it('instruct paired turn on one line (wrap:false presets)', () => {
+    const out = clean(`[INST] ZXLEAK 保持人称一致 [/INST]\n${KEEP}`);
+    expect(out).toContain(KEEP);
+    expect(out).not.toContain('ZXLEAK');
+    expect(out).not.toContain('人称');
+  });
+
+  it('instruct prompt block ends at the reply sequence, the reply survives', () => {
+    const out = clean(`### Instruction:\nZXLEAK 继续这一轮的叙述\n\n### Response:\n${KEEP}`);
+    expect(out).toContain(KEEP);
+    expect(out).not.toContain('ZXLEAK');
+    expect(out).not.toContain('叙述');
+  });
+
+  it('instruct prompt block does not eat a run with no reply sequence after it', () => {
+    const out = clean(`### Instruction:\n${KEEP}\n<|im_start|>user\n<|im_end|>\n[INST]\n`);
+    expect(out).toContain(KEEP);
+  });
+
+  it('instruct prompt block leaves long spans alone', () => {
+    const body = Array.from({ length: 8 }, (_, i) => `第${i}行她推开门又关上。`).join('\n');
+    const out = clean(`### Instruction:\n${body}\n### Response:\n${KEEP}`);
+    expect(out).toContain('第7行');
+    expect(out).toContain(KEEP);
+  });
+
   it('numeric panel after HTML strip', () => {
     const out = clean(`<div><span>trust 3</span></div>\nZXLEAK 99\ntension 7\naffection 12\n${KEEP}`);
     expect(out).toContain(KEEP);

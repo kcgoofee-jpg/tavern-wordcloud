@@ -21,7 +21,9 @@
  *              each progress callback, minus the RSS the process had before the
  *              payload was built (so it is the cost of the analysis, not of node)
  *   耗时       wall time of analyzeAsync alone
- *   进度回调    number of onParse + onTokenize calls, and the gaps between them —
+ *   进度回调    number of onParse + onTokenize + onFinish calls, and the gaps between
+ *              them — every one of the three is wired to the same `<Progress>` ring
+ *              in the worker and the server, so a gap in any of them is a frozen ring;
  *              AGENTS.md hard rule 5 wants one progress ring that actually moves,
  *              so the longest gap must stay under PROGRESS_BUDGET_MS
  */
@@ -84,7 +86,7 @@ if (args.includes('--child')) {
   const sampler = setInterval(sample, 25);
   sampler.unref?.();
 
-  /** Callback timestamps, both phases in one list: the user sees one ring. */
+  /** Callback timestamps, all three phases in one list: the user sees one ring. */
   const ticks = [];
   const tick = () => { ticks.push(performance.now()); sample(); };
 
@@ -94,6 +96,8 @@ if (args.includes('--child')) {
     { ...DEFAULT_ANALYZE_OPTIONS, roles: ['user', 'char'] },
     undefined,
     tick,
+    tick,
+    undefined,
     tick,
   );
   const ms = performance.now() - t0;

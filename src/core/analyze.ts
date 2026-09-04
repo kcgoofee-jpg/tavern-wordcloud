@@ -1,6 +1,7 @@
-import type { AnalysisResult, CleanOptions, Role, TokenizeOptions } from './types';
+import type { AnalysisResult, CleanOptions, ParsedChat, Role, TokenizeOptions } from './types';
 import { stripRepeatedLines } from './clean';
 import { collectNames, parseChatFile } from './parse';
+import { parseFileInChunks } from './parseChunks';
 import type { AiTokenizerConfig } from './aiTokenizer';
 import { cleanMessageText } from './clean';
 import { cleanReasoning, COT_SCHEMA_STOPWORDS } from './cot';
@@ -127,6 +128,19 @@ export function detectGenericWords(
 export { DEFAULT_ANALYZE_OPTIONS } from './analyzeOptions';
 
 /**
+ * Share of the parse phase's progress budget reserved for the three name passes that
+ * run after parsing (entities, English names, coreference). Measured on the 20 MB
+ * benchmark: parsing 388 ms, the three passes together ~230 ms, i.e. 0.6 × the parse.
+ * Only the shape of the ring depends on this being right.
+ */
+const ENTITY_BUDGET = 0.6;
+
+/** Stages `finish` reports: blocklist, template scan, generic, typing, co-occurrence, assembly. */
+const FINISH_STEPS = 6;
+/** Template candidates scanned between two ticks inside stage 2. */
+const SCAN_TICK = 4;
+
+/**
  * Keeps the coreference proposals the word table can act on: the full name has to
  * be in the table, and an alias that never became a word of its own has nothing to
  * fold in. Returns undefined rather than an empty array so the field stays absent
@@ -177,8 +191,33 @@ export function analyze(
   presegmented?: (string[] | undefined)[],
   onParse?: (done: number, total: number) => void,
 ): AnalysisResult {
-  const p = prepare(files, options, onParse);
-  return p.finish(tokenizeCorpus(p.texts, p.tokOpts, presegmented));
+  const p = drive(prepare(files, options), onParse);
+  return drive(p.finish(tokenizeCorpus(p.texts, p.tokOpts, presegmented)));
+}
+
+/** Progress emitted from inside `prepare` / `finish`; `done` never goes backwards. */
+interface Step { done: number; total: number }
+
+/** Run a step generator to completion, reporting each step. Synchronous callers only. */
+function drive<T>(gen: Generator<Step, T, void>, on?: (done: number, total: number) => void): T {
+  let r = gen.next();
+  while (!r.done) { on?.(r.value.done, r.value.total); r = gen.next(); }
+  return r.value;
+}
+
+/** Same, but hands the event loop back between steps so the ring can repaint. */
+async function driveAsync<T>(
+  gen: Generator<Step, T, void>,
+  on: ((done: number, total: number) => void) | undefined,
+  yieldFn: (() => Promise<void>) | undefined,
+): Promise<T> {
+  let r = gen.next();
+  while (!r.done) {
+    on?.(r.value.done, r.value.total);
+    if (yieldFn) await yieldFn();
+    r = gen.next();
+  }
+  return r.value;
 }
 
 /**
@@ -193,30 +232,57 @@ export async function analyzeAsync(
   /** (doneChars, totalChars) — see tokenizeCorpusAsync */
   onTokenize?: (done: number, total: number) => void,
   yieldFn?: () => Promise<void>,
+  /**
+   * (doneSteps, totalSteps) for everything after tokenization: blocklists, template
+   * and generic detection, typing, co-occurrence. Counting a 20 MB corpus takes half
+   * a second, which is a frozen ring unless someone is told about it.
+   */
+  onFinish?: (done: number, total: number) => void,
 ): Promise<AnalysisResult> {
-  const p = prepare(files, options, onParse);
+  const p = await driveAsync(prepare(files, options), onParse, yieldFn);
   if (yieldFn) await yieldFn();
   const tok = await tokenizeCorpusAsync(p.texts, p.tokOpts, presegmented, onTokenize, yieldFn);
-  return p.finish(tok);
+  return driveAsync(p.finish(tok), onFinish, yieldFn);
 }
 
-/** Everything before tokenization: parse, filter, entity detection. Returns the tokenizer input and a finisher. */
-function prepare(
-  files: SourceFile[],
-  options: AnalyzeOptions,
-  /** Parse progress in **bytes of source text**, so one big file still moves. */
-  onParse?: (done: number, total: number) => void,
-): { texts: string[]; tokOpts: Partial<TokenizeOptions>; finish: (tok: TokenizeResult) => AnalysisResult } {
+interface Prepared {
+  texts: string[];
+  tokOpts: Partial<TokenizeOptions>;
+  finish: (tok: TokenizeResult) => Generator<Step, AnalysisResult, void>;
+}
+
+/**
+ * Everything before tokenization: parse, filter, entity detection. Returns the
+ * tokenizer input and a finisher.
+ *
+ * A generator rather than a plain function so both callers share one implementation:
+ * `analyze` drains it, `analyzeAsync` awaits `yieldFn` at every yield. Progress is in
+ * **characters of source text**, so one 20 MB file still moves the ring instead of
+ * jumping 0/1 → 1/1 once at the end.
+ */
+function* prepare(files: SourceFile[], options: AnalyzeOptions): Generator<Step, Prepared, void> {
   const t0 = Date.now();
   const parseOpts = { clean: options.clean, includeAllSwipes: options.includeAllSwipes };
   let parsedChars = 0;
   const totalChars = Math.max(1, files.reduce((n, f) => n + f.content.length, 0));
-  const chats = files.map((f) => {
-    const c = parseChatFile(f.name, f.content, parseOpts);
-    parsedChars += f.content.length;
-    onParse?.(parsedChars, totalChars);
-    return c;
-  });
+  // Parse progress is in characters of source, with a reserve on top for the entity
+  // passes that follow it in this phase (~0.6 × the parse on the 20 MB benchmark).
+  const parseTotal = Math.round(totalChars * (1 + ENTITY_BUDGET));
+  const chats: ParsedChat[] = [];
+  for (const f of files) {
+    const base = parsedChars;
+    // parseFileInChunks yields after every ~200 KB / 40 records of a JSONL file, and
+    // once at the end for anything it cannot safely divide (see parseChunks.ts).
+    const it = parseFileInChunks(f.name, f.content, parseOpts);
+    let r = it.next();
+    while (!r.done) {
+      parsedChars = base + r.value;
+      yield { done: Math.min(parsedChars, totalChars), total: parseTotal };
+      r = it.next();
+    }
+    parsedChars = base + f.content.length;
+    chats.push(r.value);
+  }
 
   const groups = groupByCharacter(chats);
   const scoped = options.onlyCharacter
@@ -260,14 +326,22 @@ function prepare(
   // Entities first: names go straight into the dictionary.
   // Name detection runs on all messages of the card, not only the filtered ones; names are a property of the story, not of the speaker.
   const allTexts = scoped.flatMap((c) => c.messages.map((m) => m.text));
+  // The three name passes below each take about as long as a fifth of the parse on a
+  // 20 MB corpus, so they get their own slice of the parse budget (see ENTITY_BUDGET)
+  // and a tick each — without one, parsing and tokenizing are separated by a 290 ms hole.
+  const entityStep = (totalChars * ENTITY_BUDGET) / 4;
   const entities = detectEntities(allTexts, systemWords(scoped.flatMap((c) => c.messages)));
+  yield { done: totalChars + entityStep, total: parseTotal };
   // English proper nouns use capitalization as evidence; both name sets feed the dictionary.
   const englishNames = detectEnglishNames(allTexts);
+  yield { done: totalChars + entityStep * 2, total: parseTotal };
   // Coreference runs before the lower-casing below, so `Maya Torres` is still spelt
   // the way the variant generator needs it. Proposal only: nothing here changes a count.
   const coref = detectCoref(allTexts, [...entities.personNames, ...englishNames], entities);
+  yield { done: totalChars + entityStep * 3, total: parseTotal };
   for (const n of englishNames) entities.kindOf.set(n.toLowerCase(), 'person');
   const dictionary = options.useNamesAsDictionary ? collectNames(scoped) : [];
+  yield { done: parseTotal, total: parseTotal };
 
   const tokOpts: Partial<TokenizeOptions> = {
     ...options.tokenize,
@@ -275,20 +349,71 @@ function prepare(
     dictionary: [...dictionary, ...entities.personNames, ...englishNames, ...options.tokenize.dictionary],
   };
 
-  const finish = (tok: TokenizeResult): AnalysisResult => {
+  // Everything `finish` needs out of the parse tree is rolled up here, into numbers and
+  // small arrays. `finish` is a closure, so any variable it mentions is context-allocated
+  // and stays alive for the whole run — and `chats` / `scoped` / `kept` mention every
+  // message twice over, once as `raw` and once as cleaned `text`. Reading them here
+  // instead means the parse tree is unreachable the moment `prepare` returns, i.e.
+  // before tokenization (the longest phase) allocates anything at all. `texts` still
+  // holds the cleaned text, which the template, generic and co-occurrence passes need.
+  const warnings = chats.flatMap((c) => c.warnings);
+  const perSource = scoped.map((c) => ({
+    source: c.source,
+    messages: c.messages.length,
+    rawChars: c.rawChars,
+    cleanChars: c.cleanChars,
+  }));
+  const totalMessages = scoped.reduce((a, c) => a + c.messages.length, 0);
+  const messageCount = kept.length;
+  let rawChars = 0;
+  let cleanChars = 0;
+  let cotAvailable = 0;
+  const cotModels = new Set<string>();
+  for (const m of kept) {
+    rawChars += m.raw.length;
+    cleanChars += m.text.length;
+    if (!m.reasoning) continue;
+    cotAvailable++;
+    if (m.model) cotModels.add(m.model);
+  }
+  const speakers = [...speakerTally.entries()]
+    .map(([name, v]) => ({ name, role: v.role, messages: v.messages }))
+    .sort((a, b) => b.messages - a.messages);
+  // `describeChat` is pure and only reads the parse tree, so it runs here too.
+  const meta = scoped.length
+    ? describeChat({
+        source: options.onlyCharacter ?? '全部',
+        charName: options.onlyCharacter ?? (groups.length === 1 ? groups[0].character : `${groups.length} 张角色卡`),
+        worldInfo: scoped.find((c) => c.worldInfo)?.worldInfo,
+        authorNote: scoped.find((c) => c.authorNote)?.authorNote,
+        messages: scoped.flatMap((c) => c.messages),
+        warnings: [],
+        rawChars: scoped.reduce((a, c) => a + c.rawChars, 0),
+        cleanChars: scoped.reduce((a, c) => a + c.cleanChars, 0),
+        lastInContextMessageId: scoped.length === 1 ? scoped[0].lastInContextMessageId : undefined,
+      })
+    : null;
+
+  const finish = function* (tok: TokenizeResult): Generator<Step, AnalysisResult, void> {
 
   // Entity kinds are assigned after tokenization.
   const kindSet = new Set<EntityKind>(options.kinds);
   // Blocklists are the last stage; the number removed is reported to the UI.
   const { kept: allowed, blocked } = applyBlocklist(tok.allWords, !options.ignoreOwnerBlocklist);
+  yield { done: 1, total: FINISH_STEPS };
   // Template words: present in most messages, about once each. Scaffolding
   // such as labels and option markers behaves this way; story words do not.
   const msgN = texts.length;
   if (msgN >= 8) {
     const dict = new Set(tokOpts.dictionary);
     const drop = new Set<string>();
+    // The scan below is words × messages; on 20 MB it is the single longest stretch
+    // in this phase, so it reports every SCAN_TICK candidates rather than only at the end.
+    let scanned = 0;
+    const candidates = Math.max(1, allowed.filter((w) => w.count >= msgN * 0.5).length);
     for (const w of allowed) {
       if (w.count < msgN * 0.5) continue;
+      if (++scanned % SCAN_TICK === 0) yield { done: 1 + scanned / candidates, total: FINISH_STEPS };
       if (dict.has(w.text) || entities.kindOf.get(w.text) === 'person') continue;
       // Present in most messages, about once each, and anchored at the start or end of the message
       let inMsgs = 0; let edge = 0;
@@ -309,6 +434,7 @@ function prepare(
       for (let i = allowed.length - 1; i >= 0; i--) if (drop.has(allowed[i].text)) allowed.splice(i, 1);
     }
   }
+  yield { done: 2, total: FINISH_STEPS };
   const genericDict = new Set(tokOpts.dictionary);
   const generic = detectGenericWords(
     allowed,
@@ -316,6 +442,7 @@ function prepare(
     (w) => genericDict.has(w) || entities.kindOf.has(w),
     options.genericTuning ?? DEFAULT_GENERIC_TUNING,
   );
+  yield { done: 3, total: FINISH_STEPS };
   const typed = allowed.map((w) => {
     const n = nsfwKind(w.text);
     // A word can match several kinds (赵总 is a person and a title); `kind` stays the strongest.
@@ -333,40 +460,35 @@ function prepare(
     .filter((w) => (options.nsfwMode === 'only' ? explicit(w) : options.nsfwMode === 'hide' ? !explicit(w) : true))
     .slice(0, options.tokenize.maxWords);
 
-  const rawChars = kept.reduce((a, m) => a + m.raw.length, 0);
-  const cleanChars = kept.reduce((a, m) => a + m.text.length, 0);
+  yield { done: 4, total: FINISH_STEPS };
+  // Co-occurrence is messages × visible words; on 20 MB it is the second longest stretch.
+  const cooccur = buildCooccur(texts, visible);
+  yield { done: 5, total: FINISH_STEPS };
 
-  return {
+  const result: AnalysisResult = {
     words: visible,
     allWords: typed,
     totalTokens: tok.totalTokens,
     countedTokens: tok.countedTokens,
     uniqueTokens: tok.uniqueTokens,
-    messageCount: kept.length,
-    totalMessages: scoped.reduce((a, c) => a + c.messages.length, 0),
+    messageCount,
+    totalMessages,
     rawChars,
     cleanChars,
     discovered: tok.discovered,
-    warnings: chats.flatMap((c) => c.warnings),
+    warnings,
     usedFallbackSegmenter: tok.usedFallbackSegmenter,
-    perSource: scoped.map((c) => ({
-      source: c.source,
-      messages: c.messages.length,
-      rawChars: c.rawChars,
-      cleanChars: c.cleanChars,
-    })),
-    speakers: [...speakerTally.entries()]
-      .map(([name, v]) => ({ name, role: v.role, messages: v.messages }))
-      .sort((a, b) => b.messages - a.messages),
+    perSource,
+    speakers,
     sample: texts.find((t) => t.length > 80)?.slice(0, 600) ?? '',
     sensitive: countSensitive(eligible, nsfwSet),
     nsfwByKind: NSFW_KINDS.map((kind) => ({ kind, words: eligible.filter((w) => w.nsfw === kind).length })),
     blocked,
     cot: {
       /** Messages that carry a reasoning trace. */
-      available: kept.filter((m) => m.reasoning).length,
+      available: cotAvailable,
       /** Models seen, for the per-model filter. */
-      models: [...new Set(kept.filter((m) => m.reasoning && m.model).map((m) => m.model!))],
+      models: [...cotModels],
       /** Template sentences removed because they appeared in every message. */
       boilerplateSentences: cotBoilerplate,
     },
@@ -381,25 +503,15 @@ function prepare(
         words: typed.filter((w) => w.kinds.some((x) => x.kind === k) && w.count >= options.tokenize.minCount).length,
       })),
     },
-    cooccur: buildCooccur(texts, visible),
+    cooccur,
     // Only groups whose full name actually reached the table are worth showing.
     coref: corefForWords(coref, typed),
     elapsedMs: Date.now() - t0,
     groups,
-    meta: scoped.length
-      ? describeChat({
-          source: options.onlyCharacter ?? '全部',
-          charName: options.onlyCharacter ?? (groups.length === 1 ? groups[0].character : `${groups.length} 张角色卡`),
-          worldInfo: scoped.find((c) => c.worldInfo)?.worldInfo,
-          authorNote: scoped.find((c) => c.authorNote)?.authorNote,
-          messages: scoped.flatMap((c) => c.messages),
-          warnings: [],
-          rawChars: scoped.reduce((a, c) => a + c.rawChars, 0),
-          cleanChars: scoped.reduce((a, c) => a + c.cleanChars, 0),
-          lastInContextMessageId: scoped.length === 1 ? scoped[0].lastInContextMessageId : undefined,
-        })
-      : null,
+    meta,
   };
+  yield { done: FINISH_STEPS, total: FINISH_STEPS };
+  return result;
   };
   return { texts, tokOpts, finish };
 }

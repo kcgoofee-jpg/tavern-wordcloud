@@ -403,9 +403,17 @@ const FIXTURES = [
         file: { url: `user/files/report-${i}.txt`, name: `report-${i}.txt`, size: file.length, created: T0, text },
       });
     },
-    droppedLines: [Math.round(7 * TURNS * 0.8), 7 * TURNS + 12],
+    // The attachment body is plain prose: it carries no structural shape, so the
+    // cleaner can never drop it and `dropped` is 0 whether or not we read
+    // extra.fileLength. The cut is a field-semantics one and happens in
+    // messageBody(), i.e. UPSTREAM of `raw` — measured 2026-09-05 by disabling the
+    // slice: dropped stayed 0 and only mustNotTop went red. Asking for 134+ dropped
+    // lines here asserted the wrong boundary and no implementation could satisfy it.
+    // mustNotTop is this fixture's real guard; the range only catches over-deletion.
+    droppedLines: [0, 4],
     mustNotTop: ['泊位', '周转', '检修', '港务处', '统计', '口径'],
-    why: '附件正文是用户上传的文档，不是他说的话。不切掉的话一份 PDF 就能主宰整张词云。',
+    why: '附件正文是用户上传的文档，不是他说的话。不切掉的话一份 PDF 就能主宰整张词云。'
+      + '判据是 extra.fileLength 这个字段，不是文本形状，所以它在 raw 之前就被切掉了。',
   }),
 
   /* 10. Image caption: extra.image / extra.title / inline base64 / <img title>. */

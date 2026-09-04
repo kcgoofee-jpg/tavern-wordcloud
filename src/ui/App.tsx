@@ -606,6 +606,7 @@ export default function App() {
       upload: t('正在上传'),
       parse: t('正在解析'),
       tokenize: t('正在分词'),
+      count: t('正在汇总'),
       ai: t('大模型分词中'),
       curate: t('模型正在读完整份聊天'),
       // Unchanged text reuses the previous segmentation without a request

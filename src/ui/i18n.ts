@@ -754,6 +754,7 @@ const EN: Record<string, string> = {
   '共 {f}/{n} 块退回了本地分词': '{f} of {n} chunks fell back to local tokenizing',
   '开始解析 {n} 个文件': 'Parsing {n} files',
   '正在分词 {done}/{total} 千字': 'Tokenizing {done}k/{total}k characters',
+  '正在汇总': 'Summarizing',
   '正在分词 {done}/{total} 条': 'Tokenizing message {done} of {total}',
   '正在上传 {a}/{b} MB': 'Uploading {a}/{b} MB',
   '{a}/{b} MB · 约 {s} 秒': '{a}/{b} MB · about {s}s left',

@@ -129,6 +129,13 @@ export const SHAPE_CATALOG = [
     status: 'landed',
   },
   {
+    id: 'instruct_turn_wrap',
+    regularity: 'formatInstructModeChat renders one turn as prefix+separator+mes+suffix. wrap:false puts the whole turn on one line between a paired open/close sequence; wrap:true leaves the prompt body between a prompt-side sequence and the next reply-side sequence (≤6 lines).',
+    writePath: 'instruct-mode.js formatInstructModeChat; presets Llama 2 Chat (wrap false, "[INST] "/" [/INST]") and Alpaca/ChatML (wrap true, whitespace-only input_suffix)',
+    layer: 'human',
+    status: 'landed',
+  },
+  {
     id: 'numeric_panel',
     regularity: '≥3 consecutive short “token number” lines are an HTML-stripped status panel.',
     writePath: 'plugin UI that uses only div/span (inner text kept by the HTML allowlist)',

@@ -39,6 +39,7 @@ export const INSTANTIABLE_IDS: ShapeId[] = [
   'bracket_status',
   'wi_bracket_wrap',
   'instruct_whole_line',
+  'instruct_turn_wrap',
   'numeric_panel',
   'indented_kv',
   'ooc',
@@ -79,6 +80,13 @@ export function generateShape(id: ShapeId, seed: number): ShapeSample {
       return { ...base, format: 'mes', text: `[Details of the fictional world:\n${leak} 潮汐表 港务处\n更多设定\n]\n${KEEP}` };
     case 'instruct_whole_line':
       return { ...base, format: 'mes', text: `### Instruction:\n${KEEP}\n<|im_end|>\n` };
+    case 'instruct_turn_wrap':
+      // wrap:false single-line turn, then a wrap:true prompt block ended by the reply sequence.
+      return {
+        ...base,
+        format: 'mes',
+        text: `[INST] ${leak} 保持人称一致 [/INST]\n### Instruction:\n${leak} 继续这一轮的叙述\n\n### Response:\n${KEEP}`,
+      };
     case 'numeric_panel':
       return { ...base, format: 'mes', text: `<div><span>trust 3</span></div>\n${leak} 99\ntension 7\naffection 12\n${KEEP}` };
     case 'indented_kv':
