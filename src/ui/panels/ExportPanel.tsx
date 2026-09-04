@@ -52,6 +52,7 @@ export function ExportPanel({
   const over = tooLarge(out);
   const ratio = size.h > 0 ? size.w / size.h : 16 / 9;
   const png = opts.format === 'png';
+  const svg = opts.format === 'svg';
 
   /** Custom width/height, keeping the canvas aspect ratio when the lock is on. */
   const setSide = (side: 'w' | 'h', raw: number) => {
@@ -114,14 +115,19 @@ export function ExportPanel({
 
       <div className="group-label">{t('格式')}</div>
       <div className="seg" role="group" aria-label={t('格式')}>
-        {(['png', 'jpg', 'webp'] as const).map((f) => (
+        {(['png', 'jpg', 'webp', 'svg'] as const).map((f) => (
           <button key={f} type="button" className={opts.format === f ? 'on' : ''} aria-pressed={opts.format === f}
             onClick={() => set('format', f as ExportFormat)}>{f.toUpperCase()}</button>
         ))}
-        {/* Vector needs a second rendering path, not a switch: notes/docs/28 */}
-        <button type="button" disabled title={t('二期')} aria-disabled="true">SVG</button>
       </div>
+      {svg && (
+        <p className="export-size">
+          {t('SVG 用系统字体渲染，换机器可能字形不同；要像素级一致请用 PNG')}
+        </p>
+      )}
 
+      {/* Vector scales without loss, so the resolution multiplier is meaningless for SVG. */}
+      {!svg && <>
       <div className="group-label">{t('尺寸')}</div>
       <div className="seg" role="group" aria-label={t('尺寸')}>
         {([1, 2, 3] as const).map((k) => (
@@ -196,6 +202,7 @@ export function ExportPanel({
           {t('单边超过 {n} 像素，浏览器会给出空白图，先调小', { n: MAX_EXPORT_PX })}
         </p>
       )}
+      </>}
 
       <div className="group-label">{t('背景')}</div>
       <div className="seg" role="group" aria-label={t('背景')}>
@@ -250,7 +257,7 @@ export function ExportPanel({
         </>
       )}
       <label className="check">
-        <input type="checkbox" checked={opts.hiddenMeta && png} disabled={!png}
+        <input type="checkbox" checked={opts.hiddenMeta && (png || svg)} disabled={!png && !svg}
           onChange={(e) => set('hiddenMeta', e.target.checked)} />
         <span>{t('把这段文字藏进图片信息里')}</span>
       </label>
@@ -262,7 +269,9 @@ export function ExportPanel({
       <p className="export-size">
         {png
           ? t('两种隐藏水印都只写进 PNG')
-          : t('JPG / WebP 会重新压缩，像素里的水印留不住，只有 PNG 能藏')}
+          : svg
+            ? t('SVG 没有像素可藏，水印只写进文件里的注释和 metadata，打开源码就能看见')
+            : t('JPG / WebP 会重新压缩，像素里的水印留不住，只有 PNG 能藏')}
         <Note>{t('像素水印跳过完全透明的像素；重新压缩成 JPG / WebP 会把它洗掉')}</Note>
       </p>
       <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" hidden aria-hidden="true"

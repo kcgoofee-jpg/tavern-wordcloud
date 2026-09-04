@@ -103,7 +103,6 @@ const EN: Record<string, string> = {
   '导出选项': 'Export options',
   '{w} × {h} 像素': '{w} × {h} px',
   '格式': 'Format',
-  '二期': 'Later release',
   '尺寸': 'Size',
   '宽': 'Width',
   '高': 'Height',
@@ -143,6 +142,10 @@ const EN: Record<string, string> = {
   '把这段文字藏进图片信息里': 'Hide that line in the file’s metadata',
   '把这段文字藏进像素最低位': 'Hide that line in the pixels’ low bits',
   '两种隐藏水印都只写进 PNG': 'Both invisible watermarks are written to PNG only',
+  'SVG 用系统字体渲染，换机器可能字形不同；要像素级一致请用 PNG':
+    'SVG uses the fonts on the machine that opens it. Use PNG for pixel-identical output.',
+  'SVG 没有像素可藏，水印只写进文件里的注释和 metadata，打开源码就能看见':
+    'SVG has no pixels to hide bits in: the watermark only goes into the file\u2019s comment and <metadata>, visible to anyone who opens the source',
   'JPG / WebP 会重新压缩，像素里的水印留不住，只有 PNG 能藏': 'JPG and WebP recompress the image, which destroys a pixel watermark; only PNG can carry one',
   '像素水印跳过完全透明的像素；重新压缩成 JPG / WebP 会把它洗掉': 'The pixel watermark skips fully transparent pixels; re-encoding to JPG or WebP washes it out',
   '验证水印': 'Check a watermark',

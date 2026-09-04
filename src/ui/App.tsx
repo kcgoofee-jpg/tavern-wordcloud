@@ -32,7 +32,7 @@ import { useNotice } from './hooks/useNotice';
 import { useFlash } from './hooks/useFlash';
 import { useHashRoute } from './hooks/useHashRoute';
 import { useIsNarrow } from './hooks/useIsNarrow';
-import { downloadBlob, exportName, outputSize, wordsToCsv, wordsToJson, wordsToTsv } from './export';
+import { downloadBlob, exportName, outputSize, svgBlob, wordsToCsv, wordsToJson, wordsToTsv } from './export';
 import { watermarkPayload } from './watermark';
 import { hostOf } from './url';
 import { armErrorReporting, reportError } from '../net/report';
@@ -567,7 +567,7 @@ export default function App() {
     const out = outputSize(cloudRef.current?.pixelSize() ?? { w: 0, h: 0 }, o);
     const name = exportName('png', {
       card, mode: settings.cloudMode, words: words.length, lang: settings.lang,
-      tpl: o.nameTpl, ext: o.format === 'jpg' ? 'jpg' : o.format,
+      tpl: o.nameTpl, ext: o.format,
     });
     // The QR stamp reuses the share link when one is open; otherwise it is built on the spot
     let qrUrl: string | null = null;
@@ -598,7 +598,15 @@ export default function App() {
       watermarkPos: o.watermarkPos,
       watermarkOpacity: o.watermarkOpacity,
       qr: qrUrl,
+      hiddenText: o.hiddenMeta ? watermarkPayload(o.watermarkText, stamp) : null,
     };
+    // Vector: no bitmap, no re-encode, so it goes straight out as text.
+    if (o.format === 'svg') {
+      const svg = cloudRef.current?.toSvg(paintOpts);
+      if (!svg) { setError(notice(t('这个尺寸导不出来，把宽高调小一点再试'))); return; }
+      downloadBlob(svgBlob(svg), name);
+      return;
+    }
     // The invisible carriers hold the user's own line, not the card name: the picture may leave the owner.
     const hidden = o.hiddenMeta || o.hiddenLsb
       ? { text: watermarkPayload(o.watermarkText, stamp), meta: o.hiddenMeta, lsb: o.hiddenLsb }

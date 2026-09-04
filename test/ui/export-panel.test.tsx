@@ -4,7 +4,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ExportPanel } from '../../src/ui/panels';
-import { MAX_EXPORT_PX, exportName } from '../../src/ui/export';
+import { MAX_EXPORT_PX, downloadBlob, exportName, mimeOf, svgBlob } from '../../src/ui/export';
+import { cloudToSvg } from '../../src/render/svg';
 import { DEFAULT_SETTINGS, type ExportOpts } from '../../src/ui/settings';
 import { PLATFORM_PRESETS } from '../../src/ui/exportPresets';
 
@@ -28,14 +29,26 @@ function panel(init: Partial<ExportOpts> = {}, props: Record<string, unknown> = 
 }
 
 describe('ExportPanel groups', () => {
-  it('shows every group, and SVG is present but refused until the vector path exists', () => {
+  it('shows every group, SVG included', () => {
     panel();
     for (const label of ['格式', '尺寸', '背景', '内容', '词表', '文件名']) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
     const svg = screen.getByRole('button', { name: 'SVG' }) as HTMLButtonElement;
-    expect(svg.disabled).toBe(true);
-    expect(svg.title).toBe('二期');
+    expect(svg.disabled).toBe(false);
+  });
+
+  it('SVG drops the resolution controls and says why the fonts may differ', async () => {
+    const user = userEvent.setup();
+    const h = panel();
+    expect(screen.getAllByText('尺寸').length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: 'SVG' }));
+    expect(h.get().format).toBe('svg');
+    h.rerender();
+    // A vector scales without loss, so the 1x/2x/3x multiplier is gone
+    expect(screen.queryByText('尺寸')).toBeNull();
+    expect(screen.queryByRole('button', { name: '2×' })).toBeNull();
+    expect(screen.getByText(/SVG 用系统字体渲染/)).toBeTruthy();
   });
 
   it('the format switch writes back, and embedding is only offered on PNG', async () => {
@@ -258,5 +271,29 @@ describe('ExportPanel preview', () => {
     expect(o.bg).toBe('transparent');
     // 1160 × 580 contained in 232 px is 232 × 116
     expect([o.width, o.height]).toEqual([232, 116]);
+  });
+});
+
+describe('SVG export goes out as a vector blob', () => {
+  it('the downloaded blob is image/svg+xml, not a bitmap', () => {
+    const created: Blob[] = [];
+    const spy = vi.spyOn(URL, 'createObjectURL').mockImplementation((b: Blob | MediaSource) => {
+      created.push(b as Blob);
+      return 'blob:stub';
+    });
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const svg = cloudToSvg(
+      [{ text: '词', count: 3, x: 10, y: 20, w: 30, h: 30, fontSize: 30, rotated: false, step: 1, delay: 0, phase: 0 }],
+      { width: 100, height: 100, ramp: ['#000', '#111'], fontFamily: 'Inter', fontWeight: '600' },
+    );
+    downloadBlob(svgBlob(svg), 'cloud.svg');
+    expect(created).toHaveLength(1);
+    expect(created[0].type).toBe('image/svg+xml;charset=utf-8');
+    expect(mimeOf('svg')).toBe('image/svg+xml');
+    spy.mockRestore();
+  });
+
+  it('the file name keeps the template and swaps the extension', () => {
+    expect(exportName('png', { mode: 'freq', words: 12, lang: 'en', tpl: 'cloud', ext: 'svg' })).toBe('cloud.svg');
   });
 });

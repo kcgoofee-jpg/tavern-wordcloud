@@ -20,7 +20,7 @@ export type CloudMode = 'freq' | 'keyword';
  * Raster formats the canvas can write directly. `svg` is listed so the UI can show
  * it greyed out: a vector export needs a second rendering path (see notes/docs/28).
  */
-export type ExportFormat = 'png' | 'jpg' | 'webp';
+export type ExportFormat = 'png' | 'jpg' | 'webp' | 'svg';
 
 /** What goes underneath the words. */
 export type ExportBg = 'transparent' | 'theme' | 'custom';

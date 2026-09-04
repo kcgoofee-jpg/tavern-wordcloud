@@ -34,9 +34,16 @@ export interface PaintOpts {
   watermarkOpacity?: number;
   /** Share URL to stamp as a QR code, or null. */
   qr: string | null;
+  /**
+   * Invisible watermark line. The canvas path carries it in PNG chunks / pixel low bits;
+   * the SVG path can only put it in `<metadata>` and a comment.
+   */
+  hiddenText?: string | null;
 }
 
-const MIME: Record<ExportFormat, string> = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
+const MIME: Record<ExportFormat, string> = {
+  png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', svg: 'image/svg+xml',
+};
 
 /** MIME type for `canvas.toBlob`. */
 export const mimeOf = (f: ExportFormat): string => MIME[f];
@@ -60,6 +67,14 @@ export function downloadBlob(blob: Blob, filename: string): void {
   a.href = url;
   a.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/**
+ * Vector export as a file. No canvas and no encoder: the markup is the file, so this
+ * skips `toBlob` entirely while still going out through an object URL (hard rule 4).
+ */
+export function svgBlob(svg: string): Blob {
+  return new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
 }
 
 /** Full word table as JSON, with the counts that produced it. */

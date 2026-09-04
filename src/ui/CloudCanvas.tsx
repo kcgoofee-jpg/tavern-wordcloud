@@ -5,6 +5,7 @@ import { useT } from './i18n';
 import { canvasMeasure, hashSeed, layoutCloud, type Placement } from '../render/layout';
 import { analyzeQr, type QrAnalysis } from '../render/qr';
 import { CloudRenderer, type FrameState, type RenderInput } from '../render/renderer';
+import { cloudToSvg } from '../render/svg';
 import { downloadBlob, mimeOf, tooLarge, type PaintOpts } from './export';
 import type { ExportFormat } from './settings';
 import type { Theme } from '../theme/themes';
@@ -51,6 +52,11 @@ export interface CloudApi {
     /** Invisible watermark: the same line goes into the PNG chunk and/or the pixel low bits. */
     hidden?: { text: string; meta: boolean; lsb: boolean },
   ) => boolean;
+  /**
+   * The same frozen pose as `exportImage`, written as a vector file instead of pixels.
+   * Null when there is nothing to draw. No fonts are embedded: see render/svg.ts.
+   */
+  toSvg: (opts: PaintOpts) => string | null;
   /** Draw the same still into a caller-owned canvas; the export panel's live thumbnail uses it. */
   paint: (out: HTMLCanvasElement, opts: PaintOpts) => boolean;
   hasContent: () => boolean;
@@ -368,6 +374,22 @@ const CloudCanvas = forwardRef<CloudApi, Props>(function CloudCanvas(
     hasContent: () => placements.length > 0,
     pixelSize: () => ({ w: dw, h: dh }),
     paint,
+    toSvg: (o: PaintOpts) => {
+      if (placements.length === 0) return null;
+      return cloudToSvg(placements, {
+        width: dw, height: dh, outWidth: o.width, outHeight: o.height,
+        ramp: theme.ramp,
+        fontFamily: theme.cloudFont, fontWeight: theme.fonts.cloudWeight, tracking: theme.fonts.cloudTracking,
+        // Same rule as the canvas: transparent draws no plate at all.
+        background: o.bg === 'transparent' ? null : o.bg === 'custom' ? o.bgColor : theme.surface,
+        radius: o.radius,
+        watermark: o.watermark,
+        watermarkPos: o.watermarkPos,
+        watermarkOpacity: o.watermarkOpacity,
+        watermarkColor: theme.fg,
+        hiddenText: o.hiddenText ?? null,
+      });
+    },
     exportImage: (filename: string, embed: string | undefined, o: PaintOpts, format: ExportFormat, hidden?: { text: string; meta: boolean; lsb: boolean }) => {
       // Off-screen canvas: never attached to the document, so a 8192 px export costs no layout
       const out = document.createElement('canvas');
