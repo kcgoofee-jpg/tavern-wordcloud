@@ -1,6 +1,6 @@
 /** Entity layer: names bypass cohesion (沈高飞 358 vs 高飞 1789 = 0.20) and can be hidden as a kind. */
 import { describe, expect, it } from 'vitest';
-import { classify, detectEntities, looksLikePerson, systemWords } from '../src/core/entities';
+import { classify, classifyKinds, detectEntities, looksLikePerson, systemWords } from '../src/core/entities';
 import { analyze, DEFAULT_ANALYZE_OPTIONS } from '../src/core/analyze';
 
 const story = [
@@ -43,6 +43,53 @@ describe('entity detection', () => {
     expect(classify('下午', e)).toBe('time');
     expect(classify('办公室', e)).toBe('place');
     expect(classify('合同', e)).toBe('plain');
+  });
+
+  /* ---------- F10: a word can carry several kinds ---------- */
+
+  it('kinds are sorted by confidence and kind is the strongest one', () => {
+    const e = detectEntities(story);
+    for (const w of ['办公室', '下午', '衬衫', '老板', '天宇集团']) {
+      const tags = classifyKinds(w, e);
+      expect(tags.length, w).toBeGreaterThan(0);
+      expect(tags.map((k) => k.conf)).toEqual([...tags.map((k) => k.conf)].sort((a2, b2) => b2 - a2));
+      expect(classify(w, e), w).toBe(tags[0].kind);
+    }
+  });
+
+  it('a title built on a surname is both a person and a title', () => {
+    const e = detectEntities(story);
+    const tags = classifyKinds('赵总', e).map((k) => k.kind);
+    expect(tags).toContain('person');
+    expect(tags).toContain('title');
+    // The person tag wins, so nothing that used to be a person changes label.
+    expect(classify('赵总', e)).toBe('person');
+  });
+
+  it('bare terms of address are titles, ordinary nouns are not', () => {
+    const e = detectEntities(story);
+    for (const w of ['陛下', '殿下', '大人', '老板', '导演', '女士']) expect(classify(w, e), w).toBe('title');
+    for (const w of ['合同', '剧本', '消息', '筷子']) expect(classify(w, e), w).toBe('plain');
+  });
+
+  it('garment words are wear; the same tail characters elsewhere are not', () => {
+    const e = detectEntities(story);
+    for (const w of ['衬衫', '长裙', '短裤', '丝袜', '皮靴', '大衣', '帽子', '高跟鞋', '领带', '围巾', '制服']) {
+      expect(classify(w, e), w).toBe('wear');
+    }
+    for (const w of ['声带', '磁带', '毛巾', '说服', '舒服', '一带']) expect(classify(w, e), w).not.toBe('wear');
+    // Body parts win over the garment reading.
+    expect(classifyKinds('胸口', e).map((k) => k.kind)).not.toContain('wear');
+  });
+
+  it('brands are only the corporate-suffix form and corpus-attested names', () => {
+    const e = detectEntities(['NIKE牌的鞋。', 'NIKE牌又出了新款。', 'NIKE公司来人了。']);
+    expect(classify('天宇集团', e)).toBe('brand');
+    expect(classify('星辰工作室', e)).toBe('brand');
+    expect(classify('nike', e)).toBe('brand');
+    // Two characters is a common noun, not a company name.
+    expect(classify('公司', e)).not.toBe('brand');
+    expect(classify('影视', e)).not.toBe('brand');
   });
 
   it('systemWords come from message names', () => {
@@ -95,7 +142,7 @@ describe('kind toggles', () => {
 
 /** 部 / 口 suffixes must not turn quantifier phrases (一部, 那部) into places. */
 describe('place detection ignores quantifier phrases', () => {
-  const idx = { kindOf: new Map(), personNames: [], hits: new Map() } as never;
+  const idx = { kindOf: new Map(), personNames: [], hits: new Map(), brands: new Set() } as never;
   it.each(['一部', '那部', '这部', '两口', '三所', '几站'])('%s 不是地点', (w) => {
     expect(classify(w, idx)).toBe('plain');
   });

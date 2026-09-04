@@ -25,5 +25,8 @@
 .kw-menu button:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); color: var(--fg); }
 .kw-menu button.on { color: var(--accent); }
 
+/* A word can match several kinds; the ones other than the row it sits in are named after it */
+.kind-list-row .kw-alt { margin-left: 3px; font-style: normal; color: var(--fg-dim); opacity: .7; }
+
 /* Restore every hand-filed word at once; only shown when there is something to restore */
 .kind-reset { margin-top: 6px; }

@@ -15,7 +15,7 @@ const PUBLIC_API = [
   // Reasoning
   'cleanReasoning', 'findBoilerplate', 'COT_SCHEMA_STOPWORDS',
   // Entities
-  'classify', 'detectEntities', 'systemWords', 'ENTITY_LABEL',
+  'classify', 'classifyKinds', 'detectEntities', 'systemWords', 'ENTITY_LABEL', 'EXPERIMENTAL_KINDS',
   // LLM tokenization (optional)
   'segmentWithAi', 'segmentChunk', 'DEFAULT_AI_CONFIG',
   // Metadata

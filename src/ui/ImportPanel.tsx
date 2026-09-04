@@ -1,7 +1,7 @@
 import type { AnalyzeOptions } from '../core/analyze';
 import { useT, tx } from './i18n';
 import type { DataBundle } from '../core/bundle';
-import { ENTITY_LABEL, type EntityKind } from '../core/entities';
+import { ENTITY_LABEL, EXPERIMENTAL_KINDS, type EntityKind } from '../core/entities';
 import type { Role } from '../core/types';
 import Icon from './Icons';
 import Note from './Note';
@@ -30,7 +30,7 @@ export interface ImportSummary {
 const roleLabel = (t: (s: string) => string): Record<Role, string> =>
   ({ user: t('我说的'), char: t('角色说的'), system: '' });
 /** The `system` kind is not offered here: it is always 0 words in practice. It is still detected and filtered in core. */
-const KINDS: EntityKind[] = ['plain', 'person', 'place', 'time', 'generic'];
+const KINDS: EntityKind[] = ['plain', 'person', 'place', 'time', 'generic', 'brand', 'wear', 'title'];
 
 /** Rough tokenization time estimate: ~40k chars/s locally; with a model, ~3 s per chunk, `concurrency` chunks in parallel. */
 function estimate(chars: number, ai: AnalyzeOptions['ai'] | null, t: (s: string, v?: Record<string, string | number>) => string): string {
@@ -125,7 +125,8 @@ export default function ImportPanel({
               const on = options.kinds.includes(k);
               return (
                 <button key={k} type="button" className={`kind${on ? ' on' : ''}`}
-                  title={k === 'person' ? t('人名频率远高于其他词，嫌挤就关掉') : undefined}
+                  title={EXPERIMENTAL_KINDS.includes(k) ? t('实验，可能有误判')
+                    : k === 'person' ? t('人名频率远高于其他词，嫌挤就关掉') : undefined}
                   onClick={() => setOptions((o) => ({
                     ...o, kinds: on ? o.kinds.filter((x) => x !== k) : [...o.kinds, k],
                   }))}>{tx(ENTITY_LABEL[k])}</button>

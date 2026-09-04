@@ -55,8 +55,13 @@ export interface ParsedChat {
 export interface WordCount {
   text: string;
   count: number;
-  /** Entity kind, assigned by entities.ts after tokenization. */
+  /**
+   * Highest-confidence entity kind, assigned by entities.ts after tokenization.
+   * Kept alongside `kinds` so existing callers and share links keep working.
+   */
   kind?: import('./entities').EntityKind;
+  /** Every kind the word matched, strongest first. `kind` is `kinds[0].kind`. */
+  kinds?: { kind: import('./entities').EntityKind; conf: number }[];
   /** Explicit-word category, if any. */
   nsfw?: import('./nsfw').NsfwKind;
   /** Set on words injected/replaced by the priority-words override. */

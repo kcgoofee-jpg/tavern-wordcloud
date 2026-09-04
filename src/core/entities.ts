@@ -10,7 +10,9 @@ import type { ChatMessage } from './types';
  */
 
 /** `generic`: evenly spread across messages (low dispersion), assigned in analyze.ts; hidden from the cloud by default. */
-export type EntityKind = 'person' | 'time' | 'place' | 'system' | 'plain' | 'generic';
+export type EntityKind =
+  | 'person' | 'time' | 'place' | 'system' | 'plain' | 'generic'
+  | 'brand' | 'wear' | 'title';
 
 /** User-visible kind names, translated at display time via tx(). */
 export const ENTITY_LABEL: Record<EntityKind, string> = {
@@ -20,7 +22,47 @@ export const ENTITY_LABEL: Record<EntityKind, string> = {
   system: zh('系统'),
   plain: zh('其他'),
   generic: zh('常见词'),
+  brand: zh('品牌'),
+  wear: zh('服饰'),
+  title: zh('称谓'),
 };
+
+/**
+ * Kinds the UI marks as experimental. `npm run eval:kinds` forces any kind whose
+ * measured precision is below 80% into this list; a kind may also be listed
+ * above the line, as `brand` is: it scores 100% on the shapes it claims but
+ * recognises almost nothing outside them (the local logs contain no brand at
+ * all), so what the user sees is mostly misses. docs/27 §7 expects those to be
+ * fixed by hand re-filing, not by guessing.
+ */
+export const EXPERIMENTAL_KINDS: EntityKind[] = ['brand'];
+
+/** One classification of a word. A word can carry several; sorted by `conf` descending. */
+export interface KindTag {
+  kind: EntityKind;
+  /** Rule confidence, 0..1. Fixed per rule; see CONF below. */
+  conf: number;
+}
+
+/**
+ * Rule confidences. These only order the tags of one word — they are not
+ * probabilities. The ordering is what keeps `classify()` (highest tag) returning
+ * exactly what it returned before the multi-kind change: a person name that also
+ * matches the title construction (赵总) stays `person`.
+ */
+const CONF = {
+  system: 1,
+  person: 0.95,
+  personTitleForm: 0.9,
+  time: 0.9,
+  place: 0.85,
+  placeWeak: 0.7,
+  /** Above `place`: 星辰工作室 / 华美公司 also carry a place suffix, but the company is the point. */
+  brand: 0.88,
+  wear: 0.8,
+  title: 0.7,
+  plain: 0.3,
+} as const;
 
 const NAME = '([\\u4e00-\\u9fff]{2,4})';
 
@@ -168,8 +210,47 @@ const AMBIG_PLACE2 = new Set([
 /** Anatomy characters. 大腿根部 / 胸口 / 裆部 are body parts however long they are. */
 const BODY_RE = /[胸乳裆腰臀阴背腹肩颈喉腕踝膝肘唇舌齿眼耳鼻臂股胯脐颊额腮趾膀腿虎]/;
 
+/* ---------- Clothing (`wear`) ----------
+   Seed: the tail characters that essentially only end garment words
+   (衫 裙 裤 袜 靴 衣 帽 鞋 袍 褂). 带 / 巾 / 服 are in the seed list of the design
+   note (docs/27 §7) but each of them ends far more non-garment words than
+   garment ones (声带 磁带 / 毛巾 餐巾 / 说服 佩服), so they are reached through a
+   closed word list instead of a suffix rule. 24 seeds + 26 closed words. */
+const WEAR_TAIL = /[衫裙裤袜靴衣帽鞋袍褂]$/;
+const WEAR_WORDS = new Set([
+  '领带', '皮带', '腰带', '吊带', '绑带', '背带',
+  '丝巾', '围巾', '头巾', '纱巾', '方巾',
+  '衣服', '制服', '校服', '礼服', '西服', '军服', '便服', '孝服',
+  '泳装', '婚纱', '披肩', '手套', '胸罩', '文胸', '服饰',
+  '外套', '套装', '裙子', '裤子', '帽子', '鞋子', '袜子', '靴子',
+]);
+/** Quantifier + garment tail (一件衣 / 那顶帽) is a phrase fragment, not a garment word. */
+const NOT_WEAR = /^(?:[一二两三四五六七八九十几半这那每某另]|\d+)/;
+
+/* ---------- Titles and forms of address (`title`) ----------
+   Seed: 38 standalone terms of address and job titles that occur as bare nouns.
+   The productive `姓 + 先生/小姐/总/老师…` construction is already encoded in
+   TITLE_RE, which is reused here. A word matching both this and the person rules
+   gets both tags (龚总 → person + title). */
+const TITLE_WORDS = new Set([
+  '陛下', '殿下', '大人', '老爷', '夫人', '娘娘', '公主', '太子', '皇上', '王爷',
+  '小姐', '少爷', '公子', '先生', '女士', '阁下', '主人', '师父', '师傅', '前辈',
+  '学长', '学姐', '老板', '队长', '教官', '长官', '将军', '大夫',
+  '老师', '医生', '护士', '导演', '制片', '主任', '经理', '总监', '教授', '助理',
+]);
+
+/* ---------- Brands (`brand`) ----------
+   Two shapes only, per docs/27 §7. Everything else is left to the user's manual
+   re-filing — guessing brand names without a dictionary produces noise. */
+/** Corporate suffixes. A token that itself ends in one (and is long enough to carry a name) is a brand. */
+const BRAND_TAIL = /(?:牌|公司|集团|工作室|官方)$/;
+/** Corpus context for the transliterated-Chinese shape. */
+const BRAND_CONTEXT = /[穿买牌款]/;
+
 export interface EntityIndex {
   kindOf: Map<string, EntityKind>;
+  /** Words the corpus pass accepted as brands (Latin forms are lower-cased). */
+  brands: Set<string>;
   /** Candidates detected as person names. Forced as whole tokens, bypassing cohesion. */
   personNames: string[];
   /** Distinct patterns hit per name, shown as a confidence hint. */
@@ -248,24 +329,105 @@ export function detectEntities(texts: string[], known: string[] = []): EntityInd
 
   // Longest first so maximal matching prefers the full name.
   personNames.sort((a, b) => b.length - a.length);
-  return { kindOf, personNames, personConfidence };
+  return { kindOf, personNames, personConfidence, brands: detectBrands(joined) };
 }
 
-/** Kind of a single word; falls back to morphology when the entity pass did not claim it. */
-export function classify(word: string, index: EntityIndex): EntityKind {
-  const known = index.kindOf.get(word);
-  if (known) return known;
-  // Title suffixes are tested here, on tokenizer output.
-  if (TITLE_RE.test(word)) return 'person';
-  if (!NOT_TIME.test(word) && TIME_RE.test(word)) return 'time';
-  if (/^[a-z0-9.':]+$/i.test(word) && EN_TIME_RE.test(word)) return 'time';
-  if (word.length >= 2 && PLACE_RE.test(word) && !NOT_PLACE.test(word)) {
-    if (!AMBIG_TAIL.test(word)) return 'place';
-    if (BODY_RE.test(word)) return 'plain';
-    if (AMBIG_PLACE2.has(word)) return 'place';
-    return word.length >= 3 ? 'place' : 'plain';
+/**
+ * Brands that need the corpus to decide. Two shapes, both from docs/27 §7:
+ *
+ *  1. a Latin word written all-caps or Capitalized that is **never** written
+ *     lower-case anywhere in the corpus (the same evidence `english.ts` uses for
+ *     proper nouns), immediately followed by 牌 / 公司 / 集团 / 工作室 / 官方;
+ *  2. a transliterated Chinese word (`looksTransliterated`) that co-occurs with
+ *     one of 穿 / 买 / 牌 / 款 within 12 characters at least three times.
+ *
+ * The context-free shape (a token that itself ends in a corporate suffix) is
+ * handled in `classifyKinds`; it needs no corpus.
+ */
+function detectBrands(joined: string): Set<string> {
+  const out = new Set<string>();
+
+  const lowered = new Set<string>();
+  for (const m of joined.matchAll(/\b[a-z][a-z0-9&.-]{1,20}\b/g)) lowered.add(m[0]);
+  for (const m of joined.matchAll(/\b([A-Z][A-Za-z0-9&.-]{1,20})(?=\s?(?:牌|公司|集团|工作室|官方))/g)) {
+    const w = m[1];
+    if (!lowered.has(w.toLowerCase())) out.add(w.toLowerCase());
   }
-  return 'plain';
+
+  // Maximal runs of transliteration characters. A run is the candidate; scanning
+  // every 2..5 character substring of the corpus would be quadratic and would
+  // mostly produce fragments of ordinary sentences.
+  const near = new Map<string, number>();
+  let run = '', start = 0;
+  const flush = (end: number) => {
+    if (run.length >= 2 && run.length <= 5) {
+      const window = joined.slice(Math.max(0, start - 12), end + 12);
+      if (BRAND_CONTEXT.test(window.split(run).join(''))) near.set(run, (near.get(run) ?? 0) + 1);
+    }
+    run = '';
+  };
+  for (let i = 0; i < joined.length; i++) {
+    if (TRANSLIT.has(joined[i])) { if (!run) start = i; run += joined[i]; }
+    else if (run) flush(i);
+  }
+  if (run) flush(joined.length);
+  for (const [w, n] of near) if (n >= 3) out.add(w);
+
+  return out;
+}
+
+/**
+ * All kinds a word matches, strongest first.
+ *
+ * A word can be several things at once (赵总 is a person *and* a title), so the
+ * rules are all evaluated and the hits are ranked by `CONF`. `system` is
+ * exclusive: it means the string is a SillyTavern field, not story content.
+ * The list is never empty — `plain` is the fallback.
+ */
+export function classifyKinds(word: string, index: EntityIndex): KindTag[] {
+  const tags: KindTag[] = [];
+  const known = index.kindOf.get(word);
+  if (known === 'system') return [{ kind: 'system', conf: CONF.system }];
+  if (known) tags.push({ kind: known, conf: CONF.person });
+
+  // Title suffixes are tested here, on tokenizer output.
+  if (TITLE_RE.test(word)) {
+    if (known !== 'person') tags.push({ kind: 'person', conf: CONF.personTitleForm });
+    tags.push({ kind: 'title', conf: CONF.title });
+  } else if (TITLE_WORDS.has(word)) {
+    tags.push({ kind: 'title', conf: CONF.title });
+  }
+
+  if (!known) {
+    if (!NOT_TIME.test(word) && TIME_RE.test(word)) tags.push({ kind: 'time', conf: CONF.time });
+    else if (/^[a-z0-9.':]+$/i.test(word) && EN_TIME_RE.test(word)) tags.push({ kind: 'time', conf: CONF.time });
+    else if (word.length >= 2 && PLACE_RE.test(word) && !NOT_PLACE.test(word)) {
+      if (!AMBIG_TAIL.test(word)) tags.push({ kind: 'place', conf: CONF.place });
+      else if (BODY_RE.test(word)) { /* body part, not a place */ }
+      else if (AMBIG_PLACE2.has(word)) tags.push({ kind: 'place', conf: CONF.place });
+      else if (word.length >= 3) tags.push({ kind: 'place', conf: CONF.placeWeak });
+    }
+  }
+
+  // Garments. A word naming a body part is never re-read as clothing (胸口, 胸衣).
+  if (word.length >= 2 && !NOT_WEAR.test(word) && !BODY_RE.test(word)
+      && (WEAR_WORDS.has(word) || (WEAR_TAIL.test(word) && !DEFAULT_STOPWORDS.has(word)))) {
+    tags.push({ kind: 'wear', conf: CONF.wear });
+  }
+
+  // Brands: the context-free corporate-suffix form, or what the corpus pass found.
+  const brandForm = word.length >= 3 && BRAND_TAIL.test(word) && /[一-鿿A-Za-z]/.test(word[0]);
+  if (brandForm || index.brands.has(word.toLowerCase())) {
+    tags.push({ kind: 'brand', conf: CONF.brand });
+  }
+
+  if (!tags.length) return [{ kind: 'plain', conf: CONF.plain }];
+  return tags.sort((a, b) => b.conf - a.conf);
+}
+
+/** Kind of a single word: the highest-confidence tag. Kept for callers that want one label. */
+export function classify(word: string, index: EntityIndex): EntityKind {
+  return classifyKinds(word, index)[0].kind;
 }
 
 /** SillyTavern's own labels (persona name, card name) are software fields, not story content. */

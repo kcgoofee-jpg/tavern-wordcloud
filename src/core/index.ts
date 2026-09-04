@@ -35,8 +35,8 @@ export type { DataBundle, BundleChat, BundleProgress } from './bundle';
 export { cleanReasoning, findBoilerplate, COT_SCHEMA_STOPWORDS } from './cot';
 
 /* ---------- Entities ---------- */
-export { classify, detectEntities, systemWords, ENTITY_LABEL } from './entities';
-export type { EntityKind, EntityIndex } from './entities';
+export { classify, classifyKinds, detectEntities, systemWords, ENTITY_LABEL, EXPERIMENTAL_KINDS } from './entities';
+export type { EntityKind, EntityIndex, KindTag } from './entities';
 
 /* ---------- LLM tokenization (optional) ---------- */
 export { segmentWithAi, segmentChunk, DEFAULT_AI_CONFIG } from './aiTokenizer';

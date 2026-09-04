@@ -4,7 +4,7 @@ import { collectNames, parseChatFile } from './parse';
 import { DEFAULT_AI_CONFIG, type AiTokenizerConfig } from './aiTokenizer';
 import { cleanMessageText } from './clean';
 import { cleanReasoning, COT_SCHEMA_STOPWORDS } from './cot';
-import { classify, detectEntities, systemWords, type EntityKind } from './entities';
+import { classifyKinds, detectEntities, systemWords, type EntityKind } from './entities';
 import { detectEnglishNames } from './english';
 import { countSensitive, NSFW_EXPLICIT_KINDS, NSFW_KINDS, nsfwKind, type NsfwKind } from './nsfw';
 import { applyBlocklist } from './blocklist';
@@ -65,7 +65,7 @@ export const DEFAULT_ANALYZE_OPTIONS: AnalyzeOptions = {
   useNamesAsDictionary: true,
   onlyCharacter: null,
   // Every kind on by default (user decision 2026-09-04): the kind buttons are the way to hide names, not a hidden default.
-  kinds: ['plain', 'person', 'place', 'time', 'generic'],
+  kinds: ['plain', 'person', 'place', 'time', 'generic', 'brand', 'wear', 'title'],
   source: 'mes',
   onlyModel: null,
   ai: DEFAULT_AI_CONFIG,
@@ -267,13 +267,17 @@ function prepare(
   }
   const typed = allowed.map((w) => {
     const n = nsfwKind(w.text);
-    const kind = classify(w.text, entities);
-    return { ...w, kind: kind === 'plain' && generic.has(w.text) ? 'generic' as const : kind, ...(n ? { nsfw: n } : {}) };
+    // A word can match several kinds (赵总 is a person and a title); `kind` stays the strongest.
+    let kinds = classifyKinds(w.text, entities);
+    if (kinds.length === 1 && kinds[0].kind === 'plain' && generic.has(w.text)) kinds = [{ kind: 'generic' as const, conf: kinds[0].conf }];
+    return { ...w, kind: kinds[0].kind, kinds, ...(n ? { nsfw: n } : {}) };
   });
   // Explicitness is decided by the selected categories; detection always runs so the word table can label every hit.
   const nsfwSet = new Set<NsfwKind>(options.nsfwKinds);
   const explicit = (w: { nsfw?: NsfwKind }) => w.nsfw !== undefined && nsfwSet.has(w.nsfw);
-  const eligible = typed.filter((w) => kindSet.has(w.kind) && w.count >= options.tokenize.minCount);
+  // A multi-kind word is shown when *any* of its kinds is switched on.
+  const anyKindOn = (w: { kinds: { kind: EntityKind }[] }) => w.kinds.some((k) => kindSet.has(k.kind));
+  const eligible = typed.filter((w) => anyKindOn(w) && w.count >= options.tokenize.minCount);
   const visible = eligible
     .filter((w) => (options.nsfwMode === 'only' ? explicit(w) : options.nsfwMode === 'hide' ? !explicit(w) : true))
     .slice(0, options.tokenize.maxWords);
@@ -320,9 +324,10 @@ function prepare(
         .map((n) => ({ text: n, confidence: entities.personConfidence.get(n) ?? 0 }))
         .sort((a, b) => b.confidence - a.confidence),
       // Per-kind counts so the UI can show what enabling a kind would add.
-      byKind: (['person', 'time', 'place', 'system', 'plain', 'generic'] as EntityKind[]).map((k) => ({
+      // Counted on any hit, so the sum can exceed the number of words.
+      byKind: (['person', 'time', 'place', 'system', 'plain', 'generic', 'brand', 'wear', 'title'] as EntityKind[]).map((k) => ({
         kind: k,
-        words: typed.filter((w) => w.kind === k && w.count >= options.tokenize.minCount).length,
+        words: typed.filter((w) => w.kinds.some((x) => x.kind === k) && w.count >= options.tokenize.minCount).length,
       })),
     },
     elapsedMs: Date.now() - t0,

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useT, tx } from '../i18n';
 import type { AnalyzeOptions } from '../../core/analyze';
-import { ENTITY_LABEL, type EntityKind } from '../../core/entities';
+import { ENTITY_LABEL, EXPERIMENTAL_KINDS, type EntityKind } from '../../core/entities';
 import { NSFW_KINDS, NSFW_EXPLICIT_KINDS } from '../../core/nsfw';
 import { nsfwLabel } from '../nsfwLabels';
 import type { AnalysisResult, Role } from '../../core/types';
@@ -10,7 +10,10 @@ import Slider from './Slider';
 /** A function of `t` so labels are literal `t('…')` calls. */
 const roleLabel = (t: (s: string) => string): Record<Role, string> =>
   ({ user: t('我说的'), char: t('角色说的'), system: '' });
-const KIND_ORDER: EntityKind[] = ['plain', 'person', 'place', 'time', 'generic'];
+/** Two rows of four in the button grid. */
+const KIND_ORDER: EntityKind[] = ['plain', 'person', 'place', 'time', 'generic', 'brand', 'wear', 'title'];
+/** Kinds listed under 「看看各类都有哪些词」; `plain` is everything else and would be the whole table. */
+const LISTED_KINDS: EntityKind[] = ['person', 'place', 'time', 'generic', 'brand', 'wear', 'title'];
 const nsfwModeLabel = (t: (s: string) => string): Record<AnalyzeOptions['nsfwMode'], string> =>
   ({ show: t('全部显示'), hide: t('隐藏 NSFW'), only: t('只看 NSFW') });
 
@@ -63,7 +66,8 @@ export function FilterPanel({
           return (
             <button key={k} type="button" className={`kind${on ? ' on' : ''}`}
               aria-pressed={on}
-              title={k === 'person' ? t('人名频率远高于其他词，嫌挤就关掉') : undefined}
+              title={EXPERIMENTAL_KINDS.includes(k) ? t('实验，可能有误判')
+                : k === 'person' ? t('人名频率远高于其他词，嫌挤就关掉') : undefined}
               onClick={() => setOptions((o) => ({
                 ...o, kinds: on ? o.kinds.filter((x) => x !== k) : [...o.kinds, k],
               }))}
@@ -76,12 +80,15 @@ export function FilterPanel({
       </div>
 
       {/* Which words landed in the person / place / time / common buckets: the counts alone hide what was taken out of the cloud */}
-      {result && (['person', 'place', 'time', 'generic'] as EntityKind[]).some((k) => countOf(k) > 0) && (
+      {result && LISTED_KINDS.some((k) => countOf(k) > 0) && (
         <details className="kind-list">
           <summary>{t('看看各类都有哪些词')}</summary>
-          {(['person', 'place', 'time', 'generic'] as EntityKind[]).map((k) => {
+          {LISTED_KINDS.map((k) => {
+            /* A hand-filed word only has the kind the user gave it; otherwise every kind it matched counts. */
+            const kindsOf = (w: typeof result.allWords[number]) =>
+              kindOverrides[w.text] ? [kindOverrides[w.text]] : (w.kinds?.map((x) => x.kind) ?? (w.kind ? [w.kind] : []));
             const list = result.allWords
-              .filter((w) => (kindOverrides[w.text] ?? w.kind) === k && w.count >= options.tokenize.minCount)
+              .filter((w) => kindsOf(w).includes(k) && w.count >= options.tokenize.minCount)
               .slice(0, 40);
             if (!list.length) return null;
             return (
@@ -96,6 +103,10 @@ export function FilterPanel({
                         onClick={() => setMenuWord(menuWord === w.text ? null : w.text)}>
                         {w.text} {w.count}
                       </button>
+                      {/* Secondary kinds, so a word appearing in two lists explains itself. */}
+                      {kindsOf(w).filter((x) => x !== k).map((x) => (
+                        <em key={x} className="kw-alt">{tx(ENTITY_LABEL[x])}</em>
+                      ))}
                       {menuWord === w.text && (
                         <span className="kw-menu" role="menu">
                           {KIND_ORDER.map((target) => (

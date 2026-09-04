@@ -514,6 +514,7 @@ const EN: Record<string, string> = {
   '约 {n} 秒（{c} 次请求）': 'about {n} s ({c} requests)',
   '约 {n} 秒': 'about {n} s',
   '人名频率远高于其他词，嫌挤就关掉': 'Names dwarf every other word; turn them off if the cloud feels crowded',
+  '实验，可能有误判': 'Experimental; may be wrong',
   '大模型（{model}）': 'A model ({model})',
   '⚠ 正文会分成 {times} 块发到 {host}（每块 {chunk} 字）。仅用于分词，本站不留存。':
     '⚠ The text goes to {host} in {times} chunks of {chunk} characters. Tokenizing only — this site keeps nothing.',
@@ -598,6 +599,9 @@ const EN: Record<string, string> = {
   '系统': 'System',
   '其他': 'Other',
   '常见词': 'Common words',
+  '品牌': 'Brands',
+  '服饰': 'Clothing',
+  '称谓': 'Titles',
   '(未知)': '(unknown)',
   '(未知角色卡)': '(unknown card)',
   '{n} 张角色卡': '{n} character cards',

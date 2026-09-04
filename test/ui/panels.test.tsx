@@ -30,6 +30,20 @@ describe('FilterPanel', () => {
     expect(h.get().roles).toEqual(['user']);
   });
 
+  it('eight kind buttons; the experimental ones say so, and clicking toggles that kind', async () => {
+    const user = userEvent.setup();
+    const h = optionsHarness();
+    render(<FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}} rotateRatio={0} setRotateRatio={() => {}} result={null} />);
+    // tx() (kind labels, from the core) renders English here; t() (the title attribute) renders Chinese.
+    for (const name of ['Other', 'Names', 'Places', 'Time', 'Common words', 'Brands', 'Clothing', 'Titles']) {
+      expect(screen.getByRole('button', { name: new RegExp(`^${name}`) }), name).toBeTruthy();
+    }
+    expect(screen.getByRole('button', { name: /^Brands/ }).getAttribute('title')).toBe('实验，可能有误判');
+    expect(screen.getByRole('button', { name: /^Clothing/ }).getAttribute('title')).toBeNull();
+    await user.click(screen.getByRole('button', { name: /^Titles/ }));
+    expect(h.get().kinds).not.toContain('title');
+  });
+
   it('the min-length slider changes tokenize.minLength only', () => {
     const h = optionsHarness();
     render(<FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}} rotateRatio={0} setRotateRatio={() => {}} result={null} />);
