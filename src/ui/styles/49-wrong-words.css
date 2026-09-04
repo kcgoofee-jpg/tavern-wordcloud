@@ -1,0 +1,8 @@
+/* F9: the "wrong word → correct word" rule editor in the advanced panel. */
+.wrong-words { display: flex; flex-direction: column; gap: var(--ctl-gap); }
+.wrong-words-line { display: flex; align-items: center; gap: 6px; }
+.wrong-words-line input { flex: 1; min-width: 0; }
+.wrong-words-arrow { flex: none; color: var(--fg-dim); }
+.wrong-words .icon-btn { flex: none; opacity: .45; }
+.wrong-words .icon-btn:hover { opacity: 1; color: #e2483d; }
+.wrong-words-err { display: block; margin: 2px 0 0 2px; color: #e2483d; font-size: var(--t-xs); font-style: normal; }

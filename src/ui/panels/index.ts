@@ -3,6 +3,7 @@ export { ThemePanel } from './ThemePanel';
 export { FontPanel } from './FontPanel';
 export { FilterPanel } from './FilterPanel';
 export { AdvancedPanel } from './AdvancedPanel';
+export { WrongWordRules } from './WrongWordRules';
 export { WordsPanel } from './WordsPanel';
 export { PriorityPanel } from './PriorityPanel';
 export { AiPanel } from './AiPanel';

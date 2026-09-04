@@ -1,6 +1,7 @@
 import { useT } from '../i18n';
 import type { AnalyzeOptions } from '../../core/analyze';
 import Slider from './Slider';
+import { WrongWordRules } from './WrongWordRules';
 import { useEffect, useState } from 'react';
 
 const lines = (s: string) => s.split(/\n/).map((x) => x.trim()).filter(Boolean);
@@ -44,11 +45,10 @@ export function AdvancedPanel({
         <LinesBox value={options.tokenize.extraStopwords} placeholder={`${t('片场')}\n${t('制片')}`}
           onCommit={(v) => setTok('extraStopwords', v)} />
       </label>
-      <label className="field">
-        <span>{t('强制当成一个词')}<em>{t('一行一个，人名、地名、专有名词')}</em></span>
-        <LinesBox value={options.tokenize.forceWords} placeholder={`${t('沈砚秋')}\n${t('中央戏剧学院')}`}
-          onCommit={(v) => setTok('forceWords', v)} />
-      </label>
+      <div className="field">
+        <span>{t('改错词重新分词')}<em>{t('把分错的词拆开，写上正确的词；右边留空就只拆开')}</em></span>
+        <WrongWordRules tokenize={options.tokenize} setTok={setTok} />
+      </div>
 
       <label className="check">
         <input type="checkbox" checked={options.ignoreOwnerBlocklist}

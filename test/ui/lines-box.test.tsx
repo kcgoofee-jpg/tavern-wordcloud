@@ -12,7 +12,7 @@ describe('advanced word lists', () => {
     let opts: AnalyzeOptions = { ...DEFAULT_ANALYZE_OPTIONS };
     const setOptions = vi.fn((fn: (o: AnalyzeOptions) => AnalyzeOptions) => { opts = fn(opts); });
     const { container } = render(<AdvancedPanel options={opts} setOptions={setOptions} />);
-    const box = container.querySelectorAll('textarea')[1] as HTMLTextAreaElement; // 强制当成一个词
+    const box = container.querySelectorAll('textarea')[0] as HTMLTextAreaElement; // 不显示这些词
     expect(Number(box.rows)).toBe(2);
     fireEvent.change(box, { target: { value: '沈砚秋\n' } });
     expect(box.value).toBe('沈砚秋\n');
@@ -20,6 +20,6 @@ describe('advanced word lists', () => {
     fireEvent.change(box, { target: { value: '沈砚秋\n中央戏剧学院' } });
     fireEvent.blur(box);
     expect(setOptions).toHaveBeenCalledTimes(1);
-    expect(opts.tokenize.forceWords).toEqual(['沈砚秋', '中央戏剧学院']);
+    expect(opts.tokenize.extraStopwords).toEqual(['沈砚秋', '中央戏剧学院']);
   });
 });
