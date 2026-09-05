@@ -60,6 +60,18 @@ const P = {
   font: <>
     <path d="M4.5 7.5V5.5h15v2" /><path d="M12 5.5v13" /><path d="M8.6 18.5h6.8" />
   </>,
+  /* Provider marks: simple, distinct silhouettes, not brand logos — each only has to be
+     told apart from the others at 16px, and the name is in the tooltip. */
+  /** OpenAI: a six-spoke rosette */
+  openai: <><circle cx="12" cy="12" r="3.2" /><path d="M12 3.4v5.4" /><path d="M12 15.2v5.4" /><path d="m4.6 7.7 4.7 2.7" /><path d="m14.7 13.6 4.7 2.7" /><path d="m4.6 16.3 4.7-2.7" /><path d="m14.7 10.4 4.7-2.7" /></>,
+  /** SiliconFlow: stacked flow lines */
+  siliconflow: <><path d="M3.5 8.5c3-2.4 5.9-2.4 8.5 0s5.5 2.4 8.5 0" /><path d="M3.5 13c3-2.4 5.9-2.4 8.5 0s5.5 2.4 8.5 0" /><path d="M3.5 17.5c3-2.4 5.9-2.4 8.5 0s5.5 2.4 8.5 0" /></>,
+  /** Moonshot Kimi: a crescent */
+  moonshot: <><path d="M19 14.6A8 8 0 0 1 9.4 5a8.2 8.2 0 1 0 9.6 9.6Z" /></>,
+  /** Qwen DashScope: a gauge dial */
+  dashscope: <><path d="M4.2 17.5a9 9 0 1 1 15.6 0" /><path d="m12 13.6 4.2-4.4" /><circle cx="12" cy="15" r="1.6" /></>,
+  /** LM Studio: a monitor with a prompt caret */
+  lmstudio: <><rect x="3" y="5" width="18" height="12" rx="2" /><path d="M9.5 20.5h5" /><path d="m8 9.4 2.4 2.1L8 13.6" /><path d="M12.8 13.6h3.4" /></>,
   /** Frequency mode: bar chart */
   chart: <><path d="M4 20h16" /><rect x="5.5" y="11" width="3.4" height="6.5" rx="1" /><rect x="10.3" y="6" width="3.4" height="11.5" rx="1" /><rect x="15.1" y="14" width="3.4" height="3.5" rx="1" /></>,
   play: <path d="M8 5.4v13.2l10-6.6z" fill="currentColor" stroke="none" />,

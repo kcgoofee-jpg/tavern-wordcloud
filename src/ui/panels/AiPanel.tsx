@@ -13,6 +13,8 @@ import { relayFetch } from '../../net/relay';
 /** Preset id -> icon. Icon only: the brand mark is the label, the name is the tooltip. */
 const PRESET_ICON: Record<string, IconName> = {
   deepseek: 'deepseek', openrouter: 'openrouter', zen: 'opencode', ollama: 'ollama',
+  openai: 'openai', siliconflow: 'siliconflow', moonshot: 'moonshot',
+  dashscope: 'dashscope', lmstudio: 'lmstudio',
 };
 
 export function AiPanel({
@@ -169,12 +171,8 @@ export function AiPanel({
         </button>
       </div>
 
-      {/* Third line: test, then the model box the test fills. */}
-      <div className="ai-line ai-line-test">
-        <button type="button" className={`more ai-test${result?.ok ? ' ok' : ''}`}
-          ref={testRef} disabled={!ai.endpoint.trim() || testing} onClick={() => void test()}>
-          {testing ? t('正在试…') : result?.ok ? <><Icon name="check" size={15} />{t('已连通')}</> : t('测试连接')}
-        </button>
+      {/* Model line, then the action that fills it: address, key, model, button — a form reads top to bottom. */}
+      <div className="ai-line ai-line-model">
         {models ? (
           <select className="ai-model" aria-label={t('模型')} title={t('模型')}
             value={ai.model} onChange={(e) => { setResult(null); setAi({ ...ai, model: e.target.value }); }}>
@@ -193,6 +191,13 @@ export function AiPanel({
             <option>{t('测试连接后在这里选')}</option>
           </select>
         )}
+      </div>
+
+      <div className="ai-line ai-line-test">
+        <button type="button" className={`more ai-test${result?.ok ? ' ok' : ''}`}
+          ref={testRef} disabled={!ai.endpoint.trim() || testing} onClick={() => void test()}>
+          {testing ? t('正在试…') : result?.ok ? <><Icon name="check" size={15} />{t('已连通')}</> : t('测试连接')}
+        </button>
       </div>
       {result && !result.ok && <p className="ai-err">{result.hint}</p>}
 
@@ -254,7 +259,7 @@ export function AiPanel({
         <button type="button" className="more" disabled={!onProposeRules || !ready || !!proposing} onClick={onProposeRules}>
           {proposing ? t('正在写规则…') : t('让模型为这份记录写清洗规则')}
         </button>
-        <Note>{t('把最多 5 条原文发到上面填的接口，让它写出删状态栏、变量块这类非剧情内容的正则。每条规则都会在样本上试过才加进来。')}</Note>
+        <Note>{t('从这份记录里挑最多 5 条原文，发给你在上面填的那个接口，请它写出正则来删掉状态栏、变量块这类非剧情内容。网页版为绕开跨域会经本站中转，中转不保存内容；单文件版直连。写回来的每条规则都先在样本上跑过，确认只删掉该删的才会加进来。')}</Note>
       </div>
 
       {/* Provider shortcuts last: they fill the two boxes above, so they read as a footer, not a toolbar. */}

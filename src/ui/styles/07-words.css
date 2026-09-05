@@ -41,8 +41,13 @@
 /* No hover on touch screens: keep the row actions visible, dimmed */
 @media (hover: none) { .wordlist .btn-x, .wordlist .icon-btn { opacity: .55; } }
 .btn-x:hover { opacity: 1 !important; color: #e2483d; transform: scale(1.2); }
+/* An inline-flex row so a leading <Icon> gets a gap and sits on the text's optical centre.
+   Laid out as plain inline content the SVG baseline-aligned against the text and the two
+   touched — "🏷Let the model file words" with no space (2026-09-05, reported from the panel). */
 .more {
   width: 100%; margin-top: 10px; padding: 8px; border-radius: 9px; font-size: var(--t-sm); color: var(--fg-dim);
   background: color-mix(in srgb, var(--fg) 5%, transparent); transition: background .2s, color .2s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
 }
+.more > svg { flex: none; }
 .more:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 9%, transparent); }

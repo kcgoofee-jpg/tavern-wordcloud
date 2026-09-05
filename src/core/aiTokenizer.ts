@@ -95,6 +95,36 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     endpoint: 'http://localhost:11434/v1/chat/completions',
     model: 'qwen2.5:14b', needsKey: false,
   },
+  /*
+   * The rest carry no default model on purpose: model names at these providers change every
+   * few months, and a stale one fails the connection test with a 404 that reads as "your
+   * endpoint is wrong". Left empty, the test lists `/models` and fills the first one in.
+   */
+  {
+    id: 'openai', label: 'OpenAI',
+    endpoint: 'https://api.openai.com/v1/chat/completions',
+    model: '', needsKey: true,
+  },
+  {
+    id: 'siliconflow', label: 'SiliconFlow',
+    endpoint: 'https://api.siliconflow.cn/v1/chat/completions',
+    model: '', needsKey: true,
+  },
+  {
+    id: 'moonshot', label: 'Moonshot Kimi',
+    endpoint: 'https://api.moonshot.cn/v1/chat/completions',
+    model: '', needsKey: true,
+  },
+  {
+    id: 'dashscope', label: 'Qwen DashScope',
+    endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+    model: '', needsKey: true,
+  },
+  {
+    id: 'lmstudio', label: 'LM Studio',
+    endpoint: 'http://localhost:1234/v1/chat/completions',
+    model: '', needsKey: false,
+  },
 ];
 
 /**

@@ -6,4 +6,4 @@
 .swatch-note { display: none; }
 
 /* UI font follows the theme */
-body { font-family: var(--font-ui, "PingFang SC", system-ui, sans-serif); }
+body { font-family: var(--font-ui, system-ui, "PingFang SC", sans-serif); }

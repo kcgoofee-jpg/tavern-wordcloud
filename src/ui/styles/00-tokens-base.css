@@ -61,8 +61,13 @@ body {
   margin: 0;
   background: var(--surface);
   color: var(--fg);
-  font: 14px/1.55 "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC",
-        "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Latin families first, CJK after. Font fallback is per glyph, so Chinese still comes from
+     PingFang while Latin comes from the system UI face. The old order put PingFang first, so
+     the whole English interface was drawn with a Chinese font's Latin glyphs — it looked
+     Chinese even after switching language, and the tittle on "i" vanished at 14px
+     (2026-09-05, reported). */
+  font: 14px/1.55 system-ui, -apple-system, "Segoe UI", "Helvetica Neue",
+        "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
 }

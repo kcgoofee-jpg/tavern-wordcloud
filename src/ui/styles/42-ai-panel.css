@@ -18,6 +18,10 @@
 .ai-key { flex: 1 1 0; min-width: 0; }
 .ai-model { flex: 1 1 0; min-width: 0; }
 
+/* A .more button is width:100% by default, which pushed the (i) beside it onto a line of
+   its own — a lone info dot reads as a stray mark (2026-09-05). On these rows the button
+   takes the space that is left and the note sits at its end. */
+
 .ai-presets { display: flex; gap: 2px; flex: 0 0 auto; }
 .ai-preset {
   width: var(--ctl-h); height: var(--ctl-h); display: grid; place-items: center;
@@ -36,7 +40,14 @@
 .ai-eye[aria-pressed='true'] { color: var(--accent); }
 
 /* Other buttons on an .ai-line (propose rules) still span the row. */
-.ai-line > .more { margin: 0; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* `flex-basis: 0`, not auto: with a content-sized basis a long label claims the whole line and
+   wraps the (i) beside it onto a line of its own, where a lone info dot reads as a stray mark.
+   At basis 0 the button fits next to the note first, then grows into what is left. */
+/* Wraps rather than truncates: at basis 0 the button fits beside the (i) instead of pushing it
+   onto a line of its own, and a two-line label beats a clipped one — the audit flags
+   `[文字截断]` for a reason (2026-09-05). */
+.ai-line > .more { width: auto; margin: 0; flex: 1 1 0; min-width: 0; white-space: normal; }
+.ai-line > .note-dot { flex: none; }
 /* A secondary button the size of the boxes beside it, not a full-width bar. */
 .ai-test.more {
   width: auto; flex: 0 0 auto; margin: 0; padding: 0 14px;
