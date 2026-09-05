@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useT, tx } from './i18n';
 import { ENTITY_LABEL, EXPERIMENTAL_KINDS, KIND_GROUPS, type EntityKind, type KindGroupId } from '../core/entities';
+import { BUCKET_LABEL, BUCKET_MEMBERS, BUCKET_ORDER, bucketOn, toggleBucket } from '../core/kindBuckets';
 
 /*
  * Lives beside ImportPanel rather than in panels/: the import panel is on the
@@ -56,6 +57,43 @@ export function KindGroups({
             </details>
           )
       ))}
+    </div>
+  );
+}
+
+/**
+ * Ops buckets + the generic flag. Import and the filter's 「简洁」 view share this
+ * so turning 人物 off always means the same five fine kinds.
+ */
+export function KindBucketToggles({
+  value, onChange, countOf,
+}: {
+  value: EntityKind[];
+  onChange: (next: EntityKind[]) => void;
+  countOf?: (k: EntityKind) => number;
+}) {
+  const genericOn = value.includes('generic');
+  const nOf = (k: EntityKind) => countOf?.(k);
+  return (
+    <div className="kinds">
+      {BUCKET_ORDER.map((b) => {
+        const on = bucketOn(value, b);
+        const n = countOf ? BUCKET_MEMBERS[b].reduce((a, k) => a + countOf(k), 0) : undefined;
+        return (
+          <button key={b} type="button" className={`kind${on ? ' on' : ''}`} aria-pressed={on}
+            onClick={() => onChange(toggleBucket(value, b))}>
+            <span>{tx(BUCKET_LABEL[b])}</span>
+            {n === undefined ? null : <em>{n}</em>}
+          </button>
+        );
+      })}
+      <button type="button" className={`kind${genericOn ? ' on' : ''}`} aria-pressed={genericOn}
+        onClick={() => onChange(
+          genericOn ? value.filter((k) => k !== 'generic') : [...value, 'generic'],
+        )}>
+        <span>{tx(ENTITY_LABEL.generic)}</span>
+        {nOf('generic') === undefined ? null : <em>{nOf('generic')}</em>}
+      </button>
     </div>
   );
 }

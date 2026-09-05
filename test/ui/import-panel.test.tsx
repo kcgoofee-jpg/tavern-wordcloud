@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 /** Import panel: the card-rule-pack note (notes/docs/23) and its one-click undo. */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import ImportPanel, { type ImportSummary } from '../../src/ui/ImportPanel';
@@ -67,5 +68,27 @@ describe('ImportPanel: over the 10 MB upload cap', () => {
     // A million characters would have tripped the old `chars * 3` estimate
     panel({ hasServer: false, summary: over });
     expect(screen.queryByText(/网页版上限 10 MB/)).toBeNull();
+  });
+});
+
+describe('ImportPanel kind buckets', () => {
+  it('shows the ops buckets, not the fine title/clothing buttons', () => {
+    panel();
+    for (const name of ['Names', 'Places', 'Time', 'Docs & organisations', 'Other', 'Common words']) {
+      expect(screen.getByRole('button', { name: new RegExp(`^${name}`) }), name).toBeTruthy();
+    }
+    expect(screen.queryByRole('button', { name: /^Titles/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Clothing/ })).toBeNull();
+  });
+
+  it('turning Names off drops person and title together', async () => {
+    const user = userEvent.setup();
+    let current = DEFAULT_ANALYZE_OPTIONS;
+    const setOptions = vi.fn((fn: (o: typeof current) => typeof current) => { current = fn(current); });
+    panel({ options: current, setOptions });
+    await user.click(screen.getByRole('button', { name: /^Names/ }));
+    expect(current.kinds).not.toContain('person');
+    expect(current.kinds).not.toContain('title');
+    expect(current.kinds).toContain('place');
   });
 });

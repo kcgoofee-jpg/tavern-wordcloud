@@ -16,16 +16,27 @@ function optionsHarness(init: AnalyzeOptions = DEFAULT_ANALYZE_OPTIONS) {
   return { setOptions, get: () => current };
 }
 
+function filterPanel(
+  h: ReturnType<typeof optionsHarness>,
+  extra: { kindView?: 'coarse' | 'fine'; setKindView?: (v: 'coarse' | 'fine') => void; result?: null } = {},
+) {
+  return (
+    <FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}}
+      rotateRatio={0} setRotateRatio={() => {}} result={extra.result ?? null}
+      kindView={extra.kindView} setKindView={extra.setKindView} />
+  );
+}
+
 describe('FilterPanel', () => {
   it('clicking the character role toggles char in roles', async () => {
     const user = userEvent.setup();
     const h = optionsHarness({ ...DEFAULT_ANALYZE_OPTIONS, roles: ['user'] });
-    render(<FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}} rotateRatio={0} setRotateRatio={() => {}} result={null} />);
+    render(filterPanel(h));
     await user.click(screen.getByRole('button', { name: '角色说的' }));
     expect(h.get().roles).toEqual(['user', 'char']);
     // The panel holds stale props; re-render with the latest options before clicking again
     cleanup();
-    render(<FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}} rotateRatio={0} setRotateRatio={() => {}} result={null} />);
+    render(filterPanel(h));
     await user.click(screen.getByRole('button', { name: '角色说的' }));
     expect(h.get().roles).toEqual(['user']);
   });
@@ -33,7 +44,7 @@ describe('FilterPanel', () => {
   it('the common kind buttons; the experimental ones say so, and clicking toggles that kind', async () => {
     const user = userEvent.setup();
     const h = optionsHarness();
-    render(<FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}} rotateRatio={0} setRotateRatio={() => {}} result={null} />);
+    render(filterPanel(h, { kindView: 'fine' }));
     // tx() (kind labels, from the core) renders English here; t() (the title attribute) renders Chinese.
     for (const name of ['Other', 'Names', 'Places', 'Time', 'Common words', 'Brands', 'Clothing', 'Titles']) {
       expect(screen.getByRole('button', { name: new RegExp(`^${name}`) }), name).toBeTruthy();
@@ -46,7 +57,7 @@ describe('FilterPanel', () => {
 
   it('the min-length slider changes tokenize.minLength only', () => {
     const h = optionsHarness();
-    render(<FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}} rotateRatio={0} setRotateRatio={() => {}} result={null} />);
+    render(filterPanel(h));
     const slider = screen.getByLabelText(/最少几个字/) as HTMLInputElement;
     fireEvent.change(slider, { target: { value: '3' } });
     expect(h.get().tokenize.minLength).toBe(3);
@@ -56,14 +67,9 @@ describe('FilterPanel', () => {
 
 /** The 60-kind design (notes/docs/33 §3): the buttons are grouped, not a flat row of 24. */
 describe('FilterPanel kind groups', () => {
-  const panel = (h: ReturnType<typeof optionsHarness>) => (
-    <FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}}
-      rotateRatio={0} setRotateRatio={() => {}} result={null} />
-  );
-
   it('only the common kinds are on screen until a group is opened', () => {
     const h = optionsHarness();
-    render(panel(h));
+    render(filterPanel(h, { kindView: 'fine' }));
     // 常用 is flat…
     expect(screen.getByRole('button', { name: /^Names/ })).toBeTruthy();
     // …every other group is a collapsed <details> with a summary
@@ -78,7 +84,7 @@ describe('FilterPanel kind groups', () => {
   it('toggling a kind inside a group updates options.kinds', async () => {
     const user = userEvent.setup();
     const h = optionsHarness();
-    render(panel(h));
+    render(filterPanel(h, { kindView: 'fine' }));
     expect(h.get().kinds).toContain('emotion');
     await user.click(screen.getByRole('button', { name: /^Feelings/ }));
     expect(h.get().kinds).not.toContain('emotion');
@@ -86,25 +92,14 @@ describe('FilterPanel kind groups', () => {
 });
 
 describe('FilterPanel compact kind view', () => {
-  it('Compact bulk-toggles a bucket; Detailed still has the fine buttons', async () => {
+  it('defaults to compact buckets; Detailed still has the fine buttons', async () => {
     const user = userEvent.setup();
     const h = optionsHarness();
-    let view: 'coarse' | 'fine' = 'fine';
-    const { rerender } = render(
-      <FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}}
-        rotateRatio={0} setRotateRatio={() => {}} result={null}
-        kindView={view} setKindView={(v) => { view = v; }} />,
-    );
+    let view: 'coarse' | 'fine' = 'coarse';
+    const { rerender } = render(filterPanel(h, { kindView: view, setKindView: (v) => { view = v; } }));
     // t() stays Chinese in this harness; tx() (bucket/kind labels from core) is English.
     expect(screen.getByRole('button', { name: '详细' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '简洁' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /^Titles/ })).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: '简洁' }));
-    rerender(
-      <FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}}
-        rotateRatio={0} setRotateRatio={() => {}} result={null}
-        kindView={view} setKindView={(v) => { view = v; }} />,
-    );
     expect(screen.queryByRole('button', { name: /^Titles/ })).toBeNull();
     expect(screen.getByRole('button', { name: /^Docs & organisations/ })).toBeTruthy();
     expect(h.get().kinds).toContain('person');
@@ -113,6 +108,9 @@ describe('FilterPanel compact kind view', () => {
     expect(h.get().kinds).not.toContain('person');
     expect(h.get().kinds).not.toContain('title');
     expect(h.get().kinds).toContain('place');
+    await user.click(screen.getByRole('button', { name: '详细' }));
+    rerender(filterPanel(h, { kindView: view, setKindView: (v) => { view = v; } }));
+    expect(screen.getByRole('button', { name: /^Titles/ })).toBeTruthy();
   });
 });
 

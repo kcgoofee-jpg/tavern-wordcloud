@@ -1,7 +1,7 @@
 import type { AnalyzeOptions } from '../core/analyze';
 import { useT } from './i18n';
 import type { DataBundle } from '../core/bundle';
-import { KindGroups } from './KindGroups';
+import { KindBucketToggles } from './KindGroups';
 import type { Role } from '../core/types';
 import Icon from './Icons';
 import Note from './Note';
@@ -38,8 +38,7 @@ export interface ImportSummary {
 const roleLabel = (t: (s: string) => string): Record<Role, string> =>
   ({ user: t('我说的'), char: t('角色说的'), system: '' });
 /** The `system` kind is not offered here: it is always 0 words in practice. It is still detected and filtered in core. */
-/** The import panel shows only the 「常用」 group; the other 19 kinds live in the filter panel (docs/33 §3). */
-const IMPORT_GROUPS = ['common'] as const;
+/** Import uses the ops buckets; the 44 fine kinds stay in the filter panel's 「详细」 view. */
 
 /** Rough tokenization time estimate: ~40k chars/s locally; with a model, ~3 s per chunk, `concurrency` chunks in parallel. */
 function estimate(chars: number, ai: AnalyzeOptions['ai'] | null, t: (s: string, v?: Record<string, string | number>) => string): string {
@@ -149,13 +148,9 @@ export default function ImportPanel({
             {t('显示哪几类词')}
             <Note>{t('人名几乎每句都出现，频率远高于其他词；嫌它们占满词云就关掉「人物」。地点和时间按句法位置识别，可能有漏判。')}</Note>
           </div>
-          <KindGroups
+          <KindBucketToggles
             value={options.kinds}
-            groups={IMPORT_GROUPS}
-            title={(k) => (k === 'person' ? t('人名频率远高于其他词，嫌挤就关掉') : undefined)}
-            onToggle={(k) => setOptions((o) => ({
-              ...o, kinds: o.kinds.includes(k) ? o.kinds.filter((x) => x !== k) : [...o.kinds, k],
-            }))}
+            onChange={(kinds) => setOptions((o) => ({ ...o, kinds }))}
           />
 
           <div className="seg vertical">

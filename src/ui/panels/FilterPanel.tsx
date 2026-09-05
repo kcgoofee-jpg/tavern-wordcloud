@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useT, tx } from '../i18n';
 import type { AnalyzeOptions } from '../../core/analyze';
 import { ALL_KINDS, ENTITY_LABEL, type EntityKind } from '../../core/entities';
-import { BUCKET_LABEL, BUCKET_MEMBERS, BUCKET_ORDER, bucketOn, toggleBucket } from '../../core/kindBuckets';
-import { KindGroups, KindMenuItems } from '../KindGroups';
+import { KindBucketToggles, KindGroups, KindMenuItems } from '../KindGroups';
 import { NSFW_KINDS, NSFW_EXPLICIT_KINDS } from '../../core/nsfw';
 import { nsfwLabel } from '../nsfwLabels';
 import type { AnalysisResult, Role } from '../../core/types';
@@ -19,7 +18,7 @@ const nsfwModeLabel = (t: (s: string) => string): Record<AnalyzeOptions['nsfwMod
 
 export function FilterPanel({
   options, setOptions, rotateRatio, setRotateRatio, result, kindOverrides, setKindOverrides,
-  kindView = 'fine', setKindView,
+  kindView = 'coarse', setKindView,
 }: {
   /** Words the user re-filed by hand, text -> kind. */
   kindOverrides: Record<string, EntityKind>;
@@ -29,7 +28,7 @@ export function FilterPanel({
   rotateRatio: number;
   setRotateRatio: (v: number) => void;
   result: AnalysisResult | null;
-  /** `fine` = 44 kind buttons; `coarse` = five buckets + generic. Default fine so tests and old saves keep the groups. */
+  /** `fine` = 44 kind buttons; `coarse` = five buckets + generic. Default matches settings.kindView. */
   kindView?: 'coarse' | 'fine';
   setKindView?: (v: 'coarse' | 'fine') => void;
 }) {
@@ -46,7 +45,6 @@ export function FilterPanel({
   const setTok = <K extends keyof AnalyzeOptions['tokenize']>(k: K, v: AnalyzeOptions['tokenize'][K]) =>
     setOptions((o) => ({ ...o, tokenize: { ...o.tokenize, [k]: v } }));
   const countOf = (k: EntityKind) => result?.entities.byKind.find((x) => x.kind === k)?.words ?? 0;
-  const genericOn = options.kinds.includes('generic');
 
   return (
     <>
@@ -74,28 +72,11 @@ export function FilterPanel({
         ))}
       </div>
       {kindView === 'coarse' ? (
-        <div className="kinds">
-          {BUCKET_ORDER.map((b) => {
-            const on = bucketOn(options.kinds, b);
-            const n = BUCKET_MEMBERS[b].reduce((a, k) => a + countOf(k), 0);
-            return (
-              <button key={b} type="button" className={`kind${on ? ' on' : ''}`} aria-pressed={on}
-                onClick={() => setOptions((o) => ({ ...o, kinds: toggleBucket(o.kinds, b) }))}>
-                <span>{tx(BUCKET_LABEL[b])}</span>
-                {result ? <em>{n}</em> : null}
-              </button>
-            );
-          })}
-          <button type="button" className={`kind${genericOn ? ' on' : ''}`} aria-pressed={genericOn}
-            onClick={() => setOptions((o) => ({
-              ...o, kinds: o.kinds.includes('generic')
-                ? o.kinds.filter((k) => k !== 'generic')
-                : [...o.kinds, 'generic'],
-            }))}>
-            <span>{tx(ENTITY_LABEL.generic)}</span>
-            {result ? <em>{countOf('generic')}</em> : null}
-          </button>
-        </div>
+        <KindBucketToggles
+          value={options.kinds}
+          countOf={result ? countOf : undefined}
+          onChange={(kinds) => setOptions((o) => ({ ...o, kinds }))}
+        />
       ) : (
         <KindGroups
           value={options.kinds}

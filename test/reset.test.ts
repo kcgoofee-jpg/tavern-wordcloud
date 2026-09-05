@@ -59,6 +59,12 @@ describe('per-panel reset', () => {
     expect(after.options.tokenize.maxWords).toBe(200);
   });
 
+  it('filter reset restores the compact kind view', () => {
+    const before = { ...dirty(), kindView: 'fine' as const };
+    expect(isDirty(before, 'filter')).toBe(true);
+    expect(resetSlice(before, 'filter').kindView).toBe('coarse');
+  });
+
   it('advanced reset clears custom word lists', () => {
     const after = resetSlice(dirty(), 'advanced');
     expect(after.options.tokenize.extraStopwords).toEqual([]);

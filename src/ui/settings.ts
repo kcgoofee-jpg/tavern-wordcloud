@@ -109,8 +109,8 @@ export interface Settings {
   corefSplit: string[];
   /**
    * Filter-panel grain. `fine` is the 44 kind buttons (docs/33); `coarse` is the
-   * five ops buckets + the generic flag. Default stays `fine` so a save from
-   * before the dual layer does not hide the groups the user already knew.
+   * five ops buckets + the generic flag. Default is `coarse`. A save that already
+   * wrote `fine` keeps it; filter reset returns to `coarse`.
    */
   kindView: 'coarse' | 'fine';
 }
@@ -154,7 +154,7 @@ export const DEFAULT_SETTINGS: Settings = {
   overrides: {},
   cardRules: {},
   corefSplit: [],
-  kindView: 'fine',
+  kindView: 'coarse',
 };
 
 /** Panel -> settings paths it owns. Reset touches only those. */
