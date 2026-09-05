@@ -3,6 +3,7 @@ import { useT, tx } from '../i18n';
 import type { AnalyzeOptions } from '../../core/analyze';
 import { ALL_KINDS, ENTITY_LABEL, type EntityKind } from '../../core/entities';
 import { KindBucketToggles, KindGroups, KindMenuItems } from '../KindGroups';
+import { primaryBucketCount } from '../../core/kindBuckets';
 import { NSFW_KINDS, NSFW_EXPLICIT_KINDS } from '../../core/nsfw';
 import { nsfwLabel } from '../nsfwLabels';
 import type { AnalysisResult, Role } from '../../core/types';
@@ -75,6 +76,9 @@ export function FilterPanel({
         <KindBucketToggles
           value={options.kinds}
           countOf={result ? countOf : undefined}
+          countBucket={result
+            ? (b) => primaryBucketCount(result.allWords, b, options.tokenize.minCount)
+            : undefined}
           onChange={(kinds) => setOptions((o) => ({ ...o, kinds }))}
         />
       ) : (

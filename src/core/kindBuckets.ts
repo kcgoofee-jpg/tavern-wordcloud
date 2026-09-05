@@ -122,6 +122,24 @@ export function bucketOn(kinds: readonly EntityKind[], bucket: KindBucket): bool
   return members.length > 0 && members.every((k) => kinds.includes(k));
 }
 
+/**
+ * How many words the compact-filter button for `bucket` actually controls.
+ * Primary kind only: 赵总 is person+title, but turning 人物 off is what hides
+ * it, so the badge is 1, not `byKind.person + byKind.title`.
+ */
+export function primaryBucketCount(
+  words: readonly { kind?: EntityKind; count: number }[],
+  bucket: KindBucket,
+  minCount = 1,
+): number {
+  let n = 0;
+  for (const w of words) {
+    if (w.count < minCount || !w.kind) continue;
+    if (bucketOf(w.kind) === bucket) n++;
+  }
+  return n;
+}
+
 /** All-on ↔ all-off. A mixed 详细 selection looks off and a click turns every member on. */
 export function toggleBucket(kinds: readonly EntityKind[], bucket: KindBucket): EntityKind[] {
   const members = BUCKET_MEMBERS[bucket];

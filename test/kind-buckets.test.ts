@@ -9,7 +9,7 @@ import {
   ALL_KINDS, classifyKinds, ENTITY_LABEL, markGeneric, type EntityKind, type EntityIndex,
 } from '../src/core/entities';
 import {
-  BUCKET_MEMBERS, BUCKET_ORDER, KIND_BUCKETS, bucketOf, foldCommunityKind, toggleBucket, wordVisible,
+  BUCKET_MEMBERS, BUCKET_ORDER, KIND_BUCKETS, bucketOf, foldCommunityKind, primaryBucketCount, toggleBucket, wordVisible,
 } from '../src/core/kindBuckets';
 
 const emptyIndex = {
@@ -131,5 +131,32 @@ describe('analyze uses the primary+flag predicate', () => {
 describe('bucketOf fallback', () => {
   it('unknown ids land in other', () => {
     expect(bucketOf('not_a_kind')).toBe('other');
+  });
+});
+
+describe('primaryBucketCount', () => {
+  it('赵总 is one person-bucket word, not person+title', () => {
+    const tags = classifyKinds('赵总', emptyIndex);
+    const w = { kind: tags[0].kind, count: 3, kinds: tags };
+    expect(w.kind).toBe('person');
+    expect(tags.map((t) => t.kind)).toEqual(expect.arrayContaining(['person', 'title']));
+    expect(primaryBucketCount([w], 'person')).toBe(1);
+    expect(primaryBucketCount([w], 'place')).toBe(0);
+    expect(primaryBucketCount([w], 'social')).toBe(0);
+  });
+
+  it('朝阳区 stays in place even though it also carries region', () => {
+    const tags = classifyKinds('朝阳区', emptyIndex);
+    const w = { kind: tags[0].kind, count: 4, kinds: tags };
+    expect(w.kind).toBe('place');
+    expect(tags.map((t) => t.kind)).toContain('region');
+    expect(primaryBucketCount([w], 'place')).toBe(1);
+    expect(primaryBucketCount([w], 'other')).toBe(0);
+  });
+
+  it('drops words below minCount', () => {
+    const w = { kind: 'person' as const, count: 1 };
+    expect(primaryBucketCount([w], 'person', 2)).toBe(0);
+    expect(primaryBucketCount([w], 'person', 1)).toBe(1);
   });
 });

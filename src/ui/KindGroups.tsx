@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useT, tx } from './i18n';
 import { ENTITY_LABEL, EXPERIMENTAL_KINDS, KIND_GROUPS, type EntityKind, type KindGroupId } from '../core/entities';
-import { BUCKET_LABEL, BUCKET_MEMBERS, BUCKET_ORDER, bucketOn, toggleBucket } from '../core/kindBuckets';
+import { BUCKET_LABEL, BUCKET_ORDER, bucketOn, toggleBucket, type KindBucket } from '../core/kindBuckets';
 
 /*
  * Lives beside ImportPanel rather than in panels/: the import panel is on the
@@ -66,11 +66,14 @@ export function KindGroups({
  * so turning 人物 off always means the same five fine kinds.
  */
 export function KindBucketToggles({
-  value, onChange, countOf,
+  value, onChange, countOf, countBucket,
 }: {
   value: EntityKind[];
   onChange: (next: EntityKind[]) => void;
+  /** Words carrying the generic flag (orthogonal, not a bucket). */
   countOf?: (k: EntityKind) => number;
+  /** Unique words whose primary kind sits in this bucket — not a sum of fine-kind hits. */
+  countBucket?: (b: KindBucket) => number;
 }) {
   const genericOn = value.includes('generic');
   const nOf = (k: EntityKind) => countOf?.(k);
@@ -78,7 +81,7 @@ export function KindBucketToggles({
     <div className="kinds">
       {BUCKET_ORDER.map((b) => {
         const on = bucketOn(value, b);
-        const n = countOf ? BUCKET_MEMBERS[b].reduce((a, k) => a + countOf(k), 0) : undefined;
+        const n = countBucket?.(b);
         return (
           <button key={b} type="button" className={`kind${on ? ' on' : ''}`} aria-pressed={on}
             onClick={() => onChange(toggleBucket(value, b))}>
