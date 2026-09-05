@@ -130,7 +130,8 @@ export function toggleBucket(kinds: readonly EntityKind[], bucket: KindBucket): 
  * 「常见词」 was switched off (it also carries `drink`).
  */
 export function wordVisible(
-  w: { kind: EntityKind; kinds?: { kind: EntityKind }[] },
+  // conf comes along on the real Word shape (see types.ts); accept it rather than reject the literal
+  w: { kind: EntityKind; kinds?: { kind: EntityKind; conf?: number }[] },
   on: ReadonlySet<EntityKind>,
 ): boolean {
   if (w.kind === 'system') return false;

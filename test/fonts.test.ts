@@ -25,7 +25,8 @@ function installFakeIndexedDB() {
   }
 
   class FakeStore {
-    constructor(private map: Map<string, unknown>) {}
+    map: Map<string, unknown>;
+    constructor(map: Map<string, unknown>) { this.map = map; }
     put(value: unknown, key: string) {
       const req = new FakeRequest<void>();
       this.map.set(key, value);
@@ -53,7 +54,9 @@ function installFakeIndexedDB() {
   class FakeTx {
     oncomplete: (() => void) | null = null;
     onerror: (() => void) | null = null;
-    constructor(private map: Map<string, unknown>) {
+    map: Map<string, unknown>;
+    constructor(map: Map<string, unknown>) {
+      this.map = map;
       queueMicrotask(() => this.oncomplete?.());
     }
     objectStore() {
@@ -91,8 +94,10 @@ function installFakeIndexedDB() {
 function installFakeFontFace() {
   class FakeFontFace {
     family: string;
-    constructor(family: string, private source: ArrayBuffer | string) {
+    source: ArrayBuffer | string;
+    constructor(family: string, source: ArrayBuffer | string) {
       this.family = family;
+      this.source = source;
     }
     load() {
       const text = typeof this.source === 'string' ? this.source : new TextDecoder().decode(this.source as ArrayBuffer);

@@ -1,6 +1,6 @@
 /** Palette invariants, recomputed independently of the generator. */
 import { describe, expect, it } from 'vitest';
-import { THEMES, THEME_SPECS, THEME_GROUPS, themeById } from '../src/theme/themes';
+import { THEMES, THEME_SPECS, THEME_GROUPS, themeById, DEFAULT_CUSTOM } from '../src/theme/themes';
 import { buildTheme, cvdMinDeltaE, cvdLevel, flipMode, simulateCvd, CVD_SAFE_DE } from '../src/theme/palette';
 import { FONT_STACKS } from '../src/theme/fonts';
 import { toScannerDark } from '../src/render/qr';
@@ -133,7 +133,7 @@ describe('custom palettes', () => {
   for (const mode of ['light', 'dark'] as const) {
     it(`${mode}：色相扫一圈，每一档都达标`, () => {
       for (const hue of hues) {
-        const t = themeById('custom', { custom: { hue, chroma: 0.12 }, mode });
+        const t = themeById('custom', { custom: { hue, chroma: 0.12, spread: DEFAULT_CUSTOM.spread }, mode });
         const Ls = t.ramp.map((c) => oklab(c).L);
         const asc = Ls.every((v, i) => i === 0 || v > Ls[i - 1]);
         const desc = Ls.every((v, i) => i === 0 || v < Ls[i - 1]);

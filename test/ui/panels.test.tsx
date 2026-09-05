@@ -184,7 +184,7 @@ describe('CommunityPanel', () => {
     const user = userEvent.setup();
     const setContribute = vi.fn();
     render(<CommunityPanel loading={false} offline={false} contribute={false} setContribute={setContribute}
-      stats={{ contributors: 1, contributions: 1, messages: 5, chars: 100, views30d: 12, analyses30d: 3, minContributors: 3, words: [], trend: [], hours: new Array(24).fill(0), sizes: [{ label: '<1万', n: 1 }], zhRatio: 0.9, updated: 0 }} />);
+      stats={{ contributors: 1, contributions: 1, messages: 5, chars: 100, views30d: 12, analyses30d: 3, minContributors: 3, words: [], trend: [], hours: new Array(24).fill(0), sizes: [{ label: '<1万', n: 1 }], zhRatio: 0.9, updated: 0, models: [], endpoints: [], kinds: [], genMs: null }} />);
     expect(screen.getByText(/至少 3 个不同的人都用过才会出现/)).toBeTruthy();
     await user.click(screen.getByRole('checkbox'));
     expect(setContribute).toHaveBeenCalledWith(true);

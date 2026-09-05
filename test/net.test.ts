@@ -92,7 +92,7 @@ class FakeXHR {
   body = SSE;
   sentBytes: number | null = null;
   open() { /* noop */ }
-  setRequestHeader() { /* noop */ }
+  setRequestHeader(_name: string, _value: string) { /* noop */ }
   abort() { this.aborted = true; this.onabort?.(); }
   send(bytes: Uint8Array) {
     FakeXHR.last = this;

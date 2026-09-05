@@ -315,7 +315,7 @@ if (!folders.length) {
     try { names = fs.readdirSync(f.dir).filter((x) => x.endsWith('.jsonl')); } catch { return null; }
     if (!names.length) return null;
     const files = names.map((x) => ({ name: x, content: fs.readFileSync(path.join(f.dir, x), 'utf8') }));
-    return analyze(files, { ...DEFAULT_ANALYZE_OPTIONS, roles: ['user', 'assistant'] });
+    return analyze(files, { ...DEFAULT_ANALYZE_OPTIONS, roles: ['user', 'char'] });
   }).filter((s): s is NonNullable<typeof s> => s !== null && s.words.length > 0);
   for (const p of PAIRS) {
     const scope = scopes.find((s) => {

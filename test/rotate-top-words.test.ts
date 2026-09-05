@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { layoutCloud } from '../src/render/layout';
 
 const measure = (t: string, f: number) => ({ w: t.length * f, h: f * 0.92 });
-const opts = { width: 1400, height: 900, maxFontSize: 90, minFontSize: 20, rotateRatio: 0, steps: 6, padding: 6, idleAmplitude: 2, seed: 1 };
+const opts = { width: 1400, height: 900, maxFontSize: 90, minFontSize: 20, rotateRatio: 0, steps: 6, padding: 6, idleAmplitude: 2, seed: 1, fontFamily: 'sans-serif', fontWeight: '700' };
 
 describe('forced rotation', () => {
   const words = Array.from({ length: 10 }, (_, i) => ({ text: '词' + i, count: 100 - i * 5 }));

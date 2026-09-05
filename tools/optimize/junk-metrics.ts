@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { analyze, DEFAULT_ANALYZE_OPTIONS } from '../../src/core/analyze';
 import { junkRate } from '../eval/junk';
+import { localCorpusRoots } from '../localCorpus';
 
 const run = (file: string) => {
   const r = analyze([{ name: path.basename(file), content: fs.readFileSync(file, 'utf8') }], { ...DEFAULT_ANALYZE_OPTIONS, roles: ['user', 'char'] });

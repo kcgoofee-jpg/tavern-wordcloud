@@ -31,7 +31,7 @@ describe('shape catalog is finite and source-derived', () => {
   });
 
   it('docs/32 correctness leftovers are either landed or explicitly deferred', () => {
-    const ids = new Set(SHAPE_CATALOG.map((c) => c.id));
+    const ids = new Set<string>(SHAPE_CATALOG.map((c) => c.id));
     for (const need of [
       'regex_script', 'wi_bracket_wrap', 'instruct_whole_line', 'colon_fence',
       'kv_run', 'numeric_panel', 'indented_kv', 'paired_custom_tag',

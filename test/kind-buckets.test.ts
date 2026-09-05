@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { analyze, DEFAULT_ANALYZE_OPTIONS } from '../src/core/analyze';
+import type { Role } from '../src/core/types';
 import {
   ALL_KINDS, classifyKinds, ENTITY_LABEL, markGeneric, type EntityKind, type EntityIndex,
 } from '../src/core/entities';
@@ -103,7 +104,7 @@ describe('analyze uses the primary+flag predicate', () => {
   const files = [{ name: 'a.jsonl', content: chatOf('赵总来了。赵总说可以。赵总点点头。') }];
   const base = {
     ...DEFAULT_ANALYZE_OPTIONS,
-    roles: ['user', 'char'] as const,
+    roles: ['user', 'char'] as Role[],
     tokenize: { ...DEFAULT_ANALYZE_OPTIONS.tokenize, minCount: 1, discoverMinCount: 2 },
   };
 
