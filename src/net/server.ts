@@ -51,6 +51,17 @@ export interface ServerHealth {
   load?: 'ok' | 'busy' | 'full';
   /** Build identifier that changes on deploy. Older servers do not send it. */
   version?: string;
+  /**
+   * Operating mode, set from the admin page. `maintenance` means /api/analyze refuses every
+   * request; the interface has to say so before the visitor picks a file, not after the upload
+   * fails half way through (2026-09-05). Older servers do not send it; treat it as `normal`.
+   */
+  mode?: 'normal' | 'limited' | 'maintenance';
+  /**
+   * The upload cap this server is currently enforcing, in bytes. Limited mode halves it, so the
+   * client must not rely on its own MAX_UPLOAD_BYTES. Older servers do not send it.
+   */
+  maxBytes?: number;
 }
 
 /** Whether a server exists behind this page. Static hosting has none. */
@@ -149,7 +160,7 @@ export function uploadBytes(body: unknown): number {
 }
 
 /** The over-limit message, shared by the pre-flight check and the import panel. */
-export const TOO_LARGE_TEXT = zh('网页版上限 10 MB，这份传上去有 {size} MB。上限按序列化后真正发出去的字节算，不是文件在硬盘上显示的大小。下载本地版可以在你自己的电脑上算，多大都行。');
+export const TOO_LARGE_TEXT = zh('网页版上限 {cap} MB，这份传上去有 {size} MB。上限按序列化后真正发出去的字节算，不是文件在硬盘上显示的大小。下载本地版可以在你自己的电脑上算，多大都行。');
 
 export type UploadProgress = (loaded: number, total: number) => void;
 
@@ -199,7 +210,8 @@ async function postSSE(
   // line — and on a flaky one the answer may never arrive.
   if (jsonBytes.byteLength > MAX_UPLOAD_BYTES) {
     const size = mb(jsonBytes.byteLength);
-    throw new ServerError(fill(TOO_LARGE_TEXT, { size }), 'too_large_local', { size });
+    const cap = String(Math.round(MAX_UPLOAD_BYTES / (1024 * 1024)));
+    throw new ServerError(fill(TOO_LARGE_TEXT, { cap, size }), 'too_large_local', { cap, size });
   }
   const gzipped = await maybeGzip(jsonBytes);
   // Progress is reported against what actually goes over the wire, so the bar

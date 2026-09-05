@@ -960,6 +960,7 @@ export default function App() {
       {showLanding && (
         <Landing
           hasServer={onServer || served}
+          mode={health?.mode}
           keywordMode={keywordMode}
           aiReady={localAiReady}
           onCloudMode={(m) => {
@@ -1344,7 +1345,7 @@ export default function App() {
       {importAsk && (
         <ImportPanel
           summary={importAsk} options={options} setOptions={setOptions}
-          busy={busy} progress={progress} hasServer={onServer || served} load={health?.load}
+          busy={busy} progress={progress} hasServer={onServer || served} load={health?.load} mode={health?.mode} maxBytes={health?.maxBytes}
           onStart={() => { setImportAsk(null); setHasFiles(true); }}
           onCancel={() => { setImportAsk(null); clearAll(); }}
           onConfigureAi={() => { setImportAsk(null); setHasFiles(true); openPanel('ai'); }}

@@ -54,7 +54,7 @@ function estimate(chars: number, ai: AnalyzeOptions['ai'] | null, t: (s: string,
 }
 
 export default function ImportPanel({
-  summary, options, setOptions, busy, progress, onStart, onCancel, onConfigureAi, contribute, hasServer, load,
+  summary, options, setOptions, busy, progress, onStart, onCancel, onConfigureAi, contribute, hasServer, load, mode, maxBytes,
   cardRuleApplied, cardRuleWeak, onUndoCardRule,
 }: {
   /** On by default; only a notice on import, switchable in the community panel */
@@ -63,6 +63,10 @@ export default function ImportPanel({
   hasServer: boolean;
   /** Server load from /api/health; `full` means everything queues, so the local edition is offered first. */
   load?: 'ok' | 'busy' | 'full';
+  /** Operating mode from /api/health; `maintenance` means the server will refuse the analysis. */
+  mode?: 'normal' | 'limited' | 'maintenance';
+  /** The cap this server enforces right now; limited mode halves it. Falls back to the built-in value. */
+  maxBytes?: number;
   summary: ImportSummary;
   options: AnalyzeOptions;
   setOptions: (fn: (o: AnalyzeOptions) => AnalyzeOptions) => void;
@@ -84,6 +88,10 @@ export default function ImportPanel({
   onUndoCardRule?: () => void;
 }) {
   const t = useT();
+  // The server publishes the cap it is enforcing; the built-in value is only a fallback for
+  // an older server that does not send one.
+  const cap = maxBytes ?? MAX_UPLOAD_BYTES;
+  const mb = (b: number) => String(Math.round(b / (1024 * 1024)));
   const aiOn = options.ai.enabled && !!options.ai.endpoint && !!options.ai.model;
 
   return (
@@ -191,10 +199,23 @@ export default function ImportPanel({
 
         <div className="import-foot">
           {/* Measured on the serialized body, the same number the server caps (notes/docs/31 §6/§10.5). */}
-          {!busy && hasServer && summary.uploadBytes > MAX_UPLOAD_BYTES && (
+          {!busy && hasServer && summary.uploadBytes > cap && (
             <p className="note warn-note import-busy">
-              {t('网页版上限 10 MB，这份传上去有 {size} MB。上限按序列化后真正发出去的字节算，不是文件在硬盘上显示的大小。下载本地版可以在你自己的电脑上算，多大都行。',
-                { size: (summary.uploadBytes / (1024 * 1024)).toFixed(1) })}
+              {t('网页版上限 {cap} MB，这份传上去有 {size} MB。上限按序列化后真正发出去的字节算，不是文件在硬盘上显示的大小。下载本地版可以在你自己的电脑上算，多大都行。',
+                { cap: mb(cap), size: (summary.uploadBytes / (1024 * 1024)).toFixed(1) })}
+              <a className="field-act" href={LOCAL_BUILD} download>{t('下载本地版')}</a>
+            </p>
+          )}
+          {/* Said before the run, not after the server refuses it: limited mode halves the cap. */}
+          {!busy && hasServer && mode === 'limited' && summary.uploadBytes <= cap && (
+            <p className="note warn-note import-busy">
+              {t('服务器正在限流：上传上限暂时降到 {cap} MB，一次只跑一个分析，排队会更久。下载本地版不受影响。', { cap: mb(cap) })}
+              <a className="field-act" href={LOCAL_BUILD} download>{t('下载本地版')}</a>
+            </p>
+          )}
+          {!busy && hasServer && mode === 'maintenance' && (
+            <p className="note warn-note import-busy">
+              {t('网站正在维护，服务器暂时不能分析。下载本地版可以在自己电脑上算，功能一样。')}
               <a className="field-act" href={LOCAL_BUILD} download>{t('下载本地版')}</a>
             </p>
           )}

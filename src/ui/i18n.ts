@@ -537,7 +537,6 @@ const EN: Record<string, string> = {
   '还没填接口地址——点一下去配': 'No endpoint URL yet — click to set it up',
   '还没选模型——点一下去配': 'No model chosen yet — click to set it up',
   '还没填密钥——点一下去配': 'No API key yet — click to set it up',
-  '网页版上限 10 MB，这份传上去有 {size} MB。上限按序列化后真正发出去的字节算，不是文件在硬盘上显示的大小。下载本地版可以在你自己的电脑上算，多大都行。': 'The web edition accepts 10 MB and this one would upload as {size} MB. The limit counts the bytes actually sent after serialization, not the file size shown on disk. The local edition runs on your own computer with no size limit.',
   '榜单只统计词，不显示角色卡名。若您是某张卡的作者、希望它出现在榜单上：请在您公开发布这张卡的页面（角色卡站、频道帖）里临时加一行本站给的校验串，再把该页面链接贴到 issue。只需要公开链接，不要发身份证件、聊天记录或卡文件。': 'The board counts words only and never shows character-card names. To have a card you wrote listed: add the verification string this site gives you to the public page where you published the card, then post that link in an issue. A public link is all that is needed — never send ID documents, chat logs or the card file.',
   'GitHub Issues': 'GitHub Issues',
   '已有一份分析': 'A result is already open',
@@ -886,6 +885,9 @@ const EN: Record<string, string> = {
   '导出多少词': 'Words to export',
   '{n} 个': '{n} words',
   '按次数从高到低，最多 {n} 个（统计到 {all} 个）': 'Most frequent first, up to {n} of the {all} counted',
+  '网站正在维护，服务器暂时不能分析。下载本地版可以在自己电脑上算，功能一样。': 'The site is under maintenance, so the server cannot analyze anything right now. The local edition does the same work on your own machine.',
+  '网页版上限 {cap} MB，这份传上去有 {size} MB。上限按序列化后真正发出去的字节算，不是文件在硬盘上显示的大小。下载本地版可以在你自己的电脑上算，多大都行。': 'The web edition accepts {cap} MB and this one would upload as {size} MB. The limit counts the bytes actually sent after serialization, not the file size shown on disk. The local edition runs on your own computer with no size limit.',
+  '服务器正在限流：上传上限暂时降到 {cap} MB，一次只跑一个分析，排队会更久。下载本地版不受影响。': 'The server is rate-limiting: the upload cap is temporarily {cap} MB, one analysis runs at a time, and the queue will be slower. The local edition is unaffected.',
 };
 
 /** Chinese is returned as-is; the key is the text. */

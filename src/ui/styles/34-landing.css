@@ -111,3 +111,12 @@
 .land-feat { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 
 .landing .foot { margin-top: auto; }
+
+/* Maintenance notice: the server will refuse the analysis, so it is said before the file picker. */
+.land-maint {
+  margin: 18px 0 0; padding: 12px 16px; max-width: 46em;
+  border-radius: var(--r-sm); font-size: var(--t-sm); line-height: 1.55;
+  color: var(--fg); background: color-mix(in srgb, var(--warn, #b3462f) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn, #b3462f) 34%, transparent);
+}
+.land-maint a { color: var(--accent); margin-left: 8px; white-space: nowrap; }

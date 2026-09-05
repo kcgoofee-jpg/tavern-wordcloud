@@ -44,13 +44,15 @@ function MobileHint() {
  * already covers drops anywhere on this page.
  */
 export default function Landing({
-  hasServer, keywordMode, aiReady, onCloudMode,
+  hasServer, mode, keywordMode, aiReady, onCloudMode,
   communityActive, onToggleCommunity,
   dark, onToggleScheme, lang, onToggleLang,
   onPickFile, onShowSample,
 }: {
   /** True when this page is served with a working API: text is uploaded for processing. */
   hasServer: boolean;
+  /** Server mode from /api/health. In `maintenance` the analysis will be refused, so say so here. */
+  mode?: 'normal' | 'limited' | 'maintenance';
   keywordMode: boolean;
   aiReady: boolean;
   onCloudMode: (m: CloudMode) => void;
@@ -104,6 +106,14 @@ export default function Landing({
       <main className="land-hero">
         <h1 className="land-title">{t('把酒馆的聊天记录，变成一张词云')}</h1>
         <p className="land-sub">{t('拖入 SillyTavern 的聊天文件，自动洗掉插件残留，按词频或大模型挑出的关键词出图。')}</p>
+
+        {/* Said before the file picker, not after an upload has already failed half way. */}
+        {hasServer && mode === 'maintenance' && (
+          <p className="land-maint">
+            {t('网站正在维护，服务器暂时不能分析。下载本地版可以在自己电脑上算，功能一样。')}
+            <a href="/download/index.html" download>{t('下载本地版')}</a>
+          </p>
+        )}
 
         <button type="button" className="land-drop" onClick={onPickFile}>
           <span className="land-drop-big">{t('把聊天记录拖进来，或点击选择')}</span>
