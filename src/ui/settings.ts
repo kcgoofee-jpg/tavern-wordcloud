@@ -107,6 +107,12 @@ export interface Settings {
    * per full name, and it is what the word table's 「拆开」 chip writes.
    */
   corefSplit: string[];
+  /**
+   * Filter-panel grain. `fine` is the 44 kind buttons (docs/33); `coarse` is the
+   * five ops buckets + the generic flag. Default stays `fine` so a save from
+   * before the dual layer does not hide the groups the user already knew.
+   */
+  kindView: 'coarse' | 'fine';
 }
 
 /**
@@ -148,6 +154,7 @@ export const DEFAULT_SETTINGS: Settings = {
   overrides: {},
   cardRules: {},
   corefSplit: [],
+  kindView: 'fine',
 };
 
 /** Panel -> settings paths it owns. Reset touches only those. */
@@ -157,6 +164,7 @@ export const RESET_SCOPE = {
   /** Only what the filter panel manages; the endpoint and key (options.ai) are NOT part of it. */
   filter: [
     'kindOverrides',
+    'kindView',
     'options.roles', 'options.kinds', 'options.nsfwMode', 'options.nsfwKinds',
     'options.clean.stripCustomTags', 'options.clean.stripStructuredLines',
     'options.includeAllSwipes', 'options.onlyCharacter', 'options.source',

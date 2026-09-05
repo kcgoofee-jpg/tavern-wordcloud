@@ -110,6 +110,14 @@ const P = {
   /** Equivalence: three stacked bars, the "identical to" sign */
   /** Merge: two strands flowing into one arrow (three bars read as a menu, not a merge) */
   equals: <><path d="M4 6c5 0 5 6 9.5 6H19" /><path d="M4 18c5 0 5-6 9.5-6" /><path d="m16 9 3 3-3 3" /></>,
+  /** Classify: a label tag with its eyelet */
+  tag: <><path d="M11.5 3.5H20v8.5l-8.6 8.6a2 2 0 0 1-2.8 0l-5.7-5.7a2 2 0 0 1 0-2.8Z" /><circle cx="16.6" cy="7.4" r="1.4" /></>,
+  /** Move out of a group: an item leaving a box */
+  eject: <><path d="M14 4h5a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 19 20h-5" /><path d="M3.5 12h9" /><path d="m9 8.5 3.5 3.5L9 15.5" /></>,
+  /** Not a word: a barred circle */
+  ban: <><circle cx="12" cy="12" r="8.2" /><path d="m6.5 6.5 11 11" /></>,
+  /** Community: three people */
+  people: <><circle cx="9" cy="8.5" r="3" /><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5" /><circle cx="17" cy="9.5" r="2.2" /><path d="M15.4 14.7c2.3-.4 4.3.9 5.1 4.3" /></>,
   /** Priority words: a line pinned to the top, arrow rising into it */
   pinTop: <><path d="M4 4h16" /><path d="M12 20V8.5" /><path d="m7.5 13 4.5-4.5 4.5 4.5" /></>,
   /** Reveal the key: an open eye */

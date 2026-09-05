@@ -85,6 +85,37 @@ describe('FilterPanel kind groups', () => {
   });
 });
 
+describe('FilterPanel compact kind view', () => {
+  it('Compact bulk-toggles a bucket; Detailed still has the fine buttons', async () => {
+    const user = userEvent.setup();
+    const h = optionsHarness();
+    let view: 'coarse' | 'fine' = 'fine';
+    const { rerender } = render(
+      <FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}}
+        rotateRatio={0} setRotateRatio={() => {}} result={null}
+        kindView={view} setKindView={(v) => { view = v; }} />,
+    );
+    // t() stays Chinese in this harness; tx() (bucket/kind labels from core) is English.
+    expect(screen.getByRole('button', { name: '详细' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '简洁' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Titles/ })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: '简洁' }));
+    rerender(
+      <FilterPanel options={h.get()} setOptions={h.setOptions} kindOverrides={{}} setKindOverrides={() => {}}
+        rotateRatio={0} setRotateRatio={() => {}} result={null}
+        kindView={view} setKindView={(v) => { view = v; }} />,
+    );
+    expect(screen.queryByRole('button', { name: /^Titles/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /^Docs & organisations/ })).toBeTruthy();
+    expect(h.get().kinds).toContain('person');
+    expect(h.get().kinds).toContain('title');
+    await user.click(screen.getByRole('button', { name: /^Names/ }));
+    expect(h.get().kinds).not.toContain('person');
+    expect(h.get().kinds).not.toContain('title');
+    expect(h.get().kinds).toContain('place');
+  });
+});
+
 describe('FilterPanel explicit words', () => {
   it('mode buttons set nsfwMode; category buttons toggle nsfwKinds', async () => {
     const user = userEvent.setup();

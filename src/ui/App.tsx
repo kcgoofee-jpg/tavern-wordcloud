@@ -1057,7 +1057,7 @@ export default function App() {
         aria-pressed={panel === 'community' || communityCloud}
         onClick={cycleCommunity}
       >
-        <Icon name="chart" size={19} />
+        <Icon name="people" size={19} />
       </button>
       )}
 
@@ -1191,6 +1191,8 @@ export default function App() {
               <FilterPanel options={options} setOptions={setOptions} result={result}
                 kindOverrides={settings.kindOverrides}
                 setKindOverrides={(o) => patch({ kindOverrides: o })}
+                kindView={settings.kindView}
+                setKindView={(v) => patch({ kindView: v })}
                 rotateRatio={rotateRatio} setRotateRatio={(v) => patch({ rotateRatio: v })} />
             )}
             {panel === 'advanced' && (

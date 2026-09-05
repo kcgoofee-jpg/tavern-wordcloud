@@ -46,6 +46,16 @@ describe('generic words', () => {
     // Generic words leave the cloud when their kind is off but stay in the full table
     expect(r.words.some((w) => w.text === '咖啡')).toBe(false);
     expect(r.entities.byKind.find((k) => k.kind === 'generic')?.words).toBeGreaterThan(0);
+    // The flag still hides 咖啡 when every construction kind, including 饮品, stays on
+    const flagOff = analyze([{ name: 'a.jsonl', content: chatOf(texts) }], {
+      ...DEFAULT_ANALYZE_OPTIONS,
+      roles: ['user', 'char'],
+      kinds: DEFAULT_ANALYZE_OPTIONS.kinds.filter((k) => k !== 'generic'),
+    });
+    expect(flagOff.allWords.find((w) => w.text === '咖啡')?.kinds?.map((k) => k.kind)).toEqual(
+      expect.arrayContaining(['drink', 'generic']),
+    );
+    expect(flagOff.words.some((w) => w.text === '咖啡')).toBe(false);
   });
 
   it('short chats are not judged', () => {

@@ -50,3 +50,7 @@
 .ai-test.more:disabled { opacity: .45; }
 /* Failure notice: one line under the test row, guidance only */
 .ai-err { margin: 5px 0 0; font-size: var(--t-xs); color: var(--bad, var(--accent)); line-height: 1.4; }
+
+/* The provider shortcuts are a footer now: a hairline above them says "these fill the form". */
+.ai-presets-row { justify-content: flex-start; border-top: 1px solid color-mix(in srgb, var(--fg) 10%, transparent); padding-top: 10px; margin-top: 2px; }
+

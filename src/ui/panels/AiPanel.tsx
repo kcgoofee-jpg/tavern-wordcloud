@@ -135,18 +135,8 @@ export function AiPanel({
 
   return (
     <>
-      {/* Address line: provider marks then the address, which takes the rest of the row. */}
+      {/* Address line: the address takes the whole row; the provider shortcuts sit at the bottom. */}
       <div className="ai-line ai-line-url">
-        <span className="ai-presets">
-          {PROVIDER_PRESETS.map((p) => (
-            <button key={p.id} type="button" className={`ai-preset${preset?.id === p.id ? ' on' : ''}`}
-              /* Brand names, not translated */
-              title={p.label} aria-label={p.label} aria-pressed={preset?.id === p.id}
-              onClick={() => { setResult(null); setModels(null); setAi({ ...ai, endpoint: p.endpoint, model: p.model }); }}>
-              <Icon name={PRESET_ICON[p.id] ?? 'plug'} size={16} />
-            </button>
-          ))}
-        </span>
         <input className="ai-url" type="url" ref={endpointRef} placeholder="https://…/v1" aria-label={t('地址')}
           title={t('地址')}
           value={ai.endpoint} onChange={(e) => { setResult(null); setModels(null); setAi({ ...ai, endpoint: e.target.value }); }} />
@@ -219,7 +209,7 @@ export function AiPanel({
             title={t('只把词表发给上面的接口，不发聊天正文')}
             aria-label={t('让模型分类')}
             onClick={() => { setLabelMsg(null); setLabelStage('preview'); }}>
-            <Icon name="list" size={15} />{labelStage === 'running' ? t('正在分类…') : t('让模型分类')}
+            <Icon name="tag" size={15} />{labelStage === 'running' ? t('正在分类…') : t('让模型分类')}
           </button>
         </div>
       )}
@@ -251,6 +241,20 @@ export function AiPanel({
           {proposing ? t('正在写规则…') : t('让模型为这份记录写清洗规则')}
         </button>
         <Note>{t('把最多 5 条原文发到上面填的接口，让它写出删状态栏、变量块这类非剧情内容的正则。每条规则都会在样本上试过才加进来。')}</Note>
+      </div>
+
+      {/* Provider shortcuts last: they fill the two boxes above, so they read as a footer, not a toolbar. */}
+      <div className="ai-line ai-presets-row">
+        <span className="ai-presets">
+          {PROVIDER_PRESETS.map((p) => (
+            <button key={p.id} type="button" className={`ai-preset${preset?.id === p.id ? ' on' : ''}`}
+              /* Brand names, not translated */
+              title={t('用 {name} 的地址填上面', { name: p.label })} aria-label={p.label} aria-pressed={preset?.id === p.id}
+              onClick={() => { setResult(null); setModels(null); setAi({ ...ai, endpoint: p.endpoint, model: p.model }); }}>
+              <Icon name={PRESET_ICON[p.id] ?? 'plug'} size={16} />
+            </button>
+          ))}
+        </span>
       </div>
     </>
   );

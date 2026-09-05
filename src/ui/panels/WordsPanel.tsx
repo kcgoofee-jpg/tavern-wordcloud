@@ -305,7 +305,7 @@ export function WordsPanel({
                   title={renamed ? t('已改显示名的词不能再拆') : t('把「{w}」拆开，不当成一个词', { w: w.text })}
                   onClick={() => splitWord(w.text)}><Icon name="unsplit" size={13} /></button>
                 <button type="button" className="btn-x" title={t('不显示「{w}」', { w: w.text })}
-                  onClick={() => hideWord(w.text)}><Icon name="close" size={13} /></button>
+                  onClick={() => hideWord(w.text)}><Icon name="eyeOff" size={13} /></button>
                 {onReport && (
                   <button type="button" className="btn-x" title={t('认为『{w}』不该出现？提交反馈——会先给你看要发送的片段，确认后才上传', { w: w.text })}
                     onClick={() => onReport(w.text)}><Icon name="alert" size={13} /></button>

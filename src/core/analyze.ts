@@ -6,6 +6,7 @@ import type { AiTokenizerConfig } from './aiTokenizer';
 import { cleanMessageText } from './clean';
 import { cleanReasoning, COT_SCHEMA_STOPWORDS } from './cot';
 import { ALL_KINDS, classifyKinds, detectCoref, detectEntities, markGeneric, systemWords, type CorefGroup, type EntityKind } from './entities';
+import { wordVisible } from './kindBuckets';
 import { detectEnglishNames } from './english';
 import { countSensitive, NSFW_KINDS, nsfwKind, type NsfwKind } from './nsfw';
 import { applyBlocklist } from './blocklist';
@@ -457,9 +458,8 @@ function* prepare(files: SourceFile[], options: AnalyzeOptions): Generator<Step,
   // Explicitness is decided by the selected categories; detection always runs so the word table can label every hit.
   const nsfwSet = new Set<NsfwKind>(options.nsfwKinds);
   const explicit = (w: { nsfw?: NsfwKind }) => w.nsfw !== undefined && nsfwSet.has(w.nsfw);
-  // A multi-kind word is shown when *any* of its kinds is switched on.
-  const anyKindOn = (w: { kinds: { kind: EntityKind }[] }) => w.kinds.some((k) => kindSet.has(k.kind));
-  const eligible = typed.filter((w) => anyKindOn(w) && w.count >= options.tokenize.minCount);
+  // Primary kind is the exclusive bucket; generic is a suppress flag (kindBuckets.ts).
+  const eligible = typed.filter((w) => wordVisible(w, kindSet) && w.count >= options.tokenize.minCount);
   const visible = eligible
     .filter((w) => (options.nsfwMode === 'only' ? explicit(w) : options.nsfwMode === 'hide' ? !explicit(w) : true))
     .slice(0, options.tokenize.maxWords);

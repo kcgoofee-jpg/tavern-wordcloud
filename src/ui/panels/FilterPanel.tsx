@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useT, tx } from '../i18n';
 import type { AnalyzeOptions } from '../../core/analyze';
 import { ALL_KINDS, ENTITY_LABEL, type EntityKind } from '../../core/entities';
+import { BUCKET_LABEL, BUCKET_MEMBERS, BUCKET_ORDER, bucketOn, toggleBucket } from '../../core/kindBuckets';
 import { KindGroups, KindMenuItems } from '../KindGroups';
 import { NSFW_KINDS, NSFW_EXPLICIT_KINDS } from '../../core/nsfw';
 import { nsfwLabel } from '../nsfwLabels';
@@ -18,6 +19,7 @@ const nsfwModeLabel = (t: (s: string) => string): Record<AnalyzeOptions['nsfwMod
 
 export function FilterPanel({
   options, setOptions, rotateRatio, setRotateRatio, result, kindOverrides, setKindOverrides,
+  kindView = 'fine', setKindView,
 }: {
   /** Words the user re-filed by hand, text -> kind. */
   kindOverrides: Record<string, EntityKind>;
@@ -27,6 +29,9 @@ export function FilterPanel({
   rotateRatio: number;
   setRotateRatio: (v: number) => void;
   result: AnalysisResult | null;
+  /** `fine` = 44 kind buttons; `coarse` = five buckets + generic. Default fine so tests and old saves keep the groups. */
+  kindView?: 'coarse' | 'fine';
+  setKindView?: (v: 'coarse' | 'fine') => void;
 }) {
   const t = useT();
   const [nsfwOpen, setNsfwOpen] = useState(false);
@@ -41,6 +46,7 @@ export function FilterPanel({
   const setTok = <K extends keyof AnalyzeOptions['tokenize']>(k: K, v: AnalyzeOptions['tokenize'][K]) =>
     setOptions((o) => ({ ...o, tokenize: { ...o.tokenize, [k]: v } }));
   const countOf = (k: EntityKind) => result?.entities.byKind.find((x) => x.kind === k)?.words ?? 0;
+  const genericOn = options.kinds.includes('generic');
 
   return (
     <>
@@ -56,16 +62,50 @@ export function FilterPanel({
         ))}
       </div>
 
-      {/* Entity kinds. Person names are off by default because they dominate the counts. */}
+      {/* Fine kinds stay in options.kinds; 简洁 only bulk-toggles the buckets that map onto them. */}
       <div className="group-label">{t('显示哪几类词')}</div>
-      <KindGroups
-        value={options.kinds}
-        countOf={countOf}
-        title={(k) => (k === 'person' ? t('人名频率远高于其他词，嫌挤就关掉') : undefined)}
-        onToggle={(k) => setOptions((o) => ({
-          ...o, kinds: o.kinds.includes(k) ? o.kinds.filter((x) => x !== k) : [...o.kinds, k],
-        }))}
-      />
+      <div className="seg">
+        {(['fine', 'coarse'] as const).map((v) => (
+          <button key={v} type="button" className={kindView === v ? 'on' : ''}
+            aria-pressed={kindView === v}
+            onClick={() => setKindView?.(v)}>
+            {v === 'fine' ? t('详细') : t('简洁')}
+          </button>
+        ))}
+      </div>
+      {kindView === 'coarse' ? (
+        <div className="kinds">
+          {BUCKET_ORDER.map((b) => {
+            const on = bucketOn(options.kinds, b);
+            const n = BUCKET_MEMBERS[b].reduce((a, k) => a + countOf(k), 0);
+            return (
+              <button key={b} type="button" className={`kind${on ? ' on' : ''}`} aria-pressed={on}
+                onClick={() => setOptions((o) => ({ ...o, kinds: toggleBucket(o.kinds, b) }))}>
+                <span>{tx(BUCKET_LABEL[b])}</span>
+                {result ? <em>{n}</em> : null}
+              </button>
+            );
+          })}
+          <button type="button" className={`kind${genericOn ? ' on' : ''}`} aria-pressed={genericOn}
+            onClick={() => setOptions((o) => ({
+              ...o, kinds: o.kinds.includes('generic')
+                ? o.kinds.filter((k) => k !== 'generic')
+                : [...o.kinds, 'generic'],
+            }))}>
+            <span>{tx(ENTITY_LABEL.generic)}</span>
+            {result ? <em>{countOf('generic')}</em> : null}
+          </button>
+        </div>
+      ) : (
+        <KindGroups
+          value={options.kinds}
+          countOf={countOf}
+          title={(k) => (k === 'person' ? t('人名频率远高于其他词，嫌挤就关掉') : undefined)}
+          onToggle={(k) => setOptions((o) => ({
+            ...o, kinds: o.kinds.includes(k) ? o.kinds.filter((x) => x !== k) : [...o.kinds, k],
+          }))}
+        />
+      )}
 
       {/* Which words landed in the person / place / time / common buckets: the counts alone hide what was taken out of the cloud */}
       {result && LISTED_KINDS.some((k) => countOf(k) > 0) && (

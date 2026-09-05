@@ -146,15 +146,15 @@ export function ReviewPanel({
               <button type="button" className="review-act" title={t('改类别')}
                 aria-expanded={menuWord === w.text}
                 onClick={() => setMenuWord(menuWord === w.text ? null : w.text)}>
-                <Icon name="pencil" size={15} />
+                <Icon name="tag" size={15} />
               </button>
               <button type="button" className="review-act" title={t('移出分类')}
                 onClick={() => setKind(w.text, 'plain')}>
-                <Icon name="unsplit" size={15} />
+                <Icon name="eject" size={15} />
               </button>
               <button type="button" className="review-act" title={t('标为非词')}
                 disabled={isStopped} onClick={() => markStop(w.text)}>
-                <Icon name="trash" size={15} />
+                <Icon name="ban" size={15} />
               </button>
               {menuWord === w.text && (
                 <span className="review-menu" role="menu">

@@ -86,7 +86,7 @@ export default function Landing({
         <div className="land-acts">
           <button type="button" className={`land-btn${communityActive ? ' on' : ''}`}
             title={t('社区排行榜')} aria-pressed={communityActive} onClick={onToggleCommunity}>
-            <Icon name="chart" size={17} />
+            <Icon name="people" size={17} />
           </button>
           <button type="button" className="land-btn"
             title={dark ? t('深色 · 点一下切到淡色') : t('淡色 · 点一下切到深色')}
