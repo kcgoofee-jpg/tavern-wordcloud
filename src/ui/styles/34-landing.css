@@ -26,9 +26,13 @@
 .land-btn:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 7%, transparent); }
 .land-btn.on { color: var(--surface); background: var(--accent); }
 
+/* Grows to centre the hero on a tall screen, but never shrinks below its own content:
+   with `1 1 auto` plus `min-height: 0` a short viewport squeezed this box shorter than
+   what it holds, and `justify-content: center` then spilled the text over the mode switch
+   above and the feature row below instead of letting `.landing` scroll (2026-09-05, phone). */
 .land-hero {
-  flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  text-align: center; gap: 0; padding: 16px 24px; min-height: 0;
+  flex: 1 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 0; padding: 16px 24px;
 }
 .land-title {
   margin: 0; max-width: 22em;

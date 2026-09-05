@@ -204,6 +204,43 @@ const auditLayout = async (label) => {
       const r = el.getBoundingClientRect();
       if (r.right > vw + 1.5 && getComputedStyle(el).position !== 'fixed') out.push('[超出视口] ' + nameOf(el) + ' 右边 ' + (r.right - vw).toFixed(0) + 'px');
     }
+    // 文字重叠：两段本该各占一行的文字压在一起。落地页在矮视口上就是这样——一个可收缩的
+    // flex 盒被压得比内容还短，justify-content: center 把内容朝上下两头挤出去，而越界检查
+    // 只看容器边界，看不出这种压叠（2026-09-05 用户手机截图）。
+    {
+      const textLeaves = [...document.querySelectorAll('body *')].filter((el) => {
+        if (!vis(el) || el.closest('svg') || el.closest('.land-steps, .toast, .sheet, .dialog, .note')) return false;
+        const cs = getComputedStyle(el);
+        if (cs.pointerEvents === 'none' || parseFloat(cs.opacity) < 0.05) return false;
+        // Anything inside a positioned popover (the footer's Links menu, the export steps) is
+        // meant to cover the page; only elements laid out in normal flow can be squeezed.
+        for (let a = el; a && a !== document.body; a = a.parentElement) {
+          const p = getComputedStyle(a).position;
+          if (p === 'absolute' || p === 'fixed') return false;
+        }
+        // Only leaves that carry their own text; a wrapper legitimately covers its children.
+        const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+        return own && ![...el.children].some((k) => k.textContent.trim());
+      });
+      for (let i = 0; i < textLeaves.length; i++) for (let j = i + 1; j < textLeaves.length; j++) {
+        const a = textLeaves[i], b = textLeaves[j];
+        if (a.contains(b) || b.contains(a)) continue;
+        const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+        const w = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);
+        const h = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
+        if (w <= 1 || h <= 1) continue;
+        const small = Math.min(ra.width * ra.height, rb.width * rb.height);
+        if (!small || (w * h) / small < 0.18) continue;
+        const cx = Math.max(ra.left, rb.left) + w / 2, cy = Math.max(ra.top, rb.top) + h / 2;
+        const top = document.elementFromPoint(cx, cy);
+        // Only a real collision if one of the two is what actually paints there; a third element
+        // covering both (a popover, a scrim) is a stacking decision, not a squeezed layout.
+        if (!top || !(a.contains(top) || b.contains(top) || top === a || top === b)) continue;
+        const say = (el) => nameOf(el) + '「' + el.textContent.trim().slice(0, 14) + '」';
+        out.push('[文字重叠] ' + say(a) + ' 与 ' + say(b) + ' 压住 ' + (w * h / small * 100).toFixed(0) + '%');
+      }
+    }
+
     // 间距异常：同一容器里相邻的同类控件，间距突然是中位数的两倍以上——多半是一个残留的空占位
     for (const c of [...document.querySelectorAll('.rail, .dock, .sheet-body, .seg, .kinds, .ai-line, .sheet-acts')].filter(vis)) {
       const kids = [...c.children].filter(vis);
