@@ -492,7 +492,7 @@ export default function App() {
       setError({
         kind: 'notice',
         title: t('你自己说的话只有 {n} 条，出不了几个词', { n: r.messageCount }),
-        hint: t('默认只统计「我说的」。把角色说的也算进来，词云就有内容了。'),
+        hint: t('现在只统计「我说的」。把角色说的也算进来，词云就有内容了。'),
         action: { label: t('加上角色说的'), run: () => setOptions((o) => ({ ...o, roles: ['user', 'char'] })) },
       });
     }

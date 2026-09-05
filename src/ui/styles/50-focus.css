@@ -2,19 +2,25 @@
    One visible ring for every focusable control, drawn only for keyboard focus
    (:focus-visible), so a mouse click keeps the quiet look. Never `outline: none`
    without a replacement: a ring that only exists on `.on` states left keyboard
-   users with no idea where they were. */
+   users with no idea where they were.
+
+   A focus rule may set outline and colour and nothing else. There used to be a
+   `border-radius: inherit` in the ring below, meant to make the ring follow the
+   control — but an outline already follows the element's own border-radius, and the
+   declaration instead *overwrote* it: `:where(…)` is specificity 0, `:focus-visible`
+   adds (0,1,0), which ties with a panel's `.ai-url { border-radius: … }` and wins on
+   order. Clicking the endpoint panel's address box therefore squared its corners off
+   to the parent's 0 while the key box below it stayed rounded. */
 
 :where(button, a[href], summary, input, select, textarea, [tabindex]:not([tabindex="-1"]), [role="button"]):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: inherit;
 }
 
-/* Inputs already paint an accent border on :focus; the ring sits outside it. */
-.field input:focus-visible,
-.field textarea:focus-visible,
-.search:focus-visible,
-.word-edit:focus-visible {
+/* Text-entry controls already paint an accent border on :focus (10-fields.css, which
+   also clears the outline), so the ring is restored here and sits tight against it.
+   One line, like the lists in 10-fields.css: happy-dom drops a wrapped :is(). */
+:is(input:not([type]), input[type='text'], input[type='search'], input[type='url'], input[type='email'], input[type='tel'], input[type='password'], input[type='number'], textarea, select):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }

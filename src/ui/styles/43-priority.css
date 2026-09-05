@@ -1,16 +1,8 @@
 /* Priority-words panel: one textarea with the item counter tucked into its bottom-right corner. */
 .priority-field { position: relative; }
 
-.priority-input {
-  padding: 8px 10px 22px; border-radius: 9px; font: inherit; font-size: var(--t-sm);
-  color: var(--fg); background: color-mix(in srgb, var(--fg) 6%, transparent);
-  border: 1px solid transparent; resize: vertical;
-  transition: border-color .18s, background .18s;
-}
-.priority-input:focus {
-  outline: none; border-color: var(--accent);
-  background: color-mix(in srgb, var(--fg) 9%, transparent);
-}
+/* The box is drawn in 10-fields.css; this one only reserves the corner for the counter. */
+.priority-input { --ctl-pad-b: 22px; }
 
 .priority-count {
   position: absolute; right: 9px; bottom: 6px;

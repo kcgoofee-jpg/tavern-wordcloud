@@ -7,7 +7,10 @@ const dirty = () => ({
   themeId: 'neon',
   options: {
     ...structuredClone(DEFAULT_SETTINGS.options),
-    roles: ['user', 'char'] as never,
+    // A narrowed selection, so this fixture stays dirty whatever the default is.
+    // It used to be ['user','char'], which stopped being a change when both speakers
+    // became the default (2026-09-05) and left the filter scope clean.
+    roles: ['char'] as never,
     ai: { ...DEFAULT_SETTINGS.options.ai, endpoint: 'https://x/v1', apiKey: 'sk-keep-me', model: 'm' },
     tokenize: {
       ...structuredClone(DEFAULT_SETTINGS.options.tokenize),
@@ -37,7 +40,7 @@ describe('per-panel reset', () => {
     expect(after.options.tokenize.extraStopwords).toEqual(['许婉如', '本轮用户']);
     expect(after.options.tokenize.forceWords).toEqual(['东阳砚山']);
     expect(after.options.ai.apiKey).toBe('sk-keep-me');
-    expect(after.options.roles).toEqual(['user', 'char']);
+    expect(after.options.roles).toEqual(['char']);
     expect(after.options.tokenize.maxWords).toBe(200);
     expect(after.themeId).toBe('neon');
   });

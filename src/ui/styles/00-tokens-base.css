@@ -19,14 +19,35 @@
   --fg-dim: #6b5c48;
   --accent: #8c6344;
   --r: 16px;
-  /* One height / radius / resting fill for every panel control (input, select, button),
-     so the endpoint panel and the filter panel read as the same window. */
+  --r-sm: 8px;     /* chips and inline buttons; was referenced by 47-claim / 50-kind-groups
+                      without ever being defined, so those corners resolved to 0 */
+  /* One height / radius / border / resting fill for every panel control (input, select,
+     button), so the endpoint panel and the filter panel read as the same window.
+     `10-fields.css` is the single rule set that spends these on text-entry controls;
+     a panel that needs a different step of the rhythm re-binds a token on itself
+     rather than restating the property. */
   --ctl-h: 32px;
+  --ctl-h-row: 26px;   /* the one smaller step: a box that replaces text inside a list row */
   --ctl-r: 9px;
+  /* Border width is a token because it must be identical at rest and on focus:
+     a thicker focus border reflows the box. Focus may change colour only. */
+  --ctl-bw: 1px;
+  --ctl-line: transparent;   /* the resting border is there but invisible; focus recolours it */
+  --ctl-pad-x: 10px;
+  --ctl-pad-y: 5px;
+  --ctl-fs: var(--t-sm);
   --ctl-bg: color-mix(in srgb, var(--fg) 6%, transparent);
   --ctl-bg-hover: color-mix(in srgb, var(--fg) 9%, transparent);
   --ctl-gap: 8px;
   --tap: 44px;
+  /* One vertical rhythm for everything stacked inside a panel. Four steps, applied by the
+     shared rules at the top of 05-controls.css — a panel stylesheet must not add its own
+     margin-top / margin-bottom for these relationships, or the panels drift apart again
+     (the 详细/简洁, 尺寸 and 格式 switches all sat flush against the next row, 2026-09-05). */
+  --sp-1: 4px;   /* a caption hugging the thing it explains */
+  --sp-2: 8px;   /* a heading and the control it labels */
+  --sp-3: 14px;  /* a control and the block it drives */
+  --sp-4: 22px;  /* one section and the next */
   /* Serif face for headings and legal prose; one definition, used by 34-landing and 36-legal */
   --serif: Palatino, "Palatino Linotype", "Songti SC", "Noto Serif CJK SC", Georgia, serif;
   --spring: cubic-bezier(.22, 1.2, .36, 1);

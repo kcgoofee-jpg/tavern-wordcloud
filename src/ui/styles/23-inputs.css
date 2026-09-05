@@ -1,12 +1,7 @@
 /* ---------- Inputs ---------- */
 .field { display: flex; flex-direction: column; gap: 4px; margin: 9px 0; }
 .field span { font-size: var(--t-sm); color: var(--fg-dim); }
-.field input {
-  padding: 7px 10px; border-radius: 9px; font: inherit; font-size: var(--t-sm);
-  color: var(--fg); background: color-mix(in srgb, var(--fg) 6%, transparent);
-  border: 1px solid transparent; transition: border-color .18s, background .18s;
-}
-.field input:focus { outline: none; border-color: var(--accent); background: color-mix(in srgb, var(--fg) 9%, transparent); }
+/* The box itself is drawn once, in 10-fields.css. */
 
 /* Network notice must be visible */
 .warn-note {

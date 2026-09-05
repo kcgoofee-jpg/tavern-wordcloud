@@ -21,21 +21,33 @@
 }
 .wordlist.words-edit li { grid-template-columns: 22px minmax(0, 1fr) 44px var(--wl-acts); }
 
+/* Word + annotation chips share one track. A chip hanging off the <li> is a
+   fifth grid item; auto-placement then wraps the icon strip onto a new row. */
+.wordlist.words-edit .word-cell {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+}
+.wordlist.words-edit .word-cell > .word { min-width: 0; flex: 0 1 auto; }
+.wordlist.words-edit .word-cell > .word-edit { flex: 1 1 auto; }
+.wordlist.words-edit .word-cell > .coref-tag { margin-left: 0; }
+
 /* Renamed word: the original stays visible in small type so the row is still findable. */
 .wordlist.words-edit .word .orig {
   font-style: normal; font-weight: 400; font-size: var(--t-xs);
   color: var(--fg-dim); margin-right: 4px;
 }
 
-/* In-place editor: sits in the word column, same metrics as the word it replaces. */
+/* In-place editor: sits in the word column, same metrics as the word it replaces.
+   It is drawn by 10-fields.css like every other input — same radius, same border, same
+   focus — and only steps down to the smaller size in the rhythm, by re-binding tokens
+   rather than redeclaring the box. A row is ~31px; the 32px panel height would make the
+   list jump the moment you click rename. */
 .wordlist.words-edit .word-edit {
-  min-width: 0; width: 100%;
-  font: inherit; font-weight: 600; font-size: var(--t-md);
-  color: var(--fg); background: color-mix(in srgb, var(--fg) 7%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  border-radius: 6px; padding: 1px 6px;
+  min-width: 0; width: 100%; font-weight: 600;
+  --ctl-h: var(--ctl-h-row);
+  --ctl-fs: var(--t-md);
+  --ctl-pad-x: 6px;
+  --ctl-pad-y: 1px;
 }
-.wordlist.words-edit .word-edit:focus { outline: none; border-color: var(--accent); }
 
 /* A forced rotation is a standing setting, so its button stays lit, not hover-only. */
 .wordlist.words-edit .btn-x.set { opacity: .95; color: var(--accent); }

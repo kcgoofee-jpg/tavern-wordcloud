@@ -43,7 +43,7 @@ Open https://wordcloud.davidzhao.top. You see a sample cloud first; click anywhe
    - a full backup `.zip` (recommended: world-info and character-card keywords become a proper-noun dictionary, and regex scripts from the settings and cards are applied as cleaning rules)
    - `regex-*.json` exported by the Regex extension, together with the chat files
    - a cloud `.png` exported here: drop it back to reproduce the cloud
-2. By default only **your** messages are counted. Open the Filters panel on the left to include the character's lines.
+2. By default **both** your messages and the character’s are counted. To see only your own, switch off “The character’s” on the import confirmation or in the Filters panel. SillyTavern’s own system messages are never counted.
 3. Left rail, top to bottom: add files, Filters & tokenizing, word table, advanced, model endpoint, export, clear.
 4. Bottom left: palette, font, and the chat's card info (character, model, size, dates).
 5. Top right: site notice (web only; the bell appears when the operator has published one, with a dot until you open it), community board (web only), language, light/dark.
@@ -86,7 +86,7 @@ When a word in the table should not be there, click the ⚠ next to it to send f
 
 ## Frequently asked questions
 
-**Why so few words?** Only your messages are counted by default. Add the character's lines in Filters.
+**Why so few words?** Both sides are counted by default. If you narrowed Filters down to your own messages, a new chat may only have a few lines — the notice offers to add the character’s back.
 
 **Words like "that one", "a wave of", "extremely" show up.** Demonstrative + classifier combos, degree adverbs and relative-position words are now stop words; anything left can be hidden with × in the word table, and ⚠ sends feedback. Words spread evenly over every message are tagged *Common words* and hidden by default.
 

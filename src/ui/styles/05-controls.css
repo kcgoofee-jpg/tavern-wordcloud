@@ -1,11 +1,35 @@
 /* ---------- Controls ---------- */
+
+/* ---------- Vertical rhythm ----------
+   One rule per relationship, not one nudge per panel. Everything a panel stacks reads as
+   heading → control → what the control drives → next heading, and every gap in that chain
+   comes from the --sp-* scale in 00-tokens-base.css.
+
+   This block owns the vertical margins of the shared panel classes; the rules further down
+   (and every panel stylesheet) only set the things that are not spacing. A panel that adds
+   its own margin-top / margin-bottom here drifts away from the others — that is how the
+   详细/简洁, 尺寸 and 格式 switches ended up flush against the row below them (2026-09-05).
+   `test/ui/spacing.test.tsx` fails if a .seg gets a margin outside this file.
+
+   Longhands, not the `margin` shorthand: only the first var() in a shorthand survives
+   happy-dom's parser, and that test has to be able to read the rhythm back. */
+.group-label { margin-top: var(--sp-4); margin-bottom: var(--sp-2); }  /* section break, then heading → control */
+.group-label:first-child { margin-top: 2px; }
+.sub-label { margin-top: var(--sp-3); margin-bottom: var(--sp-2); }
+.slider { margin-top: var(--sp-3); margin-bottom: var(--sp-3); }
+.check { margin-top: var(--sp-2); margin-bottom: var(--sp-2); }
+.search { margin-top: var(--sp-2); margin-bottom: var(--sp-1); }
+/* A segmented control is the control of its section: it stays --sp-3 clear of whatever it
+   drives (the kind chips, the size presets, the font list), and the next heading's --sp-4
+   collapses over that into a full section break. */
+.seg { margin-top: 0; margin-bottom: var(--sp-3); }
+
 .group-label {
   font-size: var(--t-xs); letter-spacing: .09em; color: var(--fg-dim);
-  margin: 16px 0 8px; opacity: .8;
+  opacity: .8;
 }
-.group-label:first-child { margin-top: 2px; }
 
-.slider { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; margin: 11px 0; }
+.slider { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; }
 .slider-label {
   grid-column: 1 / -1; font-size: var(--t-sm); color: var(--fg-dim);
   display: flex; align-items: center; gap: 2px;
@@ -56,26 +80,15 @@
 .seg button.on { background: var(--surface2); color: var(--fg); font-weight: 500; box-shadow: 0 2px 8px -3px rgb(0 0 0 / .35); }
 .seg button:active { transform: scale(.96); }
 
-/* Multi-line inputs in the advanced panel */
-.field textarea {
-  width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid transparent;
-  font: inherit; font-size: var(--t-sm); line-height: 1.6; color: var(--fg);
-  background: color-mix(in srgb, var(--fg) 6%, transparent); resize: vertical;
-  transition: border-color .18s, background .18s;
-}
-.field textarea:focus { outline: none; border-color: var(--accent); background: color-mix(in srgb, var(--fg) 9%, transparent); }
+/* Multi-line inputs in the advanced panel; the box is drawn in 10-fields.css. */
+.field textarea { width: 100%; }
 /* Sub-label under a group label */
-.sub-label { font-size: var(--t-sm); color: var(--fg-dim); margin: 12px 0 7px; }
+.sub-label { font-size: var(--t-sm); color: var(--fg-dim); }
 .sub-label em { display: block; font-style: normal; font-size: var(--t-xs); opacity: .65; margin-top: 2px; }
 .field > span > em { font-style: normal; font-size: var(--t-xs); opacity: .6; margin-left: 6px; }
-.check { display: flex; gap: 9px; align-items: flex-start; margin: 9px 0; font-size: var(--t-sm); cursor: pointer; color: var(--fg-dim); transition: color .16s; }
+.check { display: flex; gap: 9px; align-items: flex-start; font-size: var(--t-sm); cursor: pointer; color: var(--fg-dim); transition: color .16s; }
 .check:hover { color: var(--fg); }
 .check input { margin-top: 2px; accent-color: var(--accent); width: 15px; height: 15px; flex: none; }
 
-.search {
-  width: 100%; margin: 10px 0 6px; padding: 7px 11px; border-radius: 9px;
-  background: color-mix(in srgb, var(--fg) 6%, transparent);
-  border: 1px solid transparent; color: var(--fg); font: inherit; font-size: var(--t-md);
-  transition: border-color .2s, background .2s;
-}
-.search:focus { outline: none; border-color: var(--accent); background: color-mix(in srgb, var(--fg) 9%, transparent); }
+/* The word table's search box: only its place in the flow is its own; see 10-fields.css. */
+.search { width: 100%; margin: 10px 0 6px; }

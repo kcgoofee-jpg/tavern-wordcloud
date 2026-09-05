@@ -30,24 +30,14 @@
 
 .export-size-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }
 .export-num { display: flex; align-items: center; gap: 6px; font-size: var(--t-sm); color: var(--fg-dim); }
-.export-num input[type='number'] {
-  width: 84px; padding: 6px 8px; border-radius: 9px; border: 1px solid var(--line);
-  background: var(--surface2); color: var(--fg); font: inherit; font-size: var(--t-sm);
-  font-variant-numeric: tabular-nums;
-}
-.export-num input[type='color'] { width: 44px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; }
-.export-num select {
-  padding: 6px 8px; border-radius: 9px; border: 1px solid var(--line);
-  background: var(--surface2); color: var(--fg); font: inherit; font-size: var(--t-sm);
-}
+/* Boxes come from 10-fields.css; only the widths are the export panel's own. */
+.export-num input[type='number'] { width: 84px; font-variant-numeric: tabular-nums; }
+.export-num input[type='color'] { width: 44px; height: var(--ctl-h); }
 .export-preset { flex: 1 1 100%; }
 
 .export-warn { margin: 8px 0 0; font-size: var(--t-xs); color: var(--accent); font-weight: 600; text-wrap: pretty; }
 
-.export-tpl {
-  width: 100%; margin-top: 4px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line);
-  background: var(--surface2); color: var(--fg); font: inherit; font-size: var(--t-sm);
-}
+.export-tpl { width: 100%; margin-top: 4px; }
 
 /* ---------- Watermark ---------- */
 .export-verify {
@@ -62,7 +52,8 @@
    A native <select> with thirty options covers a phone screen, so below 640px the
    presets become one scrollable row instead. */
 .export-chips {
-  display: flex; gap: 6px; margin-top: 8px; padding-bottom: 4px;
+  /* No margin-top: the 尺寸 switch above owns that gap (05-controls.css, vertical rhythm). */
+  display: flex; gap: 6px; padding-bottom: 4px;
   overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
 }
 .export-chips::-webkit-scrollbar { display: none; }

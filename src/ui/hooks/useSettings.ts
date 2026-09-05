@@ -70,7 +70,10 @@ export function loadSettings(): Settings {
       // from the 8-kind era must not silently hide every word the new rules tag.
       kinds: [...new Set([...(saved.options?.kinds ?? DEFAULT_SETTINGS.options.kinds), ...ALL_KINDS.filter((k) => !OLD_KINDS.includes(k))])]
         .filter((k) => ALL_KINDS.includes(k)),
-      // System messages are UI notices, not chat content; drop a stale selection from old saves
+      // A stored selection is the user's own choice and is kept verbatim — including a legacy
+      // `['user']` from before the default became both speakers (2026-09-05), and an empty array
+      // from someone who turned both off. Only a save with no `roles` at all takes the new default.
+      // System messages are UI notices, not chat content; drop a stale selection from old saves.
       roles: (saved.options?.roles ?? DEFAULT_SETTINGS.options.roles).filter((r) => r !== 'system'),
       // Old saves used two booleans (hide / only); migrate to the three-state mode
       ...migrateNsfw(saved.options as Partial<AnalyzeOptions> & { hideSensitive?: boolean; nsfwOnly?: boolean } | undefined),

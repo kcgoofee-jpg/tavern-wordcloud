@@ -9,6 +9,8 @@
 @import './07-words.css';
 @import './08-files.css';
 @import './09-cardinfo.css';
+/* The one rule set that draws every text-entry control; panels only tweak width / flow. */
+@import './10-fields.css';
 @import './11-toast.css';
 @import './12-mobile.css';
 @import './13-dock.css';

@@ -72,7 +72,9 @@ export function WrongWordRules({
 
   return (
     <div className="wrong-words">
-      {rows.map((r, i) => (
+      {rows.map((r, i) => {
+        const placeholder = i === rows.length - 1 && !r.wrong && !r.right;
+        return (
         <div key={i} className="wrong-words-row">
           <div className="wrong-words-line">
             <input value={r.wrong} placeholder={t('错词')} aria-label={t('错词')}
@@ -82,11 +84,13 @@ export function WrongWordRules({
               aria-label={t('正确词')}
               onChange={(e) => edit(i, { right: e.target.value })} onBlur={() => commit(rows)} />
             <button type="button" className="icon-btn" title={t('删除这条规则')}
+              disabled={placeholder}
               onClick={() => commit(rows.filter((_, j) => j !== i))}>×</button>
           </div>
           {errors[i] ? <em className="wrong-words-err">{errors[i]}</em> : null}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

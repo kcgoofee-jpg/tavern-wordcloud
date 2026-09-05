@@ -254,6 +254,10 @@ export function WordsPanel({
               onPointerEnter={() => onHover(w.text)}
               style={{ animationDelay: `${Math.min(i, 20) * 10}ms` }}>
               <span className="rank">{i + 1}</span>
+              {/* Four grid tracks. A chip as a direct <li> child is a fifth item and
+                  auto-placement wraps count + icons onto a new row, where flex-end
+                  then overflows the panel's left edge. */}
+              <span className="word-cell">
               {editing === w.text ? (
                 <input
                   className="word-edit" autoFocus aria-label={t('显示名')} value={draft}
@@ -285,6 +289,7 @@ export function WordsPanel({
                   {t('拆开')}{corefBy.get(w.text)!.join('、')}
                 </button>
               )}
+              </span>
               <span className="count">{w.count}</span>
               <span className="row-acts">
                 <button type="button" className="btn-x" title={t('改「{w}」在云上显示的字', { w: w.text })}

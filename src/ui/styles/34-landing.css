@@ -16,7 +16,9 @@
   font-family: var(--serif);
   font-size: var(--t-lg); font-weight: 700; letter-spacing: .08em;
 }
-.land-top .seg { margin-inline: auto; }
+/* The only segmented control that is a row item rather than a stacked one: it is centred in
+   the header, so it opts out of the vertical rhythm instead of pushing the row open. */
+.land-top .seg { margin: 0 auto; }
 .land-top .seg button { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .land-acts { display: flex; align-items: center; gap: 6px; }
 .land-btn {

@@ -22,11 +22,7 @@
 .claim-toggle:hover { color: var(--fg); }
 .claim-body { margin-top: 8px; max-width: 460px; }
 .claim-field { display: grid; gap: 3px; margin-top: 8px; font-size: var(--t-sm); color: var(--fg-dim); }
-.claim-field input {
-  font: inherit; color: var(--fg); padding: 6px 8px; border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--fg-dim) 34%, transparent);
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
-}
+/* The box is drawn in 10-fields.css. */
 .claim-field input[readonly] { color: var(--fg-dim); font-variant-numeric: tabular-nums; }
 .claim-preview { margin: 4px 0 0; padding-left: 1.1em; font-size: var(--t-sm); color: var(--fg); overflow-wrap: anywhere; }
 .claim-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }

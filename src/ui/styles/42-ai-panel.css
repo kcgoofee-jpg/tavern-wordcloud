@@ -1,26 +1,22 @@
 /* ---------- Endpoint panel ----------
    Three rows, no headings: address, key, then test + model. Address and key each own
-   a row — side by side they were both too short to read as what they are. Every control
-   takes its height, radius and fill from the shared --ctl-* tokens so this panel matches
-   the filter panel. `min-width: 0` keeps a long placeholder inside the sheet. */
+   a row — side by side they were both too short to read as what they are. The three
+   boxes are drawn by 10-fields.css like every other input in the app; the two buttons
+   copy the same tokens so the row reads as one strip. `min-width: 0` keeps a long
+   placeholder inside the sheet. */
 .ai-line {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   margin: var(--ctl-gap) 0 0;
 }
-/* Controls in this panel share one shape. */
-.ai-url, .ai-key, .ai-model, .ai-test, .ai-eye {
+/* Buttons on these rows take the shape of the boxes beside them. */
+.ai-test, .ai-eye {
   height: var(--ctl-h); border-radius: var(--ctl-r);
-  border: 1px solid transparent; background: var(--ctl-bg);
-  font: inherit; font-size: var(--t-sm); color: var(--fg);
-}
-.ai-url, .ai-key, .ai-model { padding: 0 10px; }
-.ai-url:focus, .ai-key:focus, .ai-model:focus {
-  outline: none; border-color: var(--accent); background: var(--ctl-bg-hover);
+  border: var(--ctl-bw) solid var(--ctl-line); background: var(--ctl-bg);
+  font: inherit; font-size: var(--ctl-fs); color: var(--fg);
 }
 .ai-url { flex: 1 1 0; min-width: 0; }
 .ai-key { flex: 1 1 0; min-width: 0; }
 .ai-model { flex: 1 1 0; min-width: 0; }
-.ai-model:disabled { opacity: .55; }
 
 .ai-presets { display: flex; gap: 2px; flex: 0 0 auto; }
 .ai-preset {

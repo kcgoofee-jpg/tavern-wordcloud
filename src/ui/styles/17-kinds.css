@@ -16,6 +16,7 @@
 .nsfw-kinds .kind.mild.on { color: var(--fg); background: color-mix(in srgb, var(--accent) 28%, transparent); }
 
 /* NSFW categories are collapsed behind a text button */
-.nsfw-toggle { display: inline-block; margin: 6px 0 4px; padding: 3px 10px; border-radius: 999px; font-size: var(--t-xs); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+/* No margin-top: the NSFW mode switch above owns that gap (05-controls.css, vertical rhythm). */
+.nsfw-toggle { display: inline-block; margin: 0 0 var(--sp-1); padding: 3px 10px; border-radius: 999px; font-size: var(--t-xs); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .nsfw-toggle:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
-.nsfw-toggle[aria-expanded="true"] { margin-bottom: 8px; }
+.nsfw-toggle[aria-expanded="true"] { margin-bottom: var(--sp-2); }

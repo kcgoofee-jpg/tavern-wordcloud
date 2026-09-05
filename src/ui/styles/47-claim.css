@@ -13,10 +13,8 @@
   font-size: var(--t-sm); color: var(--fg-dim);
 }
 .claim-field > label { grid-column: 1; }
-.claim-field input {
-  min-width: 0; padding: 5px 8px; border-radius: var(--r-sm);
-  background: var(--surface); color: var(--fg); font-size: var(--t-sm);
-}
+/* The box is drawn in 10-fields.css; the grid cell only has to be allowed to shrink. */
+.claim-field input { min-width: 0; }
 .claim-field input[readonly] { color: var(--fg-dim); font-variant-numeric: tabular-nums; }
 .claim-copy {
   grid-column: 3; font-size: var(--t-sm); color: var(--fg-dim);

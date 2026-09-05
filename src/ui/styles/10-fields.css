@@ -1,0 +1,76 @@
+/* ---------- Text-entry controls: the one rule that draws the box ----------
+ *
+ * Every surface the user types into or picks from — the endpoint panel's address and
+ * key, the word table's search box, the priority-words textarea, the advanced panel's
+ * stop-word and wrong-word boxes, the export sizes and file-name template, the claim
+ * form — is drawn here, from the --ctl-* tokens in 00-tokens-base.css. Panels may still
+ * set width / flex / margin / a counter's extra padding; they must NOT restate radius,
+ * border, background, height or font-size. A panel that needs a different step of the
+ * rhythm re-binds a token on the element (`.word-edit` sets --ctl-h) so there is still
+ * exactly one place that paints an input.
+ *
+ * Focus changes COLOUR ONLY. It must never touch border-width, border-radius, padding
+ * or height: a focus border of a different width or radius reflows the box. That is the
+ * bug this file was written for — 50-focus.css used to add `border-radius: inherit` to
+ * its :focus-visible ring, which ties on specificity (0,1,0) with a panel's own
+ * `.ai-url { border-radius: … }` and, being later in the cascade, won: clicking the
+ * address box collapsed its corners to the parent's 0 while the key box below it stayed
+ * rounded. `test/ui/input-style.test.tsx` holds the line for both halves of that rule.
+ *
+ * Not painted here: file inputs (hidden everywhere in this app) and checkbox / radio,
+ * which keep their native box and take their colour from accent-color in 05-controls.css.
+ * Colour and range inputs are painted by the browser but still share the radius, so the
+ * focus ring traces the same corner on every control.
+ *
+ * The :is() lists are one long line on purpose: broken across lines, happy-dom's CSS
+ * parser drops the whole rule, and test/ui/input-style.test.tsx would then measure a
+ * stylesheet the browser never sees.
+ */
+
+:is(input:not([type]), input[type='text'], input[type='search'], input[type='url'], input[type='email'], input[type='tel'], input[type='password'], input[type='number'], textarea, select) {
+  box-sizing: border-box;
+  min-height: var(--ctl-h);
+  /* --ctl-pad-b is for a box with something parked in its bottom corner (the priority counter). */
+  padding: var(--ctl-pad-y) var(--ctl-pad-x) var(--ctl-pad-b, var(--ctl-pad-y));
+  border: var(--ctl-bw) solid var(--ctl-line);
+  border-radius: var(--ctl-r);
+  background: var(--ctl-bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--ctl-fs);
+  /* After `font`, which would otherwise hand the box the body's 21.7px leading and make
+     it ~34px tall — 2px off the buttons standing next to it in the endpoint panel. This
+     makes one line of text plus padding plus border come to exactly --ctl-h. */
+  line-height: calc(var(--ctl-h) - 2 * var(--ctl-pad-y) - 2 * var(--ctl-bw));
+  transition: border-color .18s, background .18s;
+}
+
+textarea { resize: vertical; }
+
+/* Colour only. The keyboard ring comes back in 50-focus.css, later in the cascade. The
+   accent border is declared on the same line as the cleared outline: the guard in
+   test/ui/keyboard.test.tsx reads line by line, looking for a control that drops its
+   ring without marking itself some other way. */
+:is(input:not([type]), input[type='text'], input[type='search'], input[type='url'], input[type='email'], input[type='tel'], input[type='password'], input[type='number'], textarea, select):focus {
+  outline: none; border-color: var(--accent); background: var(--ctl-bg-hover);
+}
+
+:is(input:not([type]), input[type='text'], input[type='search'], input[type='url'], input[type='email'], input[type='tel'], input[type='password'], input[type='number'], textarea, select):disabled {
+  opacity: .55;
+}
+
+/* The browser paints the swatch and the track; we only own the corner and the frame.
+   A swatch takes a *visible* hairline — an invisible one lets a white pick disappear into
+   a light theme — so it re-binds --ctl-line rather than carrying a border of its own. */
+input[type='color'] {
+  --ctl-line: color-mix(in srgb, var(--fg) 14%, transparent);
+  padding: 0;
+  border: var(--ctl-bw) solid var(--ctl-line);
+  border-radius: var(--ctl-r);
+  background: var(--ctl-bg);
+}
+input[type='color']::-webkit-color-swatch-wrapper { padding: 0; }
+input[type='color']::-webkit-color-swatch { border: none; border-radius: calc(var(--ctl-r) - var(--ctl-bw)); }
+input[type='color']::-moz-color-swatch { border: none; border-radius: calc(var(--ctl-r) - var(--ctl-bw)); }
+
+input[type='range'] { border-radius: var(--ctl-r); }

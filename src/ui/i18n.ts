@@ -297,7 +297,7 @@ const EN: Record<string, string> = {
   '提交反馈：这个词和下面的片段会发给站方，由 AI 处理后更新清洗规则。': 'Send feedback: this word and the snippets below go to the site owner; the AI updates the cleaning rules.',
   '已发送，谢谢': 'Sent, thank you',
   '你自己说的话只有 {n} 条，出不了几个词': 'You wrote only {n} messages — not enough for a cloud',
-  '默认只统计「我说的」。把角色说的也算进来，词云就有内容了。': 'By default only your messages count. Include the character’s and the cloud fills in.',
+  '现在只统计「我说的」。把角色说的也算进来，词云就有内容了。': 'Right now only your messages count. Include the character’s and the cloud fills in.',
   '加上角色说的': 'Include the character',
   '默认分词': 'Default segmentation',
   '大模型分词（还没配置）': 'LLM segmentation (not set up)',

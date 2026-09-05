@@ -15,7 +15,12 @@ export const DEFAULT_ANALYZE_OPTIONS: AnalyzeOptions = {
   clean: { ...DEFAULT_CLEAN_OPTIONS },
   tokenize: { ...DEFAULT_TOKENIZE_OPTIONS },
   includeAllSwipes: false,
-  roles: ['user'],
+  // Both speakers by default (user decision 2026-09-05). This reverses notes/docs/13
+  // «默认只统计「我说的」»: a chat has two sides, and a fresh import that silently drops the
+  // character's half looked broken — the «你自己说的话只有 N 条» notice existed only to dig
+  // people out of it. `system` stays off: those are SillyTavern's own UI notices, not dialogue.
+  // Saved settings keep whatever they stored (see ui/hooks/useSettings.ts loadSettings).
+  roles: ['user', 'char'],
   onlySpeakers: [],
   useNamesAsDictionary: true,
   onlyCharacter: null,
