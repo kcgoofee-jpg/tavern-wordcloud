@@ -203,10 +203,15 @@ export function layoutCloud(words: WordCount[], opts: LayoutOptions, measure: Me
     const fontSize = opts.minFontSize + (opts.maxFontSize - opts.minFontSize) * t;
     // The largest words are never rotated. The random draw is consumed even when the user
     // forced a direction, so one word's override never shifts every other word's position.
+    // The three largest words are never rotated *by the dice* — but an explicit ↔/↕ from the
+    // word table must still work on them, otherwise the button silently does nothing on exactly
+    // the words a user is most likely to try it on (reported 2026-09-05).
     let rotated = false;
     if (wi >= 3) {
       const roll = rng() < opts.rotateRatio;
       rotated = word.rotate ? word.rotate === 'v' : roll;
+    } else if (word.rotate) {
+      rotated = word.rotate === 'v';
     }
     const m = measure(word.display ?? word.text, fontSize);
     const bw = rotated ? m.h : m.w;
