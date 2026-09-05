@@ -45,12 +45,25 @@ describe('labelKinds', () => {
     expect(bodies[0]).not.toContain(secret);
     const sent = JSON.parse(bodies[0]) as { messages: { role: string; content: string }[] };
     expect(JSON.parse(sent.messages[1].content)).toEqual(['沈砚秋', '通告单']);
+    expect(sent.messages[0].content).toContain('6 个类别');
+    expect(sent.messages[0].content).toContain('文书与组织');
+    expect(sent.messages[0].content).not.toContain('8 个类别');
   });
 
-  it('drops labels outside the eight kinds', async () => {
+  it('drops labels outside the prompt set', async () => {
     const { doFetch } = stub(() => ({ 沈砚秋: '人物', 通告单: '道具', 后厨: 'place' }));
     const res = await labelKinds(['沈砚秋', '通告单', '后厨'], cfg, doFetch);
     expect('kinds' in res && res.kinds).toEqual({ 沈砚秋: 'person' });
+  });
+
+  it('maps 文书与组织 onto org and still accepts the old eight labels', async () => {
+    const { doFetch } = stub(() => ({
+      沈砚秋: '人物', 合同: '文书与组织', 赵总: '称谓', 衬衫: '服饰',
+    }));
+    const res = await labelKinds(['沈砚秋', '合同', '赵总', '衬衫'], cfg, doFetch);
+    expect('kinds' in res && res.kinds).toEqual({
+      沈砚秋: 'person', 合同: 'org', 赵总: 'title', 衬衫: 'wear',
+    });
   });
 
   it('drops keys that were not in the word list', async () => {

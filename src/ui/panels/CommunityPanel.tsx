@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { classifyError } from '../../core/errors';
 import { copyText } from '../clipboard';
-import { foldCommunityKind } from '../../core/kindBuckets';
+import { BUCKET_ORDER, foldCommunityKind } from '../../core/kindBuckets';
 import { useT, txv } from '../i18n';
 
 /** One leaderboard row: count, share, and the 95% Wilson bounds the server computed. */
@@ -116,21 +116,21 @@ function endpointLabel(t: T, kind: string): string {
     default: return t('其他');
   }
 }
-/** person / place / time stay named; social, residual, and flags collapse to other. */
+/** Same five ops buckets as the compact filter; flags already collapsed by foldCommunityKind. */
 function foldKinds(kinds: { kind: string; share: number }[]): { kind: string; share: number }[] {
-  const keep = ['person', 'place', 'time'] as const;
-  const rows = keep.map((k) => ({
-    kind: k,
-    share: kinds.filter((x) => foldCommunityKind(x.kind) === k).reduce((a, b) => a + b.share, 0),
-  }));
-  const other = kinds.filter((x) => foldCommunityKind(x.kind) === 'other').reduce((a, b) => a + b.share, 0);
-  return [...rows, { kind: 'other', share: other }].filter((r) => r.share > 0);
+  return BUCKET_ORDER
+    .map((k) => ({
+      kind: k,
+      share: kinds.filter((x) => foldCommunityKind(x.kind) === k).reduce((a, b) => a + b.share, 0),
+    }))
+    .filter((r) => r.share > 0);
 }
 function kindLabel(t: T, kind: string): string {
   switch (kind) {
     case 'person': return t('人物');
     case 'place': return t('地点');
     case 'time': return t('时间');
+    case 'social': return t('文书与组织');
     default: return t('其他');
   }
 }

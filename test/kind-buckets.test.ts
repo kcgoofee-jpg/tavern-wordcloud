@@ -38,14 +38,15 @@ describe('KIND_BUCKETS covers the implemented inventory', () => {
     expect([...seen, 'generic'].sort()).toEqual([...ALL_KINDS].sort());
   });
 
-  it('community 4-way fold sends titles to person and drinks to other', () => {
+  it('community fold uses the five ops buckets; flags land in other', () => {
     expect(foldCommunityKind('title')).toBe('person');
     expect(foldCommunityKind('kinship')).toBe('person');
     expect(foldCommunityKind('building')).toBe('place');
     expect(foldCommunityKind('festival')).toBe('time');
+    expect(foldCommunityKind('org')).toBe('social');
+    expect(foldCommunityKind('document')).toBe('social');
     expect(foldCommunityKind('money')).toBe('other');
     expect(foldCommunityKind('drink')).toBe('other');
-    expect(foldCommunityKind('org')).toBe('other');
     expect(foldCommunityKind('generic')).toBe('other');
   });
 });

@@ -102,11 +102,11 @@ export function bucketOf(kind: string): KindLayer {
   return (KIND_BUCKETS as Record<string, KindLayer>)[kind] ?? 'other';
 }
 
-/** Community pie: person / place / time stay named; social + other + flags collapse. */
-export function foldCommunityKind(kind: string): 'person' | 'place' | 'time' | 'other' {
+/** Community pie uses the same five ops buckets. Flags collapse into other. */
+export function foldCommunityKind(kind: string): KindBucket {
   const layer = bucketOf(kind);
-  if (layer === 'person' || layer === 'place' || layer === 'time') return layer;
-  return 'other';
+  if (layer === 'generic' || layer === 'system') return 'other';
+  return layer;
 }
 
 export function bucketOn(kinds: readonly EntityKind[], bucket: KindBucket): boolean {

@@ -108,6 +108,20 @@ describe('CommunityPanel model board', () => {
     // plain is not a public kind; it lands in the catch-all row (as does the merged model row)
     expect(screen.getAllByText('其他').length).toBe(2);
   });
+
+  it('folds org and document into 文书与组织', () => {
+    view({
+      ...STATS,
+      kinds: [
+        { kind: 'person', words: 2, share: 0.2 },
+        { kind: 'org', words: 3, share: 0.3 },
+        { kind: 'document', words: 1, share: 0.05 },
+        { kind: 'plain', words: 4, share: 0.45 },
+      ],
+    });
+    const row = screen.getByText('文书与组织').closest('li');
+    expect(row?.textContent).toContain('35%');
+  });
 });
 
 describe('CommunityPanel author claim', () => {

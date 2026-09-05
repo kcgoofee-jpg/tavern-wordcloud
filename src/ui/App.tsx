@@ -35,7 +35,7 @@ import { downloadBlob, exportName, outputSize, svgBlob, wordsToCsv, wordsToJson,
 import { watermarkPayload } from './watermark';
 import { hostOf } from './url';
 import { armErrorReporting, reportError } from '../net/report';
-import { DEMO_WORDS } from './demo';
+import { demoWords } from './demo';
 import type { AnalysisResult, WordCount } from '../core/types';
 import type { CurateResult } from '../core/curate';
 import type { WorkerProgress } from '../worker/analyze.worker';
@@ -172,7 +172,9 @@ export default function App() {
     function computeWords(): WordCount[] {
     // Community panel: swap the canvas only when the aggregate is available
     if ((panel === 'community' || communityCloud) && community && community.words.length > 0) return community.words.map((w) => ({ text: w.text, count: w.count }));
-    if (demoMode) return DEMO_WORDS;
+    // Sample cloud: one invented list per interface language, so an English visitor is not
+    // met by Chinese words. Follows settings.lang, the same signal LangContext carries.
+    if (demoMode) return demoWords(settings.lang);
     /**
      * Priority words sit above every other override (notes/docs/27 §1): they run before
      * applyOverrides so a user-hidden word the priority list names still wins. Neither the
@@ -216,7 +218,7 @@ export default function App() {
     const filed = [...kept, ...added].sort((a, b) => b.count - a.count).slice(0, options.tokenize.maxWords);
     return apply(filed);
     }
-  }, [demoMode, keywordMode, curation, result, sharedWords, panel, communityCloud, community, settings.kindOverrides, settings.overrides, settings.corefSplit, settings.priority, options.kinds, options.tokenize.minCount, options.tokenize.maxWords, settings.traditional]);
+  }, [demoMode, keywordMode, curation, result, sharedWords, panel, communityCloud, community, settings.kindOverrides, settings.overrides, settings.corefSplit, settings.priority, options.kinds, options.tokenize.minCount, options.tokenize.maxWords, settings.traditional, settings.lang]);
   // Denominator is countedTokens (tokens in the table), not totalTokens.
   const totalTokens = result?.countedTokens ?? words.reduce((a, w) => a + w.count, 0);
   const active = hovered ? words.find((w) => w.text === hovered) : undefined;
