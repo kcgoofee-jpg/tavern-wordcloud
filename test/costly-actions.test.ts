@@ -10,7 +10,9 @@ import path from 'node:path';
 
 const ROOT = process.cwd();
 const read = (p: string) => fs.readFileSync(path.join(ROOT, p), 'utf8');
-const worker = read('src/worker/analyze.worker.ts');
+// The job runtime, not the thread wiring: `analyze.worker.ts` and `sameThread.ts` both
+// just hand this handler somewhere to post to.
+const worker = read('src/worker/handler.ts');
 const app = read('src/ui/App.tsx');
 const progress = read('src/ui/Progress.tsx');
 

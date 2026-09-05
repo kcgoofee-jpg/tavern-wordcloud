@@ -174,7 +174,21 @@ export default function App() {
      * sample cloud nor the community cloud takes them — those are not the user's own words.
      */
     const pri = parsePriority(settings.priority);
-    const apply = (ws: WordCount[]) => applyOverrides(applyPriority(ws, pri), settings.overrides);
+    /**
+     * Coreference (C6): 小赵 / 赵先生 / 一文 fold into 赵一文 by default. The proposals
+     * are applied here rather than written into `settings.overrides` so they follow the
+     * analysis instead of outliving it; a user override on the same word still wins, and
+     * the word table's 「拆开」 chip opts a whole group out via `settings.corefSplit`.
+     */
+    const split = new Set(settings.corefSplit);
+    const corefOv: Settings['overrides'] = {};
+    for (const g of result?.coref ?? []) {
+      if (split.has(g.full)) continue;
+      for (const a of g.aliases) corefOv[a.toLowerCase()] = { alias: g.full };
+    }
+    const merged = Object.keys(corefOv).length
+      ? { ...corefOv, ...settings.overrides } : settings.overrides;
+    const apply = (ws: WordCount[]) => applyOverrides(applyPriority(ws, pri), merged);
     // Keyword mode with no curated words yet is empty; it does not fall back to frequency results.
     if (keywordMode) return apply(curation?.words ?? []);
     if (!result) return apply(sharedWords ?? []);
@@ -197,7 +211,7 @@ export default function App() {
     const filed = [...kept, ...added].sort((a, b) => b.count - a.count).slice(0, options.tokenize.maxWords);
     return apply(filed);
     }
-  }, [demoMode, keywordMode, curation, result, sharedWords, panel, communityCloud, community, settings.kindOverrides, settings.overrides, settings.priority, options.kinds, options.tokenize.minCount, options.tokenize.maxWords, settings.traditional]);
+  }, [demoMode, keywordMode, curation, result, sharedWords, panel, communityCloud, community, settings.kindOverrides, settings.overrides, settings.corefSplit, settings.priority, options.kinds, options.tokenize.minCount, options.tokenize.maxWords, settings.traditional]);
   // Denominator is countedTokens (tokens in the table), not totalTokens.
   const totalTokens = result?.countedTokens ?? words.reduce((a, w) => a + w.count, 0);
   const active = hovered ? words.find((w) => w.text === hovered) : undefined;
@@ -1175,6 +1189,11 @@ export default function App() {
                 priority={parsePriority(settings.priority)}
                 cooccur={result?.cooccur}
                 coref={result?.coref}
+                corefSplit={settings.corefSplit}
+                onSplitCoref={(full) => patch({
+                  corefSplit: settings.corefSplit.includes(full)
+                    ? settings.corefSplit : [...settings.corefSplit, full],
+                })}
                 onHover={setHovered} hovered={hovered} onReport={health?.ok ? (w) => void reportWord(w) : undefined} />
             )}
             {panel === 'review' && (

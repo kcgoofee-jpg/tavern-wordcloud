@@ -3,8 +3,11 @@
  * into one shape (`progress` / `progressLog`) so the UI has a single <Progress>.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-// `?worker&inline` bundles the worker as an inline blob for the single-file build
+// `?worker&inline` bundles the worker as an inline blob for the web build. The single-file
+// build resolves this specifier to `worker/sameThread.ts` instead (see vite.config.ts):
+// same handler, UI thread, one copy of core.
 import AnalyzeWorker from '../../worker/analyze.worker?worker&inline';
+import type { WorkerLike } from '../../worker/sameThread';
 import type { WorkerProgress, WorkerRequestBody, WorkerResponse, WorkerResult } from '../../worker/analyze.worker';
 import type { UserText } from '../../core/zh';
 import { txv } from '../i18n';
@@ -24,7 +27,8 @@ export interface NetProgress {
 const LOG_KEEP = 8;
 
 export function useAnalyzeWorker(onError: (e: Error) => void, workerDownMessage: () => string) {
-  const workerRef = useRef<Worker | null>(null);
+  // `WorkerLike`, not `Worker`: the single-file build swaps in a same-thread stand-in.
+  const workerRef = useRef<WorkerLike | null>(null);
   const reqId = useRef(0);
   const pending = useRef(new Map<number, (r: WorkerResult) => void>());
   const onErrorRef = useRef(onError);

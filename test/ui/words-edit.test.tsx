@@ -24,6 +24,7 @@ function harness(
   coref?: CorefGroup[],
 ) {
   let current = init;
+  let split: string[] = [];
   const setOverrides = vi.fn((fn: (o: Record<string, WordOverride>) => Record<string, WordOverride>) => {
     current = fn(current);
     view.rerender(ui());
@@ -32,10 +33,12 @@ function harness(
     <WordsPanel
       words={words} options={DEFAULT_ANALYZE_OPTIONS} setOptions={() => {}}
       onHover={() => {}} hovered={null}
-      overrides={current} setOverrides={setOverrides} cooccur={cooccur} coref={coref} />
+      overrides={current} setOverrides={setOverrides} cooccur={cooccur} coref={coref}
+      corefSplit={split}
+      onSplitCoref={(full) => { split = [...split, full]; view.rerender(ui()); }} />
   );
   const view = render(ui());
-  return { get: () => current };
+  return { get: () => current, splits: () => split };
 }
 
 const pencil = (i = 0) => screen.getAllByTitle(/在云上显示的字/)[i];
@@ -202,37 +205,33 @@ describe('WordsPanel equivalence mode', () => {
 });
 
 /**
- * Coreference is a suggestion, never an automatic merge: the harness measures a
- * 33% mis-merge rate on the local corpus (`npm run eval:persons`).
+ * Coreference is applied by default since C6 (`npm run eval:coref`: 97.5% alias
+ * recall at 0% mis-merge). App.tsx folds the group into the words it hands down,
+ * so the panel's job is to say what was merged and offer to pull it apart.
  */
-describe('WordsPanel coreference suggestion', () => {
-  const NAMES: WordCount[] = [
-    { text: '赵一文', count: 40 },
-    { text: '小赵', count: 9 },
+describe('WordsPanel coreference', () => {
+  const MERGED: WordCount[] = [
+    { text: '赵一文', count: 49 },
     { text: '咖啡馆', count: 5 },
   ];
   const GROUPS: CorefGroup[] = [{ full: '赵一文', aliases: ['小赵'] }];
 
-  it('shows the proposal without changing any count', () => {
-    const h = harness({}, NAMES, undefined, GROUPS);
-    expect(screen.getByTitle(/看起来是同一个人/)).toBeTruthy();
-    expect(screen.getByText('9')).toBeTruthy();   // 小赵 still counted on its own
+  it('says what was folded in, and does not add an override of its own', () => {
+    const h = harness({}, MERGED, undefined, GROUPS);
+    expect(screen.getByTitle(/已按同指并入/)).toBeTruthy();
     expect(h.get()).toEqual({});
   });
 
-  it('clicking it writes an ordinary alias override, which the 等价 chip undoes', async () => {
+  it('「拆开」 opts the group out; the chip goes with it', async () => {
     const user = userEvent.setup();
-    const h = harness({}, NAMES, undefined, GROUPS);
-    await user.click(screen.getByTitle(/看起来是同一个人/));
-    expect(h.get()['小赵'].alias).toBe('赵一文');
-    // Taken: the suggestion leaves the row, and the undo chip is the existing one.
-    expect(screen.queryByTitle(/看起来是同一个人/)).toBeNull();
-    await user.click(screen.getByTitle('撤销这条改动'));
-    expect(h.get()['小赵']).toBeUndefined();
+    const h = harness({}, MERGED, undefined, GROUPS);
+    await user.click(screen.getByTitle(/已按同指并入/));
+    expect(h.splits()).toEqual(['赵一文']);
+    expect(screen.queryByTitle(/已按同指并入/)).toBeNull();
   });
 
-  it('no proposal, no chip', () => {
-    harness({}, NAMES);
-    expect(screen.queryByTitle(/看起来是同一个人/)).toBeNull();
+  it('no group, no chip', () => {
+    harness({}, MERGED);
+    expect(screen.queryByTitle(/已按同指并入/)).toBeNull();
   });
 });

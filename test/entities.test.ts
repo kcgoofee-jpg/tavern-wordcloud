@@ -306,11 +306,17 @@ describe('detectCoref（同指候选）', () => {
     '林岚和赵一文说了几句。',
     '赵一文，你先坐。',
   ];
+  /**
+   * C6: a short form has to be used *instead of* the full name somewhere and share a
+   * message with it somewhere, so both shapes appear here. Pure complementary
+   * distribution (the A17 default) is what produced the mis-merges, see
+   * `npm run eval:coref -- --ablate`.
+   */
   const shortForms = [
-    '小赵今天来得早。',
+    '小赵今天来得早，赵一文让他把门带上。',
     '小赵把文件放在桌上。',
     '小赵笑了笑，没有接话。',
-    '赵先生请进。',
+    '赵先生请进，赵一文站了起来。',
     '赵先生把伞收起来。',
     '赵先生看了看表。',
   ];
@@ -347,9 +353,31 @@ describe('detectCoref（同指候选）', () => {
     expect(groups.find((g) => g.full === '赵一文')?.aliases ?? []).not.toContain('小赵');
   });
 
-  it('互补分布这一支可以关掉，关掉后从不同时出现的变体就不再提出（消融开关）', () => {
-    const groups = run([...zhao, ...shortForms], { allowComplementary: false });
-    expect(groups.find((g) => g.full === '赵一文')?.aliases ?? []).toHaveLength(0);
+  it('只在旁边出现、从不替换全名的形式不并（替换证据，C6）', () => {
+    const beside = [
+      '赵先生请进，赵一文站了起来。',
+      '赵先生把伞收起来，赵一文接过去。',
+      '赵先生看了看表，赵一文没说话。',
+    ];
+    const aliases = run([...zhao, ...beside]).find((g) => g.full === '赵一文')?.aliases ?? [];
+    expect(aliases).not.toContain('赵先生');
+  });
+
+  it('同一个头衔挂在两个姓上时，姓+头衔不并（称谓一致性，C6）', () => {
+    const two = [
+      '赵老师在楼下等，钱老师还没来。',
+      '赵老师把名单念完，钱老师补了两句。',
+      '赵老师叫住赵一文，问他方案的事。',
+      '赵一文没理会赵老师。',
+      '钱老师走了以后赵老师才坐下。',
+    ];
+    const aliases = run([...zhao, ...two]).find((g) => g.full === '赵一文')?.aliases ?? [];
+    expect(aliases).not.toContain('赵老师');
+  });
+
+  it('去姓形式（一文）几乎只出现在全名里时可以并（去姓证据，C6）', () => {
+    const aliases = run([...zhao, ...shortForms]).find((g) => g.full === '赵一文')?.aliases ?? [];
+    expect(aliases).toContain('一文');
   });
 
   it('没有全名就没有候选', () => {

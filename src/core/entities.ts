@@ -1243,6 +1243,49 @@ const COREF_MIN_COOCCUR = 0.15;
  * positional rules also promote (沈好放, 钱一并, 王德海) score 1..3.
  */
 const COREF_MIN_CONFIDENCE = 4;
+/**
+ * Rule 5 (`tailEvidence`) — the drop-surname form (砚秋 of 沈砚秋) is the one
+ * variant that is a *substring* of the full name, so the corpus counts it inside
+ * every mention of the full name. When at most this share of its occurrences are
+ * outside the full name, the string simply has no independent life in this corpus
+ * and folding it in cannot take a different word with it. 0.25 is well clear of
+ * both sides measured on the local export: 砚秋 0.004, 敬亭 0.006, 晓龙 0.0 —
+ * against 高飞 0.78 and 安静-shaped dictionary words at 1.0.
+ */
+const COREF_TAIL_MAX_SOLO_SHARE = 0.25;
+
+/** Knobs, all defaulting to the shipped behaviour; `npm run eval:coref -- --ablate` flips one at a time. */
+export interface CorefOptions {
+  /**
+   * Accept a variant that never shares a message with the full name. A17 shipped
+   * this on; the ablation in `tools/eval/coref.ts` shows it is the only source of
+   * mis-merges on both corpora, so it defaults to **off** since C6.
+   */
+  allowComplementary?: boolean;
+  /**
+   * Require the variant to appear at least once in a message that does *not*
+   * contain the full name. An alias is used **instead of** the full name; a form
+   * that only ever appears beside it is a second person in the same scene
+   * (沈老师 the mother, standing next to 沈砚秋 the son).
+   */
+  requireSubstitution?: boolean;
+  /** Rule 5: let the drop-surname form in on containment / person evidence. */
+  tailEvidence?: boolean;
+  /**
+   * Reject `姓 + 头衔` when a second surname in the same corpus carries the same
+   * title: 老师 borne by both 沈 and 周 means `周老师` is a role, not a short form.
+   */
+  titleShared?: boolean;
+}
+
+/** A generated surface form and how it was built; each kind has its own evidence rules. */
+interface CorefVariant {
+  v: string;
+  /** `tail` = drop-surname, `title` = 姓 + 头衔, `plain` = 小姓 / 老姓 / 叠字 / English halves. */
+  kind: 'tail' | 'title' | 'plain';
+  /** For `title`: the honorific itself, used by the shared-title test. */
+  suffix?: string;
+}
 
 /** Occurrences of `needle` in `hay`, counted without overlap. */
 function countOf(hay: string, needle: string): number {
@@ -1274,14 +1317,15 @@ const COREF_EXTRA_SUFFIXES = ['导'];
  *
  * English, `First Last`: `First`, `Last`, `Mr./Mrs./Ms. Last`, `First's`.
  */
-function corefVariants(full: string): { v: string; title: boolean }[] {
-  const out: { v: string; title: boolean }[] = [];
-  const bare = (v: string) => out.push({ v, title: false });
-  const titled = (v: string) => out.push({ v, title: true });
+function corefVariants(full: string): CorefVariant[] {
+  const out: CorefVariant[] = [];
+  const bare = (v: string) => out.push({ v, kind: 'plain' });
+  const tail = (v: string) => out.push({ v, kind: 'tail' });
+  const titled = (v: string, suffix: string) => out.push({ v, kind: 'title', suffix });
   if (EN_FULLNAME_RE.test(full)) {
     const [first, last] = full.split(' ');
     bare(first); bare(last); bare(`${first}'s`); bare(`${first}’s`);
-    for (const h of EN_HONORIFICS) titled(`${h} ${last}`);
+    for (const h of EN_HONORIFICS) titled(`${h} ${last}`, h);
     return out;
   }
   if (!/^[一-鿿]{3,4}$/.test(full)) return out;
@@ -1290,9 +1334,9 @@ function corefVariants(full: string): { v: string; title: boolean }[] {
   const given = full.slice(surname.length);
   // Only 姓 + 双字名 has a short form that is still a name: dropping the surname of
   // 李明 leaves a single character, which is an ordinary word far more often.
-  if (given.length === 2) { bare(given); bare(given[0] + given[0]); bare(given[1] + given[1]); }
+  if (given.length === 2) { tail(given); bare(given[0] + given[0]); bare(given[1] + given[1]); }
   bare(`小${surname}`); bare(`老${surname}`);
-  for (const s of [...TITLE_SUFFIXES, ...COREF_EXTRA_SUFFIXES]) titled(surname + s);
+  for (const s of [...TITLE_SUFFIXES, ...COREF_EXTRA_SUFFIXES]) titled(surname + s, s);
   return out;
 }
 
@@ -1303,7 +1347,11 @@ function corefVariants(full: string): { v: string; title: boolean }[] {
  * @param names full-name candidates (`EntityIndex.personNames` plus the English pairs)
  * @param index the entity index; unused for now beyond keeping the signature honest
  *
- * A variant is accepted only when **all four** conditions hold:
+ * A variant is accepted only when every condition below holds. Conditions 1-4 are
+ * the A17 set; 5 (drop-surname evidence), 6 (shared honorific) and the substitution
+ * test were added by C6, which is what moved the numbers from 35% recall / 30%
+ * mis-merge to 97.5% / 0% (`npm run eval:coref -- --ablate`) and let the UI apply
+ * the groups by default instead of only proposing them:
  *
  *  1. it occurs at least `COREF_MIN_COUNT` times *outside* every tracked full name
  *     that contains it. Without the subtraction 砚秋 would "occur" 680 times purely
@@ -1313,12 +1361,21 @@ function corefVariants(full: string): { v: string; title: boolean }[] {
  *     it must not be one of the tracked full names, and it must not be proposed by
  *     two different full names — 沈砚秋 and 沈高飞 both generate 小沈 and 沈老师,
  *     and nothing in the text says which one is meant;
- *  3. it either shares at least `COREF_MIN_COOCCUR` of the rarer form's messages
- *     with the full name, or never appears in the same message at all
- *     (complementary distribution: the writer uses one form or the other);
+ *  3. it shares at least `COREF_MIN_COOCCUR` of the rarer form's messages with the
+ *     full name **and** appears at least once without it. Complementary distribution
+ *     (never in the same message) was accepted by A17 and is off by default since C6:
+ *     it is where every measured mis-merge came from. The drop-surname form is exempt
+ *     from this whole condition — see 5;
  *  4. it is not a stop word, a kinship term, a form of address, or a word the
  *     segmenter already knows — 老公 and 小三 are built by the same morphology as
- *     老沈 and 小赵 and are ordinary words.
+ *     老沈 and 小赵 and are ordinary words;
+ *  5. the drop-surname form (砚秋 of 沈砚秋) instead has to show that the characters
+ *     have no independent life in this corpus (`COREF_TAIL_MAX_SOLO_SHARE`) or that
+ *     the entity layer read the bare form as a person on its own. That replaces both
+ *     the dictionary test in 4 and the co-occurrence test in 3, because a message
+ *     that writes 敬亭 is a message that chose not to write 周敬亭;
+ *  6. `姓 + 头衔` is dropped when a second surname wears the same honorific: 老师 held
+ *     by both 沈 and 周 makes 周老师 a job, not a short form for 周敬亭.
  *
  * On condition 2: the drop-surname form of a real name is itself almost always
  * detected as a person (高飞 is, with ~980 standalone occurrences), so "not an
@@ -1330,14 +1387,12 @@ export function detectCoref(
   texts: readonly string[],
   names: readonly string[],
   index: EntityIndex,
-  /**
-   * `allowComplementary: false` drops the second half of condition 3. The
-   * harness (`npm run eval:persons`) sweeps it, because that branch is what
-   * admits both of the mis-merges measured on the local corpus.
-   */
-  opts: { allowComplementary?: boolean } = {},
+  opts: CorefOptions = {},
 ): CorefGroup[] {
-  const allowComplementary = opts.allowComplementary ?? true;
+  const allowComplementary = opts.allowComplementary ?? false;
+  const requireSubstitution = opts.requireSubstitution ?? true;
+  const tailEvidence = opts.tailEvidence ?? true;
+  const titleShared = opts.titleShared ?? true;
   const joined = texts.join('\n');
   // Only a string that reads as a complete name has short forms. `looksLikePerson`
   // is the corpus-free half of the person rules and already demands a surname and
@@ -1367,7 +1422,7 @@ export function detectCoref(
 
   // Condition 2, ambiguity half: a variant proposed by two full names is dropped.
   const proposedBy = new Map<string, Set<string>>();
-  const variantsOf = new Map<string, { v: string; title: boolean }[]>();
+  const variantsOf = new Map<string, CorefVariant[]>();
   for (const full of fulls) {
     const seen = new Set<string>([full]);
     const vs = corefVariants(full).filter((x) => x.v && !seen.has(x.v) && seen.add(x.v));
@@ -1385,33 +1440,79 @@ export function detectCoref(
     return Math.max(0, n);
   };
 
+  /**
+   * Rule 6: surnames seen carrying each honorific. `周老师` is only a short form
+   * of 周敬亭 when 老师 belongs to exactly one person in this corpus; the moment
+   * 沈老师 also appears, the title says "teacher", not "the Zhou we know".
+   * Only surname-shaped prefixes count, so 制片主任 does not make 主任 shared.
+   */
+  const bearersOf = new Map<string, Set<string>>();
+  if (titleShared) {
+    for (const s of [...TITLE_SUFFIXES, ...COREF_EXTRA_SUFFIXES]) {
+      const seen = new Set<string>();
+      for (const re of [new RegExp(`([一-鿿]{2})${s}`, 'g'), new RegExp(`([一-鿿])${s}`, 'g')]) {
+        for (const m of joined.matchAll(re)) {
+          const p = m[1];
+          const sur = COMPOUND_SURNAMES.includes(p) ? p : (SURNAMES.has(p.at(-1)!) ? p.at(-1)! : '');
+          if (sur && countOf(joined, sur + s) >= COREF_MIN_COUNT) seen.add(sur);
+        }
+      }
+      bearersOf.set(s, seen);
+    }
+  }
+
   const out: CorefGroup[] = [];
   for (const full of fulls) {
     const docsFull = texts.reduce((a, t) => a + (t.includes(full) ? 1 : 0), 0);
     const kept: { v: string; n: number }[] = [];
-    for (const { v, title } of variantsOf.get(full)!) {
+    for (const { v, kind, suffix } of variantsOf.get(full)!) {
       if (proposedBy.get(v)!.size > 1) continue;                        // 2: ambiguous
       // 2: a name of its own. The honorific forms are exempt because they *are*
       // built from this full name's surname — `looksLikePerson` recognises 周老师
       // as a person precisely because of the construction we just applied.
-      if (fullSet.has(v) || (!title && looksLikePerson(v))) continue;
+      if (fullSet.has(v) || (kind !== 'title' && kind !== 'tail' && looksLikePerson(v))) continue;
       if (DEFAULT_STOPWORDS.has(v) || KINSHIP_TERMS.has(v)
         || ADDRESS.has(v) || TITLE_WORDS.has(v)) continue;              // 4: closed lists
-      if (/^[一-鿿]+$/.test(v) && !isOov(v)) continue;                   // 4: a word the segmenter knows
+      // 6: the honorific is worn by a second surname, so it is a role, not a nickname.
+      if (kind === 'title' && suffix && (bearersOf.get(suffix)?.size ?? 0) > 1) continue;
       const n = standalone(joined, v);
-      if (n < COREF_MIN_COUNT) continue;                                // 1
+      // 5: the drop-surname form. It is a substring of the full name, so the corpus
+      // has already tied the two together; what has to be excluded is the case where
+      // the same characters lead an independent life (安静, 高飞-the-verb). Either
+      // almost every occurrence sits inside the full name, or the entity layer found
+      // person evidence for the bare form on its own.
+      const total = countOf(joined, v);
+      const soloShare = total > 0 ? n / total : 1;
+      const tailOk = tailEvidence && kind === 'tail'
+        && (soloShare <= COREF_TAIL_MAX_SOLO_SHARE
+          || (index.personConfidence.get(v) ?? 0) >= COREF_MIN_CONFIDENCE);
+      if (!tailOk) {
+        if (/^[一-鿿]+$/.test(v) && !isOov(v)) continue;                 // 4: a word the segmenter knows
+        if (kind === 'tail' && looksLikePerson(v) && soloShare > COREF_TAIL_MAX_SOLO_SHARE) continue;
+        if (n < COREF_MIN_COUNT) continue;                              // 1
+      }
       let both = 0, docsVar = 0;
       for (const t of texts) {
         if (!standalone(t, v)) continue;
         docsVar++;
         if (t.includes(full)) both++;
       }
-      if (!docsVar) continue;
+      // A tail form carried entirely by the full name has no standalone message to
+      // measure; containment (rule 5) is the evidence, and the merge only ever shows
+      // up if the tokenizer produced the bare form as a word of its own.
+      if (!docsVar) { if (tailOk && n < COREF_MIN_COUNT) kept.push({ v, n }); continue; }
       const denom = Math.min(docsFull, docsVar);
-      // Complementary distribution (both === 0) is accepted; a low but non-zero
-      // overlap is the shape of two words that merely share a scene.
-      if (both === 0 ? !allowComplementary
-        : (denom <= 0 || both / denom < COREF_MIN_COOCCUR)) continue;               // 3
+      // Complementary distribution (both === 0) was accepted before C6; the ablation
+      // in tools/eval/coref.ts shows it is where every mis-merge comes from — for
+      // every variant except the drop-surname form, which is *expected* to be
+      // complementary: a message that writes 敬亭 is a message that chose not to
+      // write 周敬亭. Rule 5's containment / person evidence stands in for rule 3 there.
+      if (!tailOk && (both === 0 ? !allowComplementary
+        : (denom <= 0 || both / denom < COREF_MIN_COOCCUR))) continue;               // 3
+      // Substitution: an alias replaces the full name somewhere. A form that never
+      // appears without it is the other person in the room, not another name for
+      // this one. Tail forms are exempt — they are inside every mention by construction.
+      if (requireSubstitution && kind !== 'tail' && both > 0 && docsVar - both < 1) continue;
       kept.push({ v, n });
     }
     if (kept.length) {

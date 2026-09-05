@@ -590,9 +590,8 @@ const EN: Record<string, string> = {
   '没有匹配的词，已改为只修改显示名': 'No matching word — renaming instead',
   '候选顺序是实验功能：按同类、共现和输入前缀猜的，不一定对': 'Experimental ranking: guessed from entity kind, co-occurrence and what you typed — often wrong',
   '「{a}」已经并到「{b}」那边了，再并回来会绕圈': '"{a}" is already merged into "{b}"; merging back would loop',
-  '同指？': 'same person?',
-  '看起来是同一个人：{list}。点一下把它们并到「{w}」，可在上面的改动条里撤销':
-    'Looks like the same person: {list}. Click to merge them into "{w}"; undo from the chips above',
+  '已按同指并入「{w}」：{list}。点一下拆开，各自单独计数':
+    'Folded into "{w}" as the same person: {list}. Click to split them apart and count each on its own',
   '优先词': 'Priority words',
   '优先显示这些词': 'Show these words biggest',
   '用分号隔开，越靠前越大': 'semicolon-separated; earlier means bigger',

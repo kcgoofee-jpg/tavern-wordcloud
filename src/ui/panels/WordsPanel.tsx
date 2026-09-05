@@ -15,7 +15,7 @@ import { toTraditional } from '../../theme/s2t';
 const key = (w: string) => w.toLowerCase();
 
 export function WordsPanel({
-  words, options, setOptions, onHover, hovered, onReport, overrides, setOverrides, priority = [], cooccur, coref,
+  words, options, setOptions, onHover, hovered, onReport, overrides, setOverrides, priority = [], cooccur, coref, corefSplit, onSplitCoref,
 }: {
   /** Report a word as noise: sends the word and a few context snippets. Hidden without a server. */
   onReport?: (word: string) => void;
@@ -31,12 +31,15 @@ export function WordsPanel({
   /** Co-occurrence index from the analysis; drives the equivalence candidate ranking. */
   cooccur?: Cooccur | null;
   /**
-   * Coreference proposals (core/entities.ts `detectCoref`). Suggestions only: the
-   * harness measures a 33% mis-merge rate on the local corpus, so nothing is merged
-   * until the user clicks. Clicking writes ordinary `alias` overrides, which means
-   * the existing 等价 chips above the list are the undo.
+   * Coreference groups (core/entities.ts `detectCoref`). Since C6 these are **applied**
+   * by default — `npm run eval:coref` measures 97.5% alias recall at 0% mis-merge on a
+   * 27-case set, inside the ≥60% / ≤5% bar — so the row shows what was folded in and
+   * offers to pull it apart again.
    */
   coref?: CorefGroup[];
+  /** Full names the user pulled apart (`settings.corefSplit`), and the toggle for one. */
+  corefSplit?: string[];
+  onSplitCoref?: (full: string) => void;
 }) {
   const t = useT();
   const [q, setQ] = useState('');
@@ -160,29 +163,19 @@ export function WordsPanel({
   const priSet = useMemo(() => new Set(priority.map(key)), [priority]);
 
   /**
-   * Full name -> the short forms still standing on their own. An alias already
-   * merged (or hidden) drops out, so the suggestion disappears once it is taken.
+   * Full name -> the short forms folded into it. A group the user already pulled
+   * apart, or whose aliases the user re-aliased by hand, drops out of the chip.
    */
   const corefBy = useMemo(() => {
+    const kept = new Set(corefSplit ?? []);
     const m = new Map<string, string[]>();
     for (const g of coref ?? []) {
-      const left = g.aliases.filter((a) => !aliased.has(key(a)) && words.some((w) => w.text === a));
+      if (kept.has(g.full)) continue;
+      const left = g.aliases.filter((a) => !aliased.has(key(a)));
       if (left.length) m.set(g.full, left);
     }
     return m;
-  }, [coref, aliased, words]);
-
-  /** Take the whole suggestion: every alias merges into the full name. */
-  const applyCoref = (full: string, aliases: string[]) => {
-    setOverrides((o) => {
-      const out = { ...o };
-      for (const a of aliases) {
-        if (hasAliasCycle(out, a, full)) continue;
-        out[key(a)] = { ...out[key(a)], alias: full };
-      }
-      return out;
-    });
-  };
+  }, [coref, corefSplit, aliased]);
 
   const edits = [
     ...tok.forceWords.map((w) => ({ w, kind: t('合并'), run: () => undo(w) })),
@@ -281,13 +274,13 @@ export function WordsPanel({
                   )}
                 </span>
               )}
-              {corefBy.has(w.text) && (
+              {corefBy.has(w.text) && onSplitCoref && (
                 <button type="button" className="coref-tag"
-                  title={t('看起来是同一个人：{list}。点一下把它们并到「{w}」，可在上面的改动条里撤销', {
+                  title={t('已按同指并入「{w}」：{list}。点一下拆开，各自单独计数', {
                     list: corefBy.get(w.text)!.join('、'), w: w.text,
                   })}
-                  onClick={() => applyCoref(w.text, corefBy.get(w.text)!)}>
-                  {t('同指？')}{corefBy.get(w.text)!.join('、')}
+                  onClick={() => onSplitCoref(w.text)}>
+                  {t('拆开')}{corefBy.get(w.text)!.join('、')}
                 </button>
               )}
               <span className="count">{w.count}</span>

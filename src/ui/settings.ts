@@ -100,6 +100,13 @@ export interface Settings {
    * when the same card is imported again; the current session's own edits always win.
    */
   cardRules: CardRules;
+  /**
+   * Full names whose coreference group the user pulled apart again. Since C6 the
+   * proposals from `core/entities.ts detectCoref` are applied by default (recall
+   * 97.5%, mis-merge 0% on `npm run eval:coref`); this is the opt-out, one entry
+   * per full name, and it is what the word table's 「拆开」 chip writes.
+   */
+  corefSplit: string[];
 }
 
 /**
@@ -140,6 +147,7 @@ export const DEFAULT_SETTINGS: Settings = {
   priority: '',
   overrides: {},
   cardRules: {},
+  corefSplit: [],
 };
 
 /** Panel -> settings paths it owns. Reset touches only those. */
