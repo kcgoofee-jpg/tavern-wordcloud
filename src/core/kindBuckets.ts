@@ -1,7 +1,7 @@
 /**
  * Two layers over the same `EntityKind` tags (notes/docs/33).
  *
- * Fine kinds stay the implemented 45: review, `eval:kinds`, and alias scoring
+ * Fine kinds stay the implemented inventory: review, `eval:kinds`, and alias scoring
  * still see them. Ops filters get a handful of buckets published tagsets actually
  * agree on (CoNLL PER/LOC/ORG + TIME, OntoNotes DATE/TIME vs ORG/EVENT/WORK_OF_ART,
  * 词林 A人 / C时空 / D抽象, community's person/place/time/other fold).
@@ -20,10 +20,10 @@ export type KindLayer = KindBucket | KindFlag;
 
 /**
  * Many-to-one map. Intersection of the fine and coarse reviews:
- * person ← PER + 词林 A (names, titles, kinship, jobs, relations);
- * place  ← LOC/GPE/FAC + 词林 C 空间 (place, building, room, nature);
+ * person ← PER + 词林 A (names, titles, kinship, jobs, relations, ethnicity, rank);
+ * place  ← LOC/GPE/FAC + 词林 C 空间 (place, building, room, nature, region, path);
  * time   ← DATE/TIME + 词林 Ca (time, festival — not money: OntoNotes MONEY ≠ DATE);
- * social ← ORG/EVENT/WORK_OF_ART + 词林 D 抽象里的机构/文书/作品;
+ * social ← ORG/EVENT/WORK_OF_ART + 词林 D 抽象里的机构/文书/作品/法律;
  * other  ← residual, including WordNet artifact/food/feeling splits the ops view does not hide separately.
  */
 export const KIND_BUCKETS = {
@@ -32,21 +32,29 @@ export const KIND_BUCKETS = {
   kinship: 'person',
   occupation: 'person',
   relation: 'person',
+  ethnicity: 'person',
+  rank: 'person',
   place: 'place',
   building: 'place',
   room: 'place',
   nature: 'place',
+  region: 'place',
+  path: 'place',
   time: 'time',
   festival: 'time',
   org: 'social',
   document: 'social',
   media: 'social',
   event: 'social',
+  law: 'social',
   brand: 'social',
   myth: 'social',
   martial: 'social',
   plain: 'other',
   money: 'other',
+  measure: 'other',
+  number: 'other',
+  onomatopoeia: 'other',
   wear: 'other',
   food: 'other',
   drink: 'other',

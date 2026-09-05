@@ -41,12 +41,20 @@ describe('KIND_BUCKETS covers the implemented inventory', () => {
   it('community fold uses the five ops buckets; flags land in other', () => {
     expect(foldCommunityKind('title')).toBe('person');
     expect(foldCommunityKind('kinship')).toBe('person');
+    expect(foldCommunityKind('ethnicity')).toBe('person');
+    expect(foldCommunityKind('rank')).toBe('person');
     expect(foldCommunityKind('building')).toBe('place');
+    expect(foldCommunityKind('region')).toBe('place');
+    expect(foldCommunityKind('path')).toBe('place');
     expect(foldCommunityKind('festival')).toBe('time');
     expect(foldCommunityKind('org')).toBe('social');
     expect(foldCommunityKind('document')).toBe('social');
+    expect(foldCommunityKind('law')).toBe('social');
     expect(foldCommunityKind('money')).toBe('other');
     expect(foldCommunityKind('drink')).toBe('other');
+    expect(foldCommunityKind('measure')).toBe('other');
+    expect(foldCommunityKind('number')).toBe('other');
+    expect(foldCommunityKind('onomatopoeia')).toBe('other');
     expect(foldCommunityKind('generic')).toBe('other');
   });
 });
@@ -87,10 +95,12 @@ describe('wordVisible: primary bucket + generic flag', () => {
 });
 
 describe('toggleBucket', () => {
-  it('turning 人物 off drops the five people kinds and nothing else', () => {
+  it('turning 人物 off drops the person-bucket kinds and nothing else', () => {
     const next = toggleBucket(ALL_KINDS, 'person');
     expect(next).not.toContain('person');
     expect(next).not.toContain('title');
+    expect(next).not.toContain('ethnicity');
+    expect(next).not.toContain('rank');
     expect(next).toContain('place');
     expect(next).toContain('generic');
     expect(toggleBucket(next, 'person').sort()).toEqual([...ALL_KINDS].sort());

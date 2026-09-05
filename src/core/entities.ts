@@ -23,11 +23,11 @@ export type EntityKind =
   | 'person' | 'time' | 'place' | 'system' | 'plain' | 'generic'
   | 'brand' | 'wear' | 'title'
   // Group 2 people and identity
-  | 'kinship' | 'occupation' | 'relation'
+  | 'kinship' | 'occupation' | 'relation' | 'ethnicity' | 'rank'
   // Group 3 places and buildings
-  | 'building' | 'room' | 'nature'
+  | 'building' | 'room' | 'nature' | 'region' | 'path'
   // Group 4 time and quantity
-  | 'money' | 'festival'
+  | 'money' | 'festival' | 'measure' | 'number'
   // Group 5 things
   | 'food' | 'drink' | 'furniture' | 'container' | 'vehicle'
   | 'device' | 'weapon' | 'jewelry'
@@ -38,9 +38,9 @@ export type EntityKind =
   // Group 8 behaviour and feeling
   | 'emotion' | 'speech' | 'thought' | 'desire'
   // Group 9 society
-  | 'org' | 'document' | 'media' | 'event'
+  | 'org' | 'document' | 'media' | 'event' | 'law'
   // Group 10 culture and language
-  | 'myth' | 'martial';
+  | 'myth' | 'martial' | 'onomatopoeia';
 
 /** User-visible kind names, translated at display time via tx(). */
 export const ENTITY_LABEL: Record<EntityKind, string> = {
@@ -56,10 +56,16 @@ export const ENTITY_LABEL: Record<EntityKind, string> = {
   kinship: zh('亲属'),
   occupation: zh('职业'),
   relation: zh('人际关系'),
+  ethnicity: zh('族群与国籍'),
+  rank: zh('头衔等级'),
   building: zh('建筑'),
   room: zh('室内空间'),
   nature: zh('自然景观'),
+  region: zh('行政区划'),
+  path: zh('道路与交通设施'),
   money: zh('钱'),
+  measure: zh('度量单位'),
+  number: zh('数量'),
   food: zh('食物'),
   drink: zh('饮品'),
   furniture: zh('家具'),
@@ -89,8 +95,10 @@ export const ENTITY_LABEL: Record<EntityKind, string> = {
   document: zh('文书'),
   media: zh('作品与媒体'),
   event: zh('事件与仪式'),
+  law: zh('法律'),
   myth: zh('神话与超自然'),
   martial: zh('武侠与修真'),
+  onomatopoeia: zh('拟声词'),
 };
 
 /**
@@ -102,15 +110,15 @@ export const ENTITY_LABEL: Record<EntityKind, string> = {
  */
 export const KIND_GROUPS = [
   { id: 'common', label: zh('常用'), kinds: ['plain', 'person', 'place', 'time', 'generic'] },
-  { id: 'people', label: zh('人物与身份'), kinds: ['title', 'kinship', 'occupation', 'relation'] },
-  { id: 'space', label: zh('地点与建筑'), kinds: ['building', 'room', 'nature'] },
-  { id: 'count', label: zh('时间与数量'), kinds: ['money', 'festival'] },
+  { id: 'people', label: zh('人物与身份'), kinds: ['title', 'kinship', 'occupation', 'relation', 'ethnicity', 'rank'] },
+  { id: 'space', label: zh('地点与建筑'), kinds: ['building', 'room', 'nature', 'region', 'path'] },
+  { id: 'count', label: zh('时间与数量'), kinds: ['money', 'festival', 'measure', 'number'] },
   { id: 'thing', label: zh('物品'), kinds: ['brand', 'wear', 'food', 'drink', 'furniture', 'container', 'vehicle', 'device', 'weapon', 'jewelry'] },
   { id: 'matter', label: zh('材料与自然物'), kinds: ['material', 'plant', 'animal', 'weather'] },
   { id: 'sense', label: zh('身体与感官'), kinds: ['body', 'color', 'sound', 'smell', 'texture', 'illness'] },
   { id: 'act', label: zh('行为与情绪'), kinds: ['emotion', 'speech', 'thought', 'desire'] },
-  { id: 'social', label: zh('社会与组织'), kinds: ['org', 'document', 'media', 'event'] },
-  { id: 'culture', label: zh('文化与语言'), kinds: ['myth', 'martial'] },
+  { id: 'social', label: zh('社会与组织'), kinds: ['org', 'document', 'media', 'event', 'law'] },
+  { id: 'culture', label: zh('文化与语言'), kinds: ['myth', 'martial', 'onomatopoeia'] },
 ] as const satisfies readonly { id: string; label: string; kinds: readonly EntityKind[] }[];
 
 export type KindGroupId = (typeof KIND_GROUPS)[number]['id'];
@@ -217,6 +225,21 @@ const CONF = {
   document: 0.35,
   media: 0.34,
   event: 0.33,
+  /**
+   * Batch-4 kinds (docs/33 §5). Every one of them sits **below** `event`, so this
+   * batch cannot change the primary kind of any word that already had one — a
+   * 朝阳区 stays `place`, 筑基 stays `martial`, 法院 stays `org`. Inside the
+   * batch the order is again specificity (closed nationality before a 人/族
+   * suffix, 爵 before 级).
+   */
+  ethnicity: 0.329,
+  rank: 0.328,
+  law: 0.327,
+  measure: 0.326,
+  onomatopoeia: 0.325,
+  number: 0.324,
+  region: 0.323,
+  path: 0.322,
   plain: 0.3,
   /** Dispersion-based, assigned in analyze.ts; never outranks a construction. */
   generic: 0.3,
@@ -871,6 +894,125 @@ const FESTIVAL_WORDS = new Set([
   '圣诞', '万圣', '元宵', '腊八', '小年', '平安夜',
 ]);
 
+/* ==========================================================================
+   Batch-4 kinds (notes/docs/33 §5, the unimplemented rows). Same contract as
+   batches 2–3: a construction of at most ~40 seeds, never a lexicon. Every
+   CONF value sits below `event` (0.33), so these tags are additive — they
+   cannot steal the primary kind of a word that already had one.
+   ========================================================================== */
+
+/* ---------- 拟声词 (`onomatopoeia`) ----------
+   Reduplication of a closed set of sound-characters (砰砰 咚咚 嗡嗡), plus
+   the two-character onomatopoeia that are not AA (哗啦 叮当 咔嚓). Not every
+   reduplication: 哥哥 爸爸 are kinship, 往往 渐渐 are adverbs, and 哈哈 is
+   already a stop word. */
+const ONO_CHAR = new Set('砰咚嗡啪咔咯吱呼哗叮铃轰咕啾喵汪嘎嘶嗷呜当嚓啦噗嗒隆哐'.split(''));
+const ONO_WORDS = new Set([
+  '哗啦', '叮当', '咔嚓', '咯吱', '轰隆', '扑通', '叮咚', '滴答', '吧嗒', '咕咚',
+  '哐当', '呼哧', '喀嚓', '咕噜', '叽里',
+]);
+
+/* ---------- 度量单位 (`measure`) ----------
+   Closed two-or-more-character units only. 米 / 克 / 度 / 升 as suffixes would
+   take 米饭 米粒, names ending in 米, and 温度 with them; 分钟 / 小时 are time
+   and stay with `time`. */
+const MEASURE_WORDS = new Set([
+  '厘米', '毫米', '公里', '公斤', '千克', '毫升', '平方米', '立方米', '公顷', '英寸',
+  '英尺', '海里', '摄氏度', '平方厘米', '公升', '毫克', '微米', '千米', '吨位', '千瓦',
+  '加仑', '英里', '公分', '立方厘米',
+]);
+
+/* ---------- 族群与国籍 (`ethnicity`) ----------
+   Closed nationalities and races, plus …人 / …族 at length ≥ 3 when the stem
+   is a country/region, a myth race, or a closed ethnicity morpheme. Two-character
+   兽人 / 魔族 / 人族 / 汉族 live in the closed list; 工人 主人 家人 大人 女人
+   男人 are two characters and never reach the suffix. */
+const ETHNICITY_WORDS = new Set([
+  '中国人', '法国人', '美国人', '日本人', '韩国人', '英国人', '德国人',
+  '汉族', '苗族', '满族', '回族', '藏族', '彝族', '壮族',
+  '精灵族', '兽人', '魔族', '人族', '妖族', '仙族', '黑人', '白人',
+]);
+const ETHNICITY_STEMS = new Set([
+  '汉', '苗', '满', '回', '藏', '彝', '壮', '维', '傣', '白',
+  '精灵', '兽', '魔', '人', '妖', '仙', '龙', '鬼', '神',
+]);
+const NOT_ETHNICITY = new Set([
+  '工人', '主人', '家人', '大人', '女人', '男人', '老人', '好人', '坏人', '情人',
+  '友人', '证人', '路人', '路人甲', '客人', '诗人', '本人', '他人', '私人', '众人',
+  '商人', '病人', '犯人', '猎人', '军人',
+]);
+
+/* ---------- 头衔等级 (`rank`) ----------
+   Military ranks, peerage, and cultivation stages. 陛下 is a `title`, not a
+   rank. …期 only when the stem is already a martial stage (筑基期), so 时期
+   长期 期待 never fire. …级 at three characters minus the generic 国家级
+   世界级. Rank CONF sits below `martial`, so 筑基 stays martial. */
+const RANK_WORDS = new Set([
+  '上校', '中校', '少校', '中尉', '上尉', '少尉', '元帅', '上将', '中将', '少将',
+  '大尉', '伯爵', '公爵', '侯爵', '男爵', '子爵', '亲王', '国王', '皇帝',
+  '筑基期', '金丹期', '元婴期', '化神期', '练气期',
+]);
+const NOT_RANK = new Set([
+  '阶级', '超级', '等级', '升级', '降级', '班级', '年级', '国家级', '世界级', '专业级',
+  '时期', '长期', '期待', '手段', '地段', '阶段', '片段', '陛下',
+]);
+
+/* ---------- 法律 (`law`) ----------
+   Closed legal nouns plus …罪, …条款, and …法 at three characters. 办法 想法
+   看法 说法 方法 魔法 are the two-character 法 majority and stay out; 法院 is
+   already `org` and is not forced into law. */
+const LAW_WORDS = new Set([
+  '法律', '刑法', '民法', '宪法', '商法', '条款', '罪名', '犯罪', '违约', '侵权',
+  '诉讼', '判决', '立法', '司法', '婚姻法', '劳动法', '合同法', '行政法',
+]);
+const NOT_LAW = new Set([
+  '办法', '想法', '看法', '说法', '方法', '无法', '合法', '非法', '用法', '魔法',
+  '书法', '手法', '技法', '兵法', '算法', '剑法', '心法', '刀法', '拳法', '障眼法',
+  '法院', '法官', '罪过', '罪恶', '有罪', '无罪', '怪罪', '认罪', '得罪', '问罪',
+]);
+
+/* ---------- 数量 (`number`) ----------
+   Numeral + 百千万亿 / 成 / 倍, 上/数 + those units, 百分之…, and a handful of
+   closed quantity nouns. Demonstrative × classifier (一个 这只) is already in
+   DEFAULT_STOPWORDS and is not a number construction. */
+const NUMBER_WORDS = new Set(['半数', '成千上万', '成百上千', '百分之百']);
+const NUMBER_RE = /^(?:[一二三四五六七八九十两百千]+[百千万亿]|[数上][百千万亿]|[一二三四五六七八九十两]成|[一二三四五六七八九十两]+倍|百分之[一二三四五六七八九十百千万两]+)$/;
+/** 数词×量词 that are not the 2-char demonstrative×classifier stop table (一个 这只). */
+const NUMBER_CLASS_TAIL = /(?:个|只|片|双|股|条|张|份|次|遍|杯|碗|盘|辆|本|封|把|根|颗|粒|枚|套|层|位|名|座|支)$/;
+const isCountPhrase = (w: string) =>
+  QUANT_HEAD.test(w) && NUMBER_CLASS_TAIL.test(w) && !DEFAULT_STOPWORDS.has(w)
+  && !TIME_RE.test(w) && !MONEY_RE.test(w);
+
+/* ---------- 行政区划 (`region`) ----------
+   Additive on the 省市县区镇村州郡国邦 suffixes at length ≥ 3, plus the
+   two-character country names that have no suffix long enough. 办公室 is a
+   `room` (室), not 区; 社区 误区 时区 音区 are listed even though min-3 already
+   drops the two-character ones. `place` is kept as-is — 朝阳区 stays place. */
+const REGION_TAIL = /(?:省|市|县|区|镇|村|州|郡|国|邦)$/;
+const REGION_WORDS = new Set(['中国', '美国', '英国', '法国', '日本', '韩国']);
+const NOT_REGION = new Set([
+  '误区', '社区', '时区', '音区', '盲区', '禁区', '景区', '联合国',
+  '超市', '夜市', '菜市', '集市', '市场', '股市', '上市', '都市',
+  '节省', '省略', '反省', '自省', '坐镇', '冰镇', '爱国', '出国', '回国',
+]);
+
+/* ---------- 道路与交通设施 (`path`) ----------
+   Additive on 路 街 巷 道 站 at length ≥ 3, plus a closed list of the common
+   two-character roads and the four named constructions (高速公路 立交桥
+   十字路口 人行道). 口 is not a path suffix: 门口 is `place`, 胸口 虎口 are
+   `body`, 路口 is two characters. 桥 stays with `building` — 立交桥 is in the
+   closed list so it *gains* path without stealing the primary tag. 知道 味道
+   are two-character 道 and never reach the suffix. */
+const PATH_TAIL = /(?:路|街|巷|道|站)$/;
+const PATH_WORDS = new Set([
+  '高速公路', '立交桥', '十字路口', '人行道', '马路', '街道', '车站', '地铁站',
+  '公路', '铁路', '大街', '小巷', '大路', '小路', '山路', '道路', '公交站', '火车站',
+]);
+const NOT_PATH = new Set([
+  '门口', '胸口', '虎口', '接口', '路口', '知道', '味道', '难道', '频道', '跑道',
+  '通道', '报道', '不知道', '网站', '工作站', '说道', '问道', '答道',
+]);
+
 export interface EntityIndex {
   kindOf: Map<string, EntityKind>;
   /** Words the corpus pass accepted as brands (Latin forms are lower-cased). */
@@ -1119,6 +1261,26 @@ export function classifyKinds(word: string, index: EntityIndex): KindTag[] {
   if (MYTH_WORDS.has(word) || (!NOT_MYTH.has(word) && suffixHit(word, MYTH_TAIL))) add('myth');
   if (MARTIAL_WORDS.has(word) || (!NOT_MARTIAL.has(word) && suffixHit(word, MARTIAL_TAIL))) add('martial');
   if (FESTIVAL_WORDS.has(word) || FESTIVAL_RE.test(word)) add('festival');
+
+  /* ---- Batch-4 kinds (docs/33 §5). Additive; CONF all sit below `event`. ---- */
+  const ethStem = word.length >= 3 && /(?:人|族)$/.test(word) ? word.slice(0, -1) : '';
+  if (ETHNICITY_WORDS.has(word) || (ethStem !== '' && !NOT_ETHNICITY.has(word) && (
+    ETHNICITY_STEMS.has(ethStem) || REGION_WORDS.has(ethStem) || /[国洲]$/.test(ethStem)
+    || MYTH_WORDS.has(ethStem) || (!NOT_MYTH.has(ethStem) && MYTH_TAIL.test(ethStem))
+  ))) add('ethnicity');
+  if (RANK_WORDS.has(word)
+      || (!NOT_RANK.has(word) && suffixHit(word, /爵$/))
+      || (word.length >= 3 && word.endsWith('期') && MARTIAL_WORDS.has(word.slice(0, -1)))
+      || (!NOT_RANK.has(word) && suffixHit(word, /级$/, 3))) add('rank');
+  if (LAW_WORDS.has(word) || (!NOT_LAW.has(word)
+      && (suffixHit(word, /罪$/) || suffixHit(word, /法$/, 3) || suffixHit(word, /条款$/)))) add('law');
+  if (MEASURE_WORDS.has(word)) add('measure');
+  if (ONO_WORDS.has(word) || (word.length === 2 && word[0] === word[1] && ONO_CHAR.has(word[0]))) add('onomatopoeia');
+  if (NUMBER_WORDS.has(word) || (NUMBER_RE.test(word) && !DEFAULT_STOPWORDS.has(word)) || isCountPhrase(word)) add('number');
+  // Not `suffixHit`: QUANT_HEAD would drop 四川省 (四 is a numeral character).
+  if (REGION_WORDS.has(word) || (word.length >= 3 && REGION_TAIL.test(word)
+      && !NOT_REGION.has(word) && !DEFAULT_STOPWORDS.has(word))) add('region');
+  if (PATH_WORDS.has(word) || (!NOT_PATH.has(word) && suffixHit(word, PATH_TAIL, 3))) add('path');
 
   if (!tags.length) return [{ kind: 'plain', conf: CONF.plain }];
   return tags.sort((a, b) => b.conf - a.conf);
