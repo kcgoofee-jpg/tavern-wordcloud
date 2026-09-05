@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { fill, zh, type TextTpl, type TplParam, type UserText } from '../core/zh';
+import { fill, tenKCount, zh, type TextTpl, type TplParam, type UserText } from '../core/zh';
 
 export { zh, type TextTpl, type UserText };
 
@@ -13,10 +13,27 @@ export type Lang = 'zh' | 'en';
 
 /**
  * Chinese → English. Plain language; costs (network, money, waiting time) stated
- * explicitly. Same Chinese concept, same English term:
- *   网页版 web edition · 本地版 local edition · 世界书 world info ·
- *   角色卡 character card · 聊天记录 chat log · 词云 word cloud ·
- *   词频表 word table · 接口 endpoint · 筛选与分词 Filters & tokenizing.
+ * explicitly. Buttons are short, errors say what happened and what to do, and
+ * nothing here may promise a capability the product does not have.
+ *
+ * **One concept, one English term.** The glossary, enforced by
+ * `test/i18n-english.test.ts`:
+ *
+ *   网页版 web edition · 本地版 local edition · 世界书 world info (never
+ *   "lorebook") · 角色卡 character card · 聊天记录 chat log · 词云 word cloud ·
+ *   词频表 word table · 接口 endpoint (never "API address") · 分词 tokenize /
+ *   tokenizing (never "segmentation") · 词类 kind (never "category" or "class";
+ *   "category" is reserved for the NSFW categories) · 检查分类 Review kinds ·
+ *   筛选与分词 Filters & tokenizing · 禁词表 blocklist (one word) ·
+ *   站长 the operator · 大模型 a model (never "LLM" in copy the user reads) ·
+ *   点一下 click (the interface is not touch-only).
+ *
+ * American spelling, curly quotes around a quoted word or control name, and an
+ * em dash — not " - " — for a sentence break. The documents in `src/legal` keep
+ * their own Commonwealth legal register; do not mix the two.
+ *
+ * `万字` has no English unit: `tenK()` gives Chinese the count in 万 and English
+ * the same count in thousands, so the entries read "{w} characters".
  */
 const EN: Record<string, string> = {
   // ── Entry ──
@@ -27,11 +44,11 @@ const EN: Record<string, string> = {
 
   // ── Landing ──
   '酒馆词云': 'Tavern WordCloud',
-  '把酒馆的聊天记录，变成一张词云': 'Turn your tavern chat logs into a word cloud',
+  '把酒馆的聊天记录，变成一张词云': 'Turn your SillyTavern chat logs into a word cloud',
   '拖入 SillyTavern 的聊天文件，自动洗掉插件残留，按词频或大模型挑出的关键词出图。':
-    'Drop in SillyTavern chat files — plugin residue is cleaned away, and the cloud is drawn from word frequencies or model-picked keywords.',
+    'Drop in your chat files — plugin residue is cleaned away, and the cloud is drawn from word frequencies or model-picked keywords.',
   '把聊天记录拖进来，或点击选择': 'Drop chat logs here, or click to choose',
-  '支持整包拖入，一次解析全部角色': 'Full exports welcome — every character parsed in one go',
+  '支持整包拖入，一次解析全部角色': 'Drop a whole export — every character is parsed in one go',
   '支持的文件格式': 'Supported formats',
   '整包 .zip': 'full export .zip',
   '词云 .png': 'cloud .png',
@@ -51,8 +68,8 @@ const EN: Record<string, string> = {
     'By uploading you confirm you may use these logs for analysis. The server keeps no text — it is discarded after processing; results are indicative only.',
   '上传即表示你有权使用这些记录并用于分析。所有处理都在这台电脑上完成，不出网；结果仅供参考。':
     'By importing you confirm you may use these logs for analysis. Everything is processed on this computer, never online; results are indicative only.',
-  '剥掉思维链与状态栏': 'Strips reasoning and status blocks',
-  '大模型挑出故事题眼': 'A model picks the story motifs',
+  '剥掉思维链与状态栏': 'Strips reasoning and status bars',
+  '大模型挑出故事题眼': 'A model picks out the story’s key words',
   '本地版单文件、可离线跑': 'Single-file local edition, runs offline',
 
   // ── Modes ──
@@ -61,12 +78,12 @@ const EN: Record<string, string> = {
   '统计出现最多的词。免费、半秒出结果': 'Counts the most frequent words. Free, half a second',
   '让大模型读完整份聊天，挑出这个故事独有的词。整份正文会发给你配的接口':
     'A model reads the whole log and picks what is specific to this story. The full text is sent to the endpoint you configured.',
-  '还没配接口——点一下去配': 'No endpoint configured yet — tap to set one up',
-  '先配置大模型接口': 'Set up an LLM endpoint first',
-  '关键词模式要联网，先填接口和密钥': 'Keyword mode needs an API endpoint and key',
+  '还没配接口——点一下去配': 'No endpoint configured yet — click to set one up',
+  '先配置大模型接口': 'Set up the API endpoint first',
+  '关键词模式要联网，先填接口和密钥': 'Keyword mode goes online — fill in the endpoint and key first',
   '不想调用模型就切回「词频」：免费、半秒出结果': 'Prefer not to call a model? Switch to “Frequency”: free, half a second',
   '用你自己填的接口，正文会发到你填的那个地址':
-    'Uses the API key you entered — your text goes to that address',
+    'Uses the endpoint you entered — your text goes to that address',
 
   // ── Toolbar ──
   '筛选与分词': 'Filters & tokenizing',
@@ -81,7 +98,7 @@ const EN: Record<string, string> = {
   '这一类还没有词': 'Nothing in this kind yet',
   '已标为非词': 'marked as not a word',
   '改类别': 'Change kind',
-  '移出分类': 'Move out of its kind',
+  '移出分类': 'Remove from this kind',
   '标为非词': 'Mark as not a word',
   '这些修改只存在你的浏览器里，同一张卡下次导入自动套用':
     'These edits live only in your browser, and are re-applied the next time you import the same card',
@@ -101,7 +118,7 @@ const EN: Record<string, string> = {
   '正在分类…': 'Sorting…',
   '只把词表发给上面的接口，不发聊天正文': 'Sends only the word list to the endpoint above — never the chat text',
   '将发送 {n} 个词，约 {m} 字符，不含聊天正文': 'Sending {n} words, about {m} characters — no chat text',
-  '已标注 {n} 个词，去「检查」面板可以逐个改': 'Filed {n} words — open the Review panel to change any of them',
+  '已标注 {n} 个词，去「检查」面板可以逐个改': 'Sorted {n} words into kinds — open the Review panel to change any of them',
   '从这份记录里挑最多 5 条原文，发给你在上面填的那个接口，请它写出正则来删掉状态栏、变量块这类非剧情内容。网页版为绕开跨域会经本站中转，中转不保存内容；单文件版直连。写回来的每条规则都先在样本上跑过，确认只删掉该删的才会加进来。': 'Takes up to 5 raw messages from this log and sends them to the endpoint you filled in above, asking for regexes that strip status bars, variable blocks and other non-story content. On the web edition they pass through this site\u2019s relay to get around CORS; the relay stores nothing. The single-file edition connects directly. Every rule that comes back is run against the samples first, and is kept only if it removes what it claims to.',
   '已加载 {n} 条正则规则（来自导入的正则脚本、整包或模型）': '{n} regex rules loaded (from imported scripts, a full export, or the model)',
   '清除': 'Clear',
@@ -116,7 +133,7 @@ const EN: Record<string, string> = {
   '分词': 'Tokenize',
   '排版': 'Layout',
   '本地统计': 'Local count',
-  '挑词': 'Pick',
+  '挑词': 'Pick words',
   '阶段': 'Stage',
   // ── Export panel ──
   '导出选项': 'Export options',
@@ -137,9 +154,9 @@ const EN: Record<string, string> = {
   '这个尺寸导不出来，把宽高调小一点再试': 'That size could not be exported; reduce the width or height and try again',
   '背景': 'Background',
   '透明': 'Transparent',
-  '主题底色': 'Theme surface',
-  '自定义色': 'Custom colour',
-  '底色': 'Colour',
+  '主题底色': 'Theme background',
+  '自定义色': 'Custom color',
+  '底色': 'Color',
   '圆角': 'Corner radius',
   '{n} 像素': '{n} px',
   '内容': 'Contents',
@@ -206,7 +223,7 @@ const EN: Record<string, string> = {
   '收起分类': 'Hide categories',
   '正常叙事里也常见，或只含一个敏感字，可能误判': 'Also common in ordinary narration, or contains just one sensitive character — may be a false positive',
   '露骨词类别。在「筛选」里决定这一类算不算露骨': 'Explicit-word category. Decide in “Filters” whether this category counts',
-  '（被它们过滤掉的词会回到词云）': '(words they removed come back)',
+  '（被它们过滤掉的词会回到词云）': '(the words they removed come back)',
   '禁词表过滤了 {n} 个词': 'Blocklist removed {n} words',
   '社区排行榜只在网页版有：它要从服务器取所有人的统计。': 'The community board exists only on the web edition: it pulls everyone’s stats from the server.',
   '社区数据暂时取不到，稍后再试。': 'Community data is unavailable right now; try again later.',
@@ -232,25 +249,25 @@ const EN: Record<string, string> = {
   '次打开': 'page views',
   '次分析': 'analyses',
   '人贡献了统计': 'people contributed stats',
-  '共 {n} 份 · {m} 万字': '{n} contributions · {m}0k characters',
+  '共 {n} 份 · {m} 万字': '{n} contributions · {m} characters',
   '总词云': 'Combined cloud',
   '画布上暂时没有词：一个词要有至少 {n} 个不同的人都用过才会出现': 'Nothing on the canvas yet: a word appears only once at least {n} different people have used it',
   '画布上是 {n} 个词，每个都至少 {m} 个人用过；字号是所有人加起来的次数': '{n} words on the canvas, each used by at least {m} people; size is everyone’s counts added up',
-  '我的参与': 'My part',
+  '我的参与': 'My contribution',
   '模型榜': 'Model board',
-  '{n} 份': '{n} runs',
+  '{n} 份': '{n} uses',
   '95% {a}–{b}%': '95% CI {a}–{b}%',
-  '还没有足够的人填过模型名：一个模型要有至少 {n} 个不同的人用过才会具名上榜，其余并进「其他」。': 'Not enough people have named a model yet: a model is listed by name only once at least {n} different people have used it; the rest are merged into "Other".',
-  '按贡献份数排名；括号里是 95% 置信区间（Wilson）。少于 {n} 人用过的模型并进「其他」，不具名。': 'Ranked by number of contributions; the grey figures are 95% Wilson confidence intervals. Models used by fewer than {n} people are merged into "Other" and never named.',
+  '还没有足够的人填过模型名：一个模型要有至少 {n} 个不同的人用过才会具名上榜，其余并进「其他」。': 'Not enough people have named a model yet: a model is listed by name only once at least {n} different people have used it; the rest are merged into “Other”.',
+  '按贡献份数排名；括号里是 95% 置信区间（Wilson）。少于 {n} 人用过的模型并进「其他」，不具名。': 'Ranked by number of contributions; the figures in brackets are 95% Wilson confidence intervals. Models used by fewer than {n} people are merged into “Other” and never named.',
   '生成耗时中位数 {s} 秒': 'Median generation time {s}s',
   '接口类型': 'Endpoint type',
   '只记地址的粗类，不记地址本身。': 'Only the class of the address is recorded, never the address itself.',
-  '厂商官方': 'Vendor official',
+  '厂商官方': 'Official vendor',
   'OpenRouter': 'OpenRouter',
   '第三方中转': 'Third-party relay',
   '本机 / 局域网': 'Local / LAN',
   '词都是些什么': 'What the words are',
-  '所有人加起来的词类占比。': 'Category shares, everyone\u2019s words added up.',
+  '所有人加起来的词类占比。': 'The share of each kind, everyone\u2019s words added up.',
   '认领我的角色卡': 'Claim my character card',
   '只需要一个公开链接：在您公开发布这张卡的页面里临时加一行下面的校验串，再把该页面链接填进来。不要发邮箱、身份证件、聊天记录或卡文件。': 'All that is needed is a public link: add the challenge string below to the page where you published the card, then paste that page\u2019s link here. Do not send an e-mail address, identity documents, chat logs or card files.',
   '卡名': 'Card name',
@@ -279,7 +296,7 @@ const EN: Record<string, string> = {
   '片场': 'set',
   '制片': 'producer',
   '改错词重新分词': 'Fix a wrong word',
-  '把分错的词拆开，写上正确的词；右边留空就只拆开': 'split a badly cut word and give the right ones; leave the right side empty to only split',
+  '把分错的词拆开，写上正确的词；右边留空就只拆开': 'split a word the tokenizer got wrong and type the right ones; leave the right box empty to only split',
   '错词': 'wrong word',
   '正确词': 'correct words',
   '正确词，空格分隔': 'correct words, space separated',
@@ -288,26 +305,26 @@ const EN: Record<string, string> = {
   '最多 5 个正确词，多余的已省略': 'At most 5 correct words — the extra ones are dropped',
   '删除这条规则': 'Delete this rule',
   '清洗细项': 'Cleaning details',
-  '删代码块和网页代码': 'Remove code blocks and web code',
+  '删代码块和网页代码': 'Remove code blocks and markup',
   '删括号里的场外话（OOC）': 'Remove out-of-character notes in brackets',
   '认为『{w}』不该出现？提交反馈——会先给你看要发送的片段，确认后才上传':
     'Think “{w}” should not be here? Send feedback — you review the snippets first; nothing is uploaded until you confirm',
   '没找到「{w}」的上下文': 'No context found for “{w}”',
-  '提交反馈：这个词和下面的片段会发给站方，由 AI 处理后更新清洗规则。': 'Send feedback: this word and the snippets below go to the site owner; the AI updates the cleaning rules.',
+  '提交反馈：这个词和下面的片段会发给站方，由 AI 处理后更新清洗规则。': 'Send feedback: this word and the snippets below go to the operator, and an AI uses them to update the cleaning rules.',
   '已发送，谢谢': 'Sent, thank you',
   '你自己说的话只有 {n} 条，出不了几个词': 'You wrote only {n} messages — not enough for a cloud',
   '现在只统计「我说的」。把角色说的也算进来，词云就有内容了。': 'Right now only your messages count. Include the character’s and the cloud fills in.',
   '加上角色说的': 'Include the character',
-  '默认分词': 'Default segmentation',
-  '大模型分词（还没配置）': 'LLM segmentation (not set up)',
+  '默认分词': 'Default tokenizer',
+  '大模型分词（还没配置）': 'Model tokenizer (not set up)',
   '要先填接口地址、模型和密钥': 'Needs an endpoint, model and key first',
   '想改用大模型分词：先直接出图，之后点左侧 🔑 填好接口，在接口面板里点『用大模型重新分词』即可。':
-    'To switch to LLM tokenizing: render first, then open 🔑 on the left, fill in the endpoint, and click “Re-tokenize with the model” in that panel.',
+    'To switch to model tokenizing: render first, then open 🔑 on the left, fill in the endpoint, and click “Re-tokenize with the model” in that panel.',
   '去填接口': 'Set up the endpoint',
   '次': 'times',
   '系统消息是酒馆自己插进对话流的提示（「聊天已清空」「已切换角色」、斜杠命令的回显），和剧情无关，默认不选。': 'System messages are notices SillyTavern inserts into the chat (“chat cleared”, “character switched”, slash-command echoes). They are not story, so they are off by default.',
   '人名几乎每句都出现，频率远高于其他词；嫌它们占满词云就关掉「人物」。地点和时间按句法位置识别，可能有漏判。': 'Names appear in almost every line and dwarf everything else; turn off “Names” if they crowd the cloud. Places and times are detected from sentence position and may be missed.',
-  '大模型切词和本地在人名上一样准，差别在机构名、职务名和有歧义的句子。代价是要等几分钟、花 token。想让模型挑词而不是切词，用顶上的「关键词」模式，一次请求就够。': 'An LLM matches the default on names; it differs on organisations, titles and ambiguous sentences. It costs minutes and tokens. To have the model pick words instead of splitting, use “Keywords” at the top — one request.',
+  '大模型切词和本地在人名上一样准，差别在机构名、职务名和有歧义的句子。代价是要等几分钟、花 token。想让模型挑词而不是切词，用顶上的「关键词」模式，一次请求就够。': 'A model matches the default on names; it differs on organizations, titles and ambiguous sentences. It costs minutes and tokens. To have the model pick words instead of splitting, use “Keywords” at the top — one request.',
   '几十万字要拆成几百块、发几百次请求，所以慢。每块切完都和原文核对，对不上整块退回默认分词，数字不会错。': 'Hundreds of thousands of characters mean hundreds of requests, hence slow. Every chunk is checked against the original; mismatches fall back to the default, so counts stay right.',
   '复制分享链接': 'Copy share link',
   '清空全部数据': 'Clear all data',
@@ -320,7 +337,7 @@ const EN: Record<string, string> = {
   '主题、配色和深浅模式': 'theme, colors and dark/light mode',
   '字体设置': 'the font',
   /* Captions under the icon buttons: two characters in Chinese, one short word in English */
-  '统计范围、词类、NSFW、清洗开关和竖排比例；不动接口和密钥': 'scope, word kinds, NSFW, cleaning switches and rotation — endpoint and key stay',
+  '统计范围、词类、NSFW、清洗开关和竖排比例；不动接口和密钥': 'scope, word kinds, NSFW, cleaning switches and rotation — the endpoint and key are left alone',
   '新词发现、自定义词、禁词表和清洗细项': 'new-word discovery, custom words, blocklists and cleaning details',
   '拆开的词': 'words you split apart, display names and forced rotations',
   '接口地址、模型、密钥和关键词个数': 'endpoint, model, key and keyword count',
@@ -352,15 +369,15 @@ const EN: Record<string, string> = {
   '← 返回词云': '← Back to the cloud',
 
   // ── Color scheme ──
-  '深色 · 点一下切到淡色': 'Dark — tap for light',
-  '淡色 · 点一下切到深色': 'Light — tap for dark',
+  '深色 · 点一下切到淡色': 'Dark — click for light',
+  '淡色 · 点一下切到深色': 'Light — click for dark',
 
   // ── Import panel ──
   '导入': 'Import',
   '读到了这些': 'What was found',
   '份聊天记录': 'chat logs',
   '张角色卡': 'character cards',
-  '万字': '×10k characters',
+  '万字': 'characters',
   '本世界书': 'world-info files',
   '其中的 {n} 个关键词将用作专名词典': '{n} of its keywords will be used as a proper-noun dictionary',
   '这张卡有你之前保存的 {n} 条修正，已自动套用。': 'This card has {n} fixes you saved before — applied automatically.',
@@ -383,10 +400,10 @@ const EN: Record<string, string> = {
   '收起': 'Collapse',
   '切换角色卡 · 看详情': 'Switch card · details',
   '看哪张角色卡': 'Which character card',
-  '回到全部合并': 'Back to all combined',
+  '回到全部合并': 'Back to all cards',
   '当前这张': 'This one',
   '系统提示词': 'System prompt',
-  '世界书库': 'World info',
+  '世界书库': 'World info library',
   '模型': 'Model',
   '接口': 'Endpoint',
   '世界书': 'World info',
@@ -404,7 +421,7 @@ const EN: Record<string, string> = {
 
   // ── Panels: palette / font ──
   '自定义': 'Custom',
-  // ── Palette groups, colour vision ──
+  // ── Palette groups, color vision ──
   '推荐': 'Recommended',
   '自然': 'Nature',
   '现代': 'Modern',
@@ -439,8 +456,8 @@ const EN: Record<string, string> = {
   '林下深绿到嫩芽': 'Deep understory green up to new growth',
   '深海蓝到浪花': 'Deep-sea blue up to sea foam',
   '冰蓝，低彩度': 'Ice blue, low chroma',
-  '近白底，只留一点冷灰': 'Near-white ground with a trace of cool grey',
-  '岩灰与苔绿': 'Rock grey and moss green',
+  '近白底，只留一点冷灰': 'Near-white ground with a trace of cool gray',
+  '岩灰与苔绿': 'Rock gray and moss green',
   '泛黄纸面，褪色墨迹': 'Yellowed paper, faded ink',
   '木纹褐，暖而不艳': 'Grain brown, warm but not loud',
   '拉满明暗跨度，高低频对比更强': 'Widest lightness span; frequent and rare words pull further apart',
@@ -472,7 +489,7 @@ const EN: Record<string, string> = {
   '复制，拿去问你的 AI': 'Copy — paste it to your AI',
   '已复制到剪贴板': 'Copied to clipboard',
   '一次只能读一个整包，已经用了第一个': 'Only one full export at a time — using the first one',
-  '图片不能和聊天记录一起拖入，已只读图片': 'Images cannot be dropped together with chat logs — read the image only',
+  '图片不能和聊天记录一起拖入，已只读图片': 'Images cannot be dropped together with chat logs — only the image was read',
   '一次只读一张词云图，已用第一张': 'One cloud image at a time — used the first one',
   '{first}（共 {n} 条）': '{first} ({n} in total)',
   '正在读压缩包': 'Reading the archive',
@@ -485,14 +502,14 @@ const EN: Record<string, string> = {
   '大模型分词中': 'Tokenizing with the model',
   '模型正在读完整份聊天': 'The model is reading the whole log',
   'worker 没起来': 'The worker failed to start',
-  '密钥不对': 'That key is not accepted',
+  '密钥不对': 'The key was rejected',
   '余额或额度不够': 'Out of credit or quota',
   '密钥没有这个权限': 'That key lacks permission',
   '对方拒绝了请求：检查模型名': 'The endpoint rejected the request: check the model name',
   '先选一个模型': 'Pick a model first',
   '模型名': 'Model name',
   '这个接口没有模型列表，手动填模型名': 'This endpoint has no model list; type the model name',
-  '先点「测试连接」，模型会列在这里': 'Click Test connection first; models appear here',
+  '先点「测试连接」，模型会列在这里': 'Click “Test connection” first; models appear here',
   '测试连接后在这里选': 'Pick a model after testing',
   '这个接口没有模型列表，请手动填模型名再测': 'This endpoint has no model list; type the model name, then test again',
   '地址或模型名不对': 'Wrong URL or model name',
@@ -500,21 +517,21 @@ const EN: Record<string, string> = {
   '正在读文件 {i}/{n}': 'Reading file {i} of {n}',
   '只挑出 {got} 个（要的是 {want}）': 'Only {got} of the {want} requested made it through',
   '模型编出来的词（原文里没有）已剔除。换个模型通常好些。': 'Words the model invented (absent from the text) were dropped. Another model usually does better.',
-  '让 {model} 读完整份聊天挑词': 'Let {model} read the whole log and pick',
-  '{w} 万字 · 一次请求 · 大约要等 1~5 分钟': '{w}×10k characters · one request · roughly 1–5 minutes',
+  '让 {model} 读完整份聊天挑词': 'Let {model} read the whole log and pick the words',
+  '{w} 万字 · 一次请求 · 大约要等 1~5 分钟': '{w} characters · one request · roughly 1–5 minutes',
   '词云二维码.png': 'wordcloud-qr.png',
   '词云模式': 'Cloud mode',
   '工具': 'Tools',
   '关键词模式：让大模型读完整份聊天挑词': 'Keyword mode: a model reads the whole log and picks the words',
   '词频模式：本地统计词频': 'Frequency mode: counted locally',
   '（来自整包 .zip）': ' (from a full .zip export)',
-  '，{msgs} 条消息、{w} 万字': ', {msgs} messages, {w}×10k characters',
-  '（没填）': '(empty)',
+  '，{msgs} 条消息、{w} 万字': ', {msgs} messages, {w} characters',
+  '（没填）': '(not set)',
   '已填': ' set',
   '没填': ' not set',
   '【原始信息】': '[RAW]',
-  '用 {name} 的地址填上面': 'Fill the boxes above with {name}',
-  '还没有带角色卡或世界书的记录。': 'No contribution has included a character card or lorebook yet.',
+  '用 {name} 的地址填上面': 'Fill in {name}’s address above',
+  '还没有带角色卡或世界书的记录。': 'No contribution has included a character card or world info yet.',
   '这一小时已经分析了 {n} 次，约 {m} 分钟后可以继续；本地版没有次数限制。': 'That is {n} analyses this hour; the limit frees up in about {m} minutes. The local edition has no limit.',
   '下载本地版可以立刻继续，而且不用上传。': 'The local edition works right away and uploads nothing.',
   '还没填接口地址——点一下去配': 'No endpoint URL yet — click to set it up',
@@ -524,7 +541,7 @@ const EN: Record<string, string> = {
   '榜单只统计词，不显示角色卡名。若您是某张卡的作者、希望它出现在榜单上：请在您公开发布这张卡的页面（角色卡站、频道帖）里临时加一行本站给的校验串，再把该页面链接贴到 issue。只需要公开链接，不要发身份证件、聊天记录或卡文件。': 'The board counts words only and never shows character-card names. To have a card you wrote listed: add the verification string this site gives you to the public page where you published the card, then post that link in an issue. A public link is all that is needed — never send ID documents, chat logs or the card file.',
   'GitHub Issues': 'GitHub Issues',
   '已有一份分析': 'A result is already open',
-  '导入新的会清掉当前这份。要留着就先导出图片或词表。一次要分析多份，请在选文件时一起选中。': 'Importing replaces the current result. Export the image or word table first if you want to keep it. To analyse several logs together, select them all in one go.',
+  '导入新的会清掉当前这份。要留着就先导出图片或词表。一次要分析多份，请在选文件时一起选中。': 'Importing replaces the current result. Export the image or word table first if you want to keep it. To analyze several logs together, select them all in one go.',
   '清掉并导入': 'Replace and import',
   '大模型分词全部失败（{n} 块）：{err}': 'Model tokenization failed for every chunk ({n}): {err}',
   '【反馈】把这段贴到 {url}': '[FEEDBACK] Paste this at {url}',
@@ -571,7 +588,7 @@ const EN: Record<string, string> = {
   '词': 'Words',
   '最少几个字': 'Minimum length',
   '{n} 次': '{n}×',
-  '竖排比例': 'Rotated share',
+  '竖排比例': 'Rotated words',
   '去掉「的了是在」这类虚词': 'Drop function words (the, and, of…)',
   '自动认出人名和专有名词': 'Detect names and proper nouns automatically',
   '去掉「看了/站在/点点头」这类叙述套话': 'Drop narrative filler (looked, stood, nodded…)',
@@ -585,17 +602,17 @@ const EN: Record<string, string> = {
   '隐藏': 'hidden',
   '撤销这条改动': 'Undo this change',
   '等价': 'Merged',
-  '把别的词并入「{w}」': 'Merge other words into "{w}"',
-  '要并入「{w}」的词': 'Word to merge into "{w}"',
-  '输入要并入「{w}」的词': 'Type the word to merge into "{w}"',
+  '把别的词并入「{w}」': 'Merge other words into “{w}”',
+  '要并入「{w}」的词': 'Word to merge into “{w}”',
+  '输入要并入「{w}」的词': 'Type the word to merge into “{w}”',
   '退出等价模式': 'Leave merge mode',
-  '把「{a}」并入「{b}」': 'Merge "{a}" into "{b}"',
-  '没有匹配的词；回车会改成只修改「{w}」的显示名': 'No match; Enter will rename "{w}" instead',
+  '把「{a}」并入「{b}」': 'Merge “{a}” into “{b}”',
+  '没有匹配的词；回车会改成只修改「{w}」的显示名': 'No match; Enter will rename “{w}” instead',
   '没有匹配的词，已改为只修改显示名': 'No matching word — renaming instead',
   '候选按同指、缩写、音译和上下文排序；同义词还是要你自己认': 'Ranked by coreference, abbreviation, transliteration and context — synonyms are still yours to spot',
-  '「{a}」已经并到「{b}」那边了，再并回来会绕圈': '"{a}" is already merged into "{b}"; merging back would loop',
+  '「{a}」已经并到「{b}」那边了，再并回来会绕圈': '“{a}” is already merged into “{b}”; merging back would loop',
   '已按同指并入「{w}」：{list}。点一下拆开，各自单独计数':
-    'Folded into "{w}" as the same person: {list}. Click to split them apart and count each on its own',
+    'Folded into “{w}” as the same person: {list}. Click to split them apart and count each on its own',
   '优先词': 'Priority words',
   '优先显示这些词': 'Always show these words, biggest first',
   '用分号隔开，越靠前越大': 'semicolon-separated; earlier means bigger',
@@ -621,10 +638,10 @@ const EN: Record<string, string> = {
   '正文感': 'Editorial',
   '文学感': 'Literary',
   '西文衬线': 'Latin serif',
-  '数据感': 'Data-like',
+  '数据感': 'Technical',
   '繁黑体': 'Sans TC',
   '繁宋体': 'Serif TC',
-  '繁体友好': 'Traditional-friendly',
+  '繁体友好': 'Handles Traditional',
   '繁体显示': 'Traditional display',
   '简': 'Simplified',
   '繁': 'Traditional',
@@ -667,13 +684,13 @@ const EN: Record<string, string> = {
   '容器': 'Vessels',
   '交通工具': 'Vehicles',
   '身体部位': 'Body parts',
-  '色彩': 'Colours',
+  '色彩': 'Colors',
   '情绪': 'Feelings',
-  '机构': 'Organisations',
+  '机构': 'Organizations',
   '节日': 'Festivals',
   '电子设备': 'Devices',
   '武器': 'Weapons',
-  '首饰': 'Jewellery',
+  '首饰': 'Jewelry',
   '材质': 'Materials',
   '植物': 'Plants',
   '动物': 'Animals',
@@ -686,7 +703,7 @@ const EN: Record<string, string> = {
   '心理': 'Thoughts',
   '欲望': 'Desires',
   '文书': 'Documents',
-  '文书与组织': 'Docs & organisations',
+  '文书与组织': 'Docs & organizations',
   '作品与媒体': 'Works & media',
   '事件与仪式': 'Events & ceremonies',
   '神话与超自然': 'Myth & the supernatural',
@@ -708,10 +725,10 @@ const EN: Record<string, string> = {
   '材料与自然物': 'Materials & nature',
   '身体与感官': 'Body & senses',
   '行为与情绪': 'Actions & feelings',
-  '社会与组织': 'Society & organisations',
+  '社会与组织': 'Society & organizations',
   '文化与语言': 'Culture & language',
   '实验': 'beta',
-  '更多类别': 'More categories',
+  '更多类别': 'More kinds',
   '(未知)': '(unknown)',
   '(未知角色卡)': '(unknown card)',
   '{n} 张角色卡': '{n} character cards',
@@ -742,7 +759,7 @@ const EN: Record<string, string> = {
   '认不出格式，既不是 JSON 也不是 JSONL。确认这是聊天记录文件？': 'Unrecognized format — neither JSON nor JSONL. Is this a chat log?',
   '有 {n} 行不是合法 JSON，已跳过': '{n} lines were not valid JSON and were skipped',
   '解析成功但一条消息都没有（确认这是聊天记录，不是角色卡或世界书？）': 'Parsed, but no messages inside — is this a chat log, not a character card or world info?',
-  '认不出纯文本聊天记录的格式（应该是「说话人: 正文」）': 'Unrecognized plain-text chat format (expected "speaker: text")',
+  '认不出纯文本聊天记录的格式（应该是「说话人: 正文」）': 'Unrecognized plain-text chat format (expected “speaker: text”)',
   '这是纯文本导出，只有正文——没有时间、模型、重生记录，发言人身份是猜的。想要完整统计请导出 .jsonl': 'Plain-text export: text only — no timestamps, models or rerolls, and speakers are guessed. Export .jsonl for full stats',
   '正在读取': 'Reading',
   '读取完成': 'Read',
@@ -766,7 +783,7 @@ const EN: Record<string, string> = {
   '字号要用真实频次，所以先在本地数一遍——模型不数数': 'Font sizes need real frequencies, so a local count runs first — the model does not count',
   '本地统计好了：{n} 个不重复词': 'Local count done: {n} distinct words',
   '正在让 {model} 读完整份聊天': '{model} is reading the whole log',
-  '开始：{model} · 送出 {w} 万字 · 要 {n} 个词': 'Started: {model} · sending {w}×10k characters · asking for {n} words',
+  '开始：{model} · 送出 {w} 万字 · 要 {n} 个词': 'Started: {model} · sending {w} characters · asking for {n} words',
   '模型开始思考': 'The model started thinking',
   '模型开始吐词': 'The model started answering',
   '已用 {t} · 模型在思考（{n} 字）': '{t} elapsed · model thinking ({n} chars)',
@@ -784,7 +801,7 @@ const EN: Record<string, string> = {
   '开始：{model} · 共 {n} 块 · 同时发 {c} 个': 'Started: {model} · {n} chunks · {c} at a time',
   '第 {n} 块退回本地：{err}': 'Chunk {n} fell back to local: {err}',
   '未知原因': 'unknown reason',
-  '第 {n} 条整条退回本地：{err}': 'File {n} fell back to local entirely: {err}',
+  '第 {n} 条整条退回本地：{err}': 'Message {n} fell back to local entirely: {err}',
   '大模型分词完成': 'Model tokenizing done',
   '共 {f}/{n} 块退回了本地分词': '{f} of {n} chunks fell back to local tokenizing',
   '开始解析 {n} 个文件': 'Parsing {n} files',
@@ -796,10 +813,10 @@ const EN: Record<string, string> = {
   '服务器收到了，正在解析': 'The server has it — parsing',
   '大文件要多等一会儿，进度会一直走': 'Big files take a while — the progress bar keeps moving',
   '完成': 'Done',
-  '{msgs} 条消息 · {w} 万字 · {u} 个不重复词 · 用时 {ms} ms': '{msgs} messages · {w}×10k characters · {u} distinct words · {ms} ms',
+  '{msgs} 条消息 · {w} 万字 · {u} 个不重复词 · 用时 {ms} ms': '{msgs} messages · {w} characters · {u} distinct words · {ms} ms',
 
   // Error classification (core/errors.ts)
-  '这个文件不像酒馆的聊天记录': 'This file does not look like a tavern chat log',
+  '这个文件不像酒馆的聊天记录': 'This file does not look like a SillyTavern chat log',
   '要 .jsonl 或 .json。在酒馆数据目录的 default-user/chats/<角色名>/ 里找。': 'Expecting .jsonl or .json. Look in default-user/chats/<character>/ inside the SillyTavern data directory.',
   '换一个有内容的聊天记录。': 'Try a chat log with content.',
   '文件能读，但里面没有消息': 'The file reads, but there are no messages inside',
@@ -812,7 +829,7 @@ const EN: Record<string, string> = {
   '打开「大模型接口」面板，填地址、模型和密钥。': 'Open the “API endpoint” panel and fill in the URL, model and key.',
   '密钥不对或没有权限': 'That key is wrong or lacks permission',
   '检查密钥有没有复制全、是不是这家接口的。': 'Check the key was copied in full and belongs to this provider.',
-  '地址要到 /v1/chat/completions；模型名用「拉取可选模型」选。': 'The URL should end in /v1/chat/completions; pick the model via “Load model list”.',
+  '地址要到 /v1/chat/completions；模型名点「测试连接」后选。': 'The URL should end in /v1/chat/completions; click “Test connection”, then pick the model from the list.',
   '接口限流或余额不足': 'Rate limited or out of credit',
   '等一会儿再试，或换一家接口。': 'Wait a bit, or switch to another endpoint.',
   '连不上这个接口': 'Cannot reach that endpoint',
@@ -833,8 +850,8 @@ const EN: Record<string, string> = {
   '中转失败：{msg}': 'Relay failed: {msg}',
   '今天反馈得够多了，谢谢。': 'Enough feedback for today — thank you.',
   '今天提交得够多了，明天再来。': 'Enough submissions for today — try again tomorrow.',
-  '卡名不对（最多 60 字）': 'That card name will not do (60 characters at most).',
-  '链接要是完整的 https 网址': 'The link has to be a full https address.',
+  '卡名不对（最多 60 字）': 'That card name is not valid (60 characters at most).',
+  '链接要是完整的 https 网址': 'The link must be a full https URL.',
   '校验串不对，回表单里重新取一个': 'That challenge string is not valid — go back to the form for a new one.',
   '统计后台没起来': 'The stats backend is down',
   '服务器返回': 'The server returned',
@@ -843,30 +860,30 @@ const EN: Record<string, string> = {
   '请求体解压失败': 'Failed to decompress the request body',
   '请求体读取超时': 'Timed out reading the request body',
   '请求体没读完连接就断了': 'The connection dropped before the request body was complete',
-  '中转跳转次数太多': 'Too many redirects to relay',
+  '中转跳转次数太多': 'Too many redirects to follow',
 
   // LLM endpoint errors (core/aiTokenizer, core/curate)
   '回复里没有内容': 'The reply had no content',
   '还没填接口地址': 'No endpoint URL yet',
   '这个接口没返回模型列表': 'This endpoint returned no model list',
   '回复里没有 choices[0].message.content': 'The reply had no choices[0].message.content',
-  '没有可分类的词': 'No words to file',
+  '没有可分类的词': 'No words to sort',
   '回复不是 JSON 数组': 'The reply was not a JSON array',
   '切出来的词拼不回原文，模型改了字或漏了字': 'The tokens do not join back into the original — the model changed or dropped characters',
   '模型没有返回规则数组': 'The model returned no rule array',
   '这份记录': 'This chat',
-  '连不上这个地址，检查地址和网络': 'Cannot reach this address - check the URL and your network',
-  '被限流了，稍后再试': 'Rate limited - try again later',
-  '对方服务器出错，稍后再试': 'The provider returned a server error - try again later',
-  '模型没按格式回话，换个更强的': 'The model did not answer in the required format - try a stronger one',
-  '模型改了字或漏了字，这个模型不适合切词': 'The model changed or dropped characters - not suitable for tokenizing',
+  '连不上这个地址，检查地址和网络': 'Cannot reach this address — check the URL and your network',
+  '被限流了，稍后再试': 'Rate limited — try again later',
+  '对方服务器出错，稍后再试': 'The provider returned a server error — try again later',
+  '模型没按格式回话，换个更强的': 'The model did not answer in the required format — try a stronger one',
+  '模型改了字或漏了字，这个模型不适合切词': 'The model changed or dropped characters — not suitable for tokenizing',
   '密钥只存在你自己的浏览器里': 'The key stays in your own browser',
   '本地不用填': 'not needed locally',
   '分词和挑词都走这个接口': 'Use this endpoint for tokenizing and keyword picking',
-  '把「{w}」改到别的类': 'Move "{w}" to another kind',
+  '把「{w}」改到别的类': 'Move “{w}” to another kind',
   '取消改动': 'Undo',
   '恢复 {n} 个词的原分类': 'Restore the original kind of {n} words',
-  '导出多少词': 'How many words',
+  '导出多少词': 'Words to export',
   '{n} 个': '{n} words',
   '按次数从高到低，最多 {n} 个（统计到 {all} 个）': 'Most frequent first, up to {n} of the {all} counted',
 };
@@ -902,6 +919,19 @@ export function englishKeys(): string[] {
 let currentLang: Lang = detectLang();
 export function setCurrentLang(lang: Lang): void {
   currentLang = lang;
+}
+
+/** The language non-hook code should render in (worker requests, count formatting). */
+export function getCurrentLang(): Lang {
+  return currentLang;
+}
+
+/**
+ * Character count for the `… 万字` entries. Chinese keeps 万 (the key carries
+ * the unit), English reads in thousands: "5.2 万字" / "52k characters".
+ */
+export function tenK(chars: number, lang: Lang = currentLang): string {
+  return tenKCount(chars, lang);
 }
 
 /**

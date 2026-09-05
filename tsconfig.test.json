@@ -13,6 +13,9 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
+    /* test/start-cli.test.ts imports tools/start-lib.mjs, the same way tsconfig.server.json treats tools/ */
+    "allowJs": true,
+    "checkJs": false,
 
     "noUnusedLocals": true,
     "noUnusedParameters": true,

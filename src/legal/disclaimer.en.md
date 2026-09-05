@@ -2,7 +2,7 @@
 
 **Tavern WordCloud (tavern-wordcloud)** · https://wordcloud.davidzhao.top
 
-Effective date: September 4, 2026 ｜ Last updated: September 4, 2026
+Effective date: September 4, 2026 · Last updated: September 5, 2026
 
 > This document is provided in English and Chinese. In case of any discrepancy, the English version prevails. This Disclaimer forms part of the [Terms of Service](#/terms); by using the Service you accept it.
 
@@ -21,6 +21,8 @@ Effective date: September 4, 2026 ｜ Last updated: September 4, 2026
 2.3 Automated text cleaning may remove too much or too little. The Operator does not guarantee that any particular content will be filtered or preserved and accepts no responsibility for the accuracy of cleaning results.
 
 2.4 Keyword mode and LLM tokenisation depend on third-party model providers. Model outputs are probabilistic and non-deterministic; the same input may yield different results at different times. The Operator accepts no responsibility for the content, quality, or consequences of model outputs.
+
+2.5 The Service identifies personal names, and merges different forms and spellings of what it takes to be the same person into a single entry, on statistical evidence alone and with no knowledge of the persons concerned. It may merge two distinct persons into one entry, split one person across several entries, or treat an ordinary word as a name. Some categories are marked "experimental" in the interface precisely because they are known to misfire. The word table lets you split, re-file, or remove any entry. These outputs are automated guesses and nothing more.
 
 ## 3. Adult Content Notice
 

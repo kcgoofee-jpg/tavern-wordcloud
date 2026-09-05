@@ -28,14 +28,16 @@ export const FONT_STACKS = {
     '"Noto Sans Mono CJK SC", "Courier New", monospace',
 
   /**
-   * Traditional-Chinese-friendly sans. Loaded from Google Fonts when online;
-   * the single-file (offline) build never fetches it, so the system fallback
-   * carries the weight there.
+   * Traditional-Chinese-friendly sans. This is the one thing in the app that
+   * can reach a third party: picking it in the font panel appends a Google
+   * Fonts stylesheet link (`ensureGoogleFont`). Nothing else does, and nothing
+   * does it on load — offline, or in the single-file build with no network, the
+   * link simply fails and the system fallback carries the weight.
    */
   'tc-sans':
     '"Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif',
 
-  /** Traditional-Chinese-friendly serif, same fallback story as tc-sans. */
+  /** Traditional-Chinese-friendly serif, same third-party story as tc-sans. */
   'tc-serif':
     '"Noto Serif TC", "PingFang TC", "Microsoft JhengHei", Georgia, serif',
 } as const;

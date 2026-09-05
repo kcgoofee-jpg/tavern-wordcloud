@@ -10,7 +10,7 @@ import AnalyzeWorker from '../../worker/analyze.worker?worker&inline';
 import type { WorkerLike } from '../../worker/sameThread';
 import type { WorkerProgress, WorkerRequestBody, WorkerResponse, WorkerResult } from '../../worker/analyze.worker';
 import type { UserText } from '../../core/zh';
-import { txv } from '../i18n';
+import { getCurrentLang, txv } from '../i18n';
 import { phaseFraction } from './progressModel';
 
 export interface ProgressState {
@@ -72,7 +72,7 @@ export function useAnalyzeWorker(onError: (e: Error) => void, workerDownMessage:
     const id = ++reqId.current;
     return new Promise((resolve) => {
       pending.current.set(id, resolve);
-      w.postMessage({ ...req, id });
+      w.postMessage({ ...req, id, lang: getCurrentLang() });
     });
   }, [workerDownMessage]);
 

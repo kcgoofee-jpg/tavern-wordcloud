@@ -119,8 +119,8 @@ const keys = englishKeys();
 line(`  词典 ${keys.length} 条`);
 check(keys.length > 100, '词典条目 > 100', `实际 ${keys.length}`);
 check(keys.every((k) => !/[一-鿿]/.test(translate('en', k))), '英文译文里没有残留中文');
-check(translate('en', '把酒馆的聊天记录拖进来') === 'Drop a SillyTavern chat log here', '入口页译文正确');
-check(translate('en', '读到 {n} 份', { n: 3 }) !== '', '占位符替换可用');
+check(translate('en', '把聊天记录拖进来，或点击选择') === 'Drop chat logs here, or click to choose', '入口页译文正确');
+check(translate('en', '还有 {n} 个', { n: 3 }) === '3 more', '占位符替换可用');
 check(translate('zh', '风格与配色') === '风格与配色', '中文原样返回');
 
 line(`\n══════════ ${failed === 0 ? '全部通过' : `${failed} 项未通过`} ══════════`);

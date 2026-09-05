@@ -74,7 +74,7 @@ describe('ImportPanel: over the 10 MB upload cap', () => {
 describe('ImportPanel kind buckets', () => {
   it('shows the ops buckets, not the fine title/clothing buttons', () => {
     panel();
-    for (const name of ['Names', 'Places', 'Time', 'Docs & organisations', 'Other', 'Common words']) {
+    for (const name of ['Names', 'Places', 'Time', 'Docs & organizations', 'Other', 'Common words']) {
       expect(screen.getByRole('button', { name: new RegExp(`^${name}`) }), name).toBeTruthy();
     }
     expect(screen.queryByRole('button', { name: /^Titles/ })).toBeNull();

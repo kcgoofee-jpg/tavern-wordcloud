@@ -26,6 +26,20 @@ export type TplParam = string | number | TextTpl;
 
 export type UserText = string | TextTpl;
 
+/**
+ * A character count for the `… 万字` templates, formatted for the language that
+ * will render them. Chinese counts in 万 because the key carries that unit;
+ * English has no ×10,000 unit, so it counts in thousands — "5.2 万字" and
+ * "52k characters" are the same number. The value has to be chosen here rather
+ * than in the dictionary: no substitution can turn "5.2" into "52".
+ */
+export function tenKCount(chars: number, lang: 'zh' | 'en'): string {
+  if (lang === 'zh') return (chars / 1e4).toFixed(1);
+  const k = chars / 1000;
+  if (k >= 1000) return `${(k / 1000).toFixed(1)}M`;
+  return `${k < 10 ? k.toFixed(1) : Math.round(k)}k`;
+}
+
 /** {name} placeholder substitution, same rule as the UI's translate(). */
 export function fill(tpl: string, params?: Record<string, string | number>): string {
   if (!params) return tpl;

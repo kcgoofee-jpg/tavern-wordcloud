@@ -109,7 +109,7 @@ describe('App empty state', () => {
     render(<App />);
     await user.click(screen.getByRole('button', { name: '开始' }));
     await user.click(screen.getByTitle('Switch to English'));
-    expect(screen.getByRole('heading', { name: 'Turn your tavern chat logs into a word cloud' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Turn your SillyTavern chat logs into a word cloud' })).toBeTruthy();
     expect(screen.getAllByRole('link', { name: 'Terms of Service' })[0]).toBeTruthy();
   });
 });

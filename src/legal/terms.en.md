@@ -2,7 +2,7 @@
 
 **Tavern WordCloud (tavern-wordcloud)** · https://wordcloud.davidzhao.top
 
-Effective date: September 4, 2026 ｜ Last updated: September 4, 2026
+Effective date: September 4, 2026 · Last updated: September 5, 2026
 
 > This document is provided in English and Chinese. In case of any discrepancy, the English version prevails. These Terms, together with the [Privacy Policy](#/privacy), the [Disclaimer](#/disclaimer), the [Content & Acceptable Use Policy](#/content), and the [Law Enforcement & Legal Request Policy](#/enforcement), constitute the entire agreement between you and the Operator concerning the Service (collectively, the "Agreement").
 
@@ -14,7 +14,7 @@ Effective date: September 4, 2026 ｜ Last updated: September 4, 2026
 
 1.2 The "Operator" means the individual developer who maintains the Service. The Operator provides the Service in a personal, non-commercial capacity and does not constitute a company, partnership, or other business entity.
 
-1.3 The Service is a **free, non-commercial personal hobby project** that converts chat-log files supplied by the user into word-cloud images and offers optional features including text cleaning, tokenisation, large-language-model (LLM) keyword extraction, anonymous community statistics, and export of results.
+1.3 The Service is a **free, non-commercial personal hobby project** that converts chat-log files supplied by the user into word-cloud images and offers optional features including text cleaning, tokenisation, large-language-model (LLM) keyword extraction, anonymous community statistics, a voluntary author-claim procedure for the community board, and export of results.
 
 1.4 The Service is not commercially registered, licensed, or filed in any jurisdiction and is not directed at users in any particular country or region. **You access the Service entirely on your own initiative** and are solely responsible for determining and bearing the consequences of the lawfulness of your use in your jurisdiction. If the law of your jurisdiction prohibits or restricts the use of such a service, you must not use it.
 
@@ -53,6 +53,8 @@ Effective date: September 4, 2026 ｜ Last updated: September 4, 2026
 - reverse-engineer, decrypt, or attempt to obtain the Service's non-public source code, keys, or configuration (source code published under the MIT License excepted).
 
 4.2 Upon violation, the Operator may block the offending IP address, refuse service, or take any other necessary measure without prior notice, and reserves the right to pursue legal remedies. Detailed content rules are set out in the [Content & Acceptable Use Policy](#/content).
+
+4.3 **Technical limits.** The Service applies technical limits, including a maximum upload size, a maximum number of analyses per network address per hour, a cap on the number of analyses processed at once, and a queue beyond which further requests are refused. These limits exist so that one small server remains usable for everyone; they are set at the Operator's sole discretion and may be tightened, relaxed, or removed at any time without notice. **No particular capacity, throughput, queue position, processing time, or availability is promised**, and refusal or delay of a request under these limits is not a breach of this Agreement. The offline single-file edition is subject to no such limit.
 
 ## 5. Third-Party Services
 
@@ -104,7 +106,7 @@ You agree to defend, indemnify, and hold harmless the Operator from and against 
 
 ## 11. Governing Law and Dispute Resolution
 
-11.1 The formation, validity, interpretation, performance, and dispute resolution of this Agreement are governed by **the law of the Operator's habitual place of residence at the time the dispute arises**, without regard to its conflict-of-law rules and to the extent that law permits the parties to derogate from it. Rights conferred on you by mandatory provisions of applicable law are not affected by this Section.
+11.1 The formation, validity, interpretation, performance, and dispute resolution of this Agreement are governed by **the law of the Operator's habitual place of residence at the time the dispute arises**, without regard to its conflict-of-law rules. Rights conferred on you by mandatory provisions of applicable law are not affected by this Section.
 
 11.2 The parties shall first attempt to resolve any dispute arising out of this Agreement amicably through the contact channel described in Section 13. Failing resolution, the dispute shall be submitted to the courts having jurisdiction at the Operator's habitual place of residence, unless mandatory applicable law provides otherwise.
 

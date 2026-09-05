@@ -2,7 +2,7 @@
 
 **Tavern WordCloud (tavern-wordcloud)** · https://wordcloud.davidzhao.top
 
-Effective date: September 4, 2026 ｜ Last updated: September 4, 2026
+Effective date: September 4, 2026 · Last updated: September 5, 2026
 
 > This document is provided in English and Chinese. In case of any discrepancy, the English version prevails. This Policy forms part of the [Terms of Service](#/terms) and the [Privacy Policy](#/privacy).
 
@@ -14,7 +14,7 @@ The Service is deliberately designed so that **most categories of data typically
 
 - **has no user accounts** — no registration, user names, passwords, e-mail addresses, or real names;
 - **stores no chat text** — uploaded text is processed in server memory and discarded immediately after the result is returned; it is never written to disk or to logs;
-- **logs no request bodies** — access logs contain no submitted content, no query strings, and no User-Agent strings, and are keyed by a salted, irreversible hash of the IP address rather than the raw address;
+- **logs no request bodies** — access logs contain no submitted content, no query strings, and no User-Agent strings, and the stored log is keyed by a salted, irreversible hash of the IP address rather than the raw address. The running process writes a console line per request carrying the same hash; unhashed addresses can be enabled temporarily while responding to an attack, and that output is never written to the data store (Section 2);
 - **uses no tracking cookies or cross-site identifiers**;
 - **holds no payment data** — the Service is free of charge and involves no transactions.
 
@@ -23,14 +23,19 @@ The Service is deliberately designed so that **most categories of data typically
 | Category | Content | Identifier | Retention |
 |---|---|---|---|
 | Access logs | One line per request: timestamp, method, path (no query string), status code, duration, response size, salted hash of the IP address (irreversible) | Salted hash of the IP address (irreversible) | 90 days, then deleted automatically |
-| Browser error reports | Error message (≤500 chars), stack trace (≤2,000 chars), page path, User-Agent (≤200 chars) | Salted hash of the IP address (irreversible) | 90 days, then deleted automatically |
+| Browser error reports | Error message (≤500 chars), stack trace (≤2,000 chars), page path, User-Agent (≤200 chars) | Salted hash of the IP address (irreversible) | Deleted automatically once a report is more than 90 days old |
 | Cleaning feedback | The reported word and up to 3 context snippets (≤160 chars each) sent after the user's express confirmation | Salted hash of the IP address (irreversible) | Until manually processed; rotated files deleted after 90 days |
-| Community contributions | Top 100 words with counts, message and character counts, share of Chinese words (no card names) | Salted SHA-256 hash of the IP address (16 hex digits) | Indefinite (aggregate data) |
+| Community contributions | Top 100 words with counts (names and explicit words removed), message and character counts, share of Chinese words, word counts per category, model name and coarse endpoint class, median generation time, counts of imported cards and world-info books, interface preferences, and up to 50 word-category corrections. No card, preset, or world-info names; no chat text | Salted SHA-256 hash of the IP address (16 hex digits) | Indefinite (aggregate data) |
+| Author claims | Card name, the public URL offered as proof of authorship, the site's challenge string, and the decision taken | Salted hash of the IP address (irreversible) | Indefinite |
+| Administration audit log | One line per write made from the administration page: time, action taken, result. The password is never written, not even hashed | Salted hash of the IP address (irreversible) | Indefinite |
+| Operator exclusion list | Up to 20 hashed identifiers the Operator has marked as its own, each with a short free-text note, so that the Operator's own traffic is left out of published figures | Salted hash of the IP address (irreversible) | Indefinite |
+| Runtime console output | One line per request: timestamp, method, path, status code, duration, and the **raw IP address** | Raw IP address | Not written to the data store; does not survive replacement of the server process |
 
 Further notes:
 
 - The community identifier hash uses a salt configured by the Operator; **where none is configured, the salt is generated at random per server process and changes on restart**, so that even the Operator cannot link contributions across restarts, and the IP address cannot be recovered from the hash without a pre-image search against a known IP address.
-- Community aggregates are published only for entries shared by at least three distinct hashed identifiers.
+- Community aggregates — words, model names, and endpoint classes alike — are published only for entries reported by at least three distinct hashed identifiers; everything below that threshold is summed into a single "other" row. Word-category corrections and interface preferences are never published. Contributions the Operator recognises as its own are excluded from every published figure.
+- An approved author claim publishes the card name, and nothing else from the claim.
 - Third-party infrastructure (the hosting provider and [Cloudflare](https://www.cloudflare.com/privacypolicy/)) independently holds network-layer logs, including full URLs and IP addresses, subject to its own retention policies. **Requests for such data must be directed to the relevant third party.**
 
 ## 3. Handling of Legal Requests
@@ -55,7 +60,7 @@ Further notes:
 
 ## 5. Practical Effect
 
-What a requesting party can realistically obtain is limited to: access logs keyed by a salted, irreversible hash of the IP address (which show only which paths a hashed identifier requested, not what content was processed, and cannot be reversed to the raw IP address), error records, feedback snippets, and hashed community aggregates. **The substantive content processed by the Service cannot be obtained from the Operator, because it is never stored.** The following may, however, be obtainable from parties outside the Operator's control: the user's own device (browser local storage, exported files), any LLM provider the user configured, the hosting provider, and Cloudflare.
+What a requesting party can realistically obtain is limited to: access logs keyed by a salted, irreversible hash of the IP address (which show only which paths a hashed identifier requested, not what content was processed, and cannot be reversed to the raw IP address), error records, feedback snippets, hashed community aggregates, author claims, and the administration audit log. The runtime console output does carry raw IP addresses, but only for the lifetime of the current server process and only for the paths requested, never for content. **The substantive content processed by the Service cannot be obtained from the Operator, because it is never stored.** The following may, however, be obtainable from parties outside the Operator's control: the user's own device (browser local storage, exported files), any LLM provider the user configured, the hosting provider, and Cloudflare.
 
 ## 6. Contact
 

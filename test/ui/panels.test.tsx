@@ -73,7 +73,7 @@ describe('FilterPanel kind groups', () => {
     // 常用 is flat…
     expect(screen.getByRole('button', { name: /^Names/ })).toBeTruthy();
     // …every other group is a collapsed <details> with a summary
-    for (const g of ['People & identity', 'Things', 'Body & senses', 'Society & organisations']) {
+    for (const g of ['People & identity', 'Things', 'Body & senses', 'Society & organizations']) {
       expect(screen.getByText(new RegExp(g)), g).toBeTruthy();
     }
     // A kind inside a closed group is still in the DOM (details keeps its children) but its
@@ -101,7 +101,7 @@ describe('FilterPanel compact kind view', () => {
     expect(screen.getByRole('button', { name: '详细' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '简洁' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Titles/ })).toBeNull();
-    expect(screen.getByRole('button', { name: /^Docs & organisations/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Docs & organizations/ })).toBeTruthy();
     expect(h.get().kinds).toContain('person');
     expect(h.get().kinds).toContain('title');
     await user.click(screen.getByRole('button', { name: /^Names/ }));

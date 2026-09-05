@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { classifyError } from '../../core/errors';
 import { copyText } from '../clipboard';
 import { BUCKET_ORDER, foldCommunityKind } from '../../core/kindBuckets';
-import { useT, txv } from '../i18n';
+import { tenK, useT, txv } from '../i18n';
 
 /** One leaderboard row: count, share, and the 95% Wilson bounds the server computed. */
 export interface BoardRow { name: string; n: number; share: number; low: number; high: number }
@@ -289,7 +289,7 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
       <ul className="found">
         <li><b>{stats.views30d}</b> {t('次打开')}</li>
         <li><b>{stats.analyses30d}</b> {t('次分析')}</li>
-        <li><b>{stats.contributors}</b> {t('人贡献了统计')}<em>{t('共 {n} 份 · {m} 万字', { n: stats.contributions, m: (stats.chars / 1e4).toFixed(1) })}</em></li>
+        <li><b>{stats.contributors}</b> {t('人贡献了统计')}<em>{t('共 {n} 份 · {m} 万字', { n: stats.contributions, m: tenK(stats.chars) })}</em></li>
       </ul>
       <Bars values={views} labels={stats.trend.map((d) => shortDay(d.day))} ticks={dayTicks(stats.trend.map((d) => d.day))} />
       <p className="note">{t('每天打开次数，最近 30 天')}</p>

@@ -2,12 +2,17 @@
 /**
  * `npm start` — build, serve the single-file build (LAN accessible) and open the browser.
  * Serves the same artifact that gets deployed.
+ *
+ * PORT is a starting point, not a requirement: if it is taken the next free port
+ * is used and the banner says which. Output is bilingual — this is the path the
+ * English README points at. Both live in tools/start-lib.mjs, with tests.
  */
 import { spawnSync, spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import path from 'node:path';
+import { banner, listenFrom } from './start-lib.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const FILE = path.join(ROOT, 'dist-single', 'index.html');
@@ -33,13 +38,13 @@ const stale = !existsSync(FILE)
   );
 
 if (stale) {
-  process.stdout.write('正在构建…');
+  process.stdout.write('Building / 正在构建…');
   const r = spawnSync('npm', ['run', 'build:single'], { cwd: ROOT, stdio: 'pipe' });
   if (r.status !== 0) {
-    console.error('\n构建失败：\n' + (r.stderr?.toString() || r.stdout?.toString() || ''));
+    console.error('\nBuild failed / 构建失败：\n' + (r.stderr?.toString() || r.stdout?.toString() || ''));
     process.exit(1);
   }
-  console.log('好了');
+  console.log(' done / 好了');
 }
 
 // ── 2. Serve ──
@@ -103,30 +108,25 @@ const server = createServer((req, res) => {
   res.end(isLocal ? c.local : c.raw);
 });
 
-server.on('error', (e) => {
-  if (e.code === 'EADDRINUSE') {
-    console.error(`端口 ${PORT} 被占用了。换一个：PORT=5181 npm start`);
-    process.exit(1);
-  }
-  throw e;
-});
+// 0.0.0.0 so phones on the LAN can connect; a busy port moves to the next free one
+// rather than ending the command (see tools/start-lib.mjs).
+let port;
+try {
+  port = await listenFrom(server, PORT, '0.0.0.0');
+} catch (e) {
+  console.error(`Could not listen on ${PORT} / 起不来：${e.message}`);
+  process.exit(1);
+}
 
-// 0.0.0.0 so phones on the LAN can connect
-server.listen(PORT, '0.0.0.0', () => {
-  const lan = lanAddress();
-  const size = (Buffer.byteLength(current().raw) / 1024).toFixed(0);
-  console.log('');
-  console.log(`  酒馆词云已启动（单文件 ${size} KB）`);
-  console.log('');
-  console.log(`  这台电脑    http://localhost:${PORT}`);
-  if (lan) console.log(`  同一个 WiFi  http://${lan}:${PORT}   ← 手机用这个`);
-  console.log('');
-  if (injected) console.log('  （已从 .env.local 预填接口配置，只对本机生效）');
-  console.log('  按 Ctrl+C 停止');
-  console.log('');
+for (const line of banner({
+  port,
+  requested: PORT,
+  lan: lanAddress(),
+  sizeKb: (Buffer.byteLength(current().raw) / 1024).toFixed(0),
+  injected: !!injected,
+})) console.log(line);
 
-  // ── 3. Open the browser ──
-  const opener = process.platform === 'darwin' ? 'open'
-    : process.platform === 'win32' ? 'start' : 'xdg-open';
-  spawn(opener, [`http://localhost:${PORT}`], { stdio: 'ignore', detached: true, shell: process.platform === 'win32' }).unref();
-});
+// ── 3. Open the browser ──
+const opener = process.platform === 'darwin' ? 'open'
+  : process.platform === 'win32' ? 'start' : 'xdg-open';
+spawn(opener, [`http://localhost:${port}`], { stdio: 'ignore', detached: true, shell: process.platform === 'win32' }).unref();

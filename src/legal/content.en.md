@@ -2,7 +2,7 @@
 
 **Tavern WordCloud (tavern-wordcloud)** · https://wordcloud.davidzhao.top
 
-Effective date: September 4, 2026 ｜ Last updated: September 4, 2026
+Effective date: September 4, 2026 · Last updated: September 5, 2026
 
 > This document is provided in English and Chinese. In case of any discrepancy, the English version prevails. This Policy forms part of the [Terms of Service](#/terms) and sets out what content may be submitted to or produced through the Service, and how related complaints are handled.
 
@@ -33,9 +33,11 @@ You must not submit or generate:
 
 ## 4. Community Data and Feedback
 
-4.1 Community statistics contributions contain only frequent words with counts and message and character counts, and never chat text or character-card names (see Section 2.4 of the [Privacy Policy](#/privacy)). You must not submit content intended to pollute the aggregate statistics or to defeat their anonymity.
+4.1 Community statistics contributions contain only structured figures — frequent words with counts, message and character counts, per-category word counts, the model name and coarse endpoint class, interface preferences, and word-category corrections — and never chat text or character-card names (see Section 2.4 of the [Privacy Policy](#/privacy)). You must not submit content intended to pollute the aggregate statistics or to defeat their anonymity.
 
 4.2 Cleaning-feedback snippets you expressly confirm may contain fragments of your chat text. Do not submit feedback containing other persons' personal information or unlawful content.
+
+4.3 **Author claims.** By submitting an author claim for a character card, you represent that you are the author of that card or are authorised to act for its author, and that the link you supply is already public and is yours to point at. A claim confers no right: the Operator decides claims at its sole discretion, is under no obligation to decide one or to give reasons, and may reverse an approval at any time. Submitting a false or bad-faith claim is a breach of this Policy. Do not include identity documents, chat logs, or card files in a claim.
 
 ## 5. Enforcement and Complaints
 

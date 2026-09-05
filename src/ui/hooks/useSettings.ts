@@ -99,8 +99,14 @@ export function useSettings() {
     [settings.lang],
   );
 
-  // tx()/txv() translate dynamic values (worker progress, warnings) outside hooks
-  useEffect(() => { setCurrentLang(settings.lang); }, [settings.lang]);
+  // tx()/txv() translate dynamic values (worker progress, warnings) outside hooks.
+  // index.html ships lang="zh-CN"; without this an English reader gets a page that
+  // declares itself Chinese — screen readers pick the wrong voice and the browser
+  // offers to translate an English page.
+  useEffect(() => {
+    setCurrentLang(settings.lang);
+    if (typeof document !== 'undefined') document.documentElement.lang = settings.lang === 'zh' ? 'zh-CN' : 'en';
+  }, [settings.lang]);
 
   const theme = useMemo(
     () => themeById(settings.themeId, { custom: settings.custom, mode: settings.mode, font: settings.font }),

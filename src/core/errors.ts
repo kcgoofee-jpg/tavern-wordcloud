@@ -70,7 +70,7 @@ const KNOWN: { match: RegExp; title: string; hint: string }[] = [
   {
     match: /\b404\b|model_not_found|does not exist|not found/i,
     title: zh('地址或模型名不对'),
-    hint: zh('地址要到 /v1/chat/completions；模型名用「拉取可选模型」选。'),
+    hint: zh('地址要到 /v1/chat/completions；模型名点「测试连接」后选。'),
   },
   {
     match: /\b429\b|rate limit|quota|insufficient/i,

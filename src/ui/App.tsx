@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { copyText } from './clipboard';
 import { endpointKind } from './endpointKind';
-import { LangContext, tx, txv, type UserText } from './i18n';
+import { LangContext, tenK, tx, txv, type UserText } from './i18n';
 import { probeServer, analyzeOnServer, shouldAnalyzeOnServer, uploadBytes, type ServerHealth } from '../net/server';
 import CardInfo from './CardInfo';
 import CloudCanvas, { type CloudApi } from './CloudCanvas';
@@ -607,7 +607,7 @@ export default function App() {
       n: filesRef.current.length,
       zip: bundle ? t('（来自整包 .zip）') : '',
       stat: result
-        ? t('，{msgs} 条消息、{w} 万字', { msgs: result.messageCount, w: (result.cleanChars / 1e4).toFixed(1) })
+        ? t('，{msgs} 条消息、{w} 万字', { msgs: result.messageCount, w: tenK(result.cleanChars) })
         : '',
     }));
     if (options.ai.endpoint) {
@@ -937,7 +937,7 @@ export default function App() {
           </span>
           <span className="hero-sub">
             {localAiReady
-              ? t('{w} 万字 · 一次请求 · 大约要等 1~5 分钟', { w: (charsOf(result) / 1e4).toFixed(1) })
+              ? t('{w} 万字 · 一次请求 · 大约要等 1~5 分钟', { w: tenK(charsOf(result)) })
               : t('关键词模式要联网，先填接口和密钥')}
           </span>
           <span className="hero-sub dim">

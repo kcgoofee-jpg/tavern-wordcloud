@@ -1,5 +1,5 @@
 import type { AnalyzeOptions } from '../core/analyze';
-import { useT } from './i18n';
+import { tenK, useT } from './i18n';
 import type { DataBundle } from '../core/bundle';
 import { KindBucketToggles } from './KindGroups';
 import type { Role } from '../core/types';
@@ -105,7 +105,7 @@ export default function ImportPanel({
               <b>{summary.characters.length}</b> {t('张角色卡')}
               <em>{summary.characters.slice(0, 3).join(' · ')}{summary.characters.length > 3 ? ' …' : ''}</em>
             </li>
-            <li><Icon name="list" size={15} /><b>{(summary.chars / 10000).toFixed(1)}</b> {t('万字')}</li>
+            <li><Icon name="list" size={15} /><b>{tenK(summary.chars)}</b> {t('万字')}</li>
             {summary.bundle?.worlds.length ? (
               <li>
                 <Icon name="check" size={15} />

@@ -7,7 +7,7 @@ import { segmentToChunks } from '../core/tokenize';
 import { readDataBundle, type CardIdentity, type DataBundle } from '../core/bundle';
 import { normalizeCardName, strongFingerprint } from '../core/cardRules';
 import { curateWords, type CurateResult } from '../core/curate';
-import { fill, zh, type TextTpl, type UserText } from '../core/zh';
+import { fill, tenKCount, zh, type TextTpl, type UserText } from '../core/zh';
 import type { AnalysisResult, WordCount } from '../core/types';
 
 /** Request body and id are defined separately: `Omit` over a union collapses to the common keys. */
@@ -38,7 +38,8 @@ export type WorkerRequestBody =
   | { kind: 'context'; options: AnalyzeOptions; word: string }
   | { kind: 'samples'; n: number };
 
-export type WorkerRequest = WorkerRequestBody & { id: number };
+/** `lang` is the UI language at send time: the worker formats counts (see tenKCount) before the UI sees them. */
+export type WorkerRequest = WorkerRequestBody & { id: number; lang?: 'zh' | 'en' };
 
 /** Progress report. Every long stage reports. Text is UserText: the UI translates at display time. */
 export interface WorkerProgress {
@@ -269,7 +270,7 @@ export function createHandler(
           detail: pace(0, 0, j.t0),
           note: {
             key: zh('开始：{model} · 送出 {w} 万字 · 要 {n} 个词'),
-            params: { model: req.options.ai.model, w: (text.length / 10000).toFixed(1), n: req.n },
+            params: { model: req.options.ai.model, w: tenKCount(text.length, req.lang ?? 'zh'), n: req.n },
           },
         });
         // Heartbeat every 5 s during a request that can take minutes; done/total must follow the stream.
@@ -489,7 +490,7 @@ export function createHandler(
         note: {
           key: zh('{msgs} 条消息 · {w} 万字 · {u} 个不重复词 · 用时 {ms} ms'),
           params: {
-            msgs: result.messageCount, w: (result.cleanChars / 10000).toFixed(1),
+            msgs: result.messageCount, w: tenKCount(result.cleanChars, req.lang ?? 'zh'),
             u: result.uniqueTokens, ms: Date.now() - jobT0,
           },
         },
