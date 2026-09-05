@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applyCardRule, cardFingerprint, normalizeCardName, revertCardRule, saveCardRule,
+  applyCardRule, cardFingerprint, normalizeCardName, resolveCardRules, revertCardRule, saveCardRule,
   strongFingerprint, weakFingerprint, type CardRules,
 } from '../src/core/cardRules';
+import { readDataBundle, type CardIdentity } from '../src/core/bundle';
+import { createHandler, type WorkerResponse } from '../src/worker/handler';
+import { embedText } from '../src/share/png';
+import { wordsToJson } from '../src/ui/export';
+import { encodeSharePayload } from '../src/share/share';
+import { zipSync, strToU8 } from 'fflate';
+import { PNG } from 'pngjs';
 
 describe('card fingerprint (notes/docs/23)', () => {
   it('normalizes name: full-width -> half-width, trims, drops a trailing version suffix', () => {
@@ -140,5 +147,131 @@ describe('revertCardRule: one-click undo', () => {
   it('is a no-op when nothing was applied', () => {
     const reverted = revertCardRule({ a: { kind: 'person' } }, ['x'], { appliedOverrideKeys: [], appliedStopwords: [] });
     expect(reverted).toEqual({ overrides: { a: { kind: 'person' } }, extraStopwords: ['x'] });
+  });
+});
+
+describe('resolveCardRules: strong fingerprint first, weak only as a fallback', () => {
+  const weak = 'weak-fp';
+  const strong = 'strong-fp';
+  const entry = (word: string) => ({ overrides: { [word]: { kind: 'person' as const } }, extraStopwords: [word] });
+
+  it('prefers the strong entry when both are stored', () => {
+    const rules: CardRules = { [weak]: entry('弱'), [strong]: entry('强') };
+    const m = resolveCardRules(rules, strong, weak);
+    expect(m).toEqual({ fp: strong, via: 'strong', rules });
+    // The weak pack must not bleed in: only this card's own fixes are applied.
+    expect(applyCardRule(m.rules, m.fp, {}, []).appliedOverrideKeys).toEqual(['强']);
+  });
+
+  it('two different cards sharing a name do not share a pack', async () => {
+    const a = await strongFingerprint('小明', '第一种设定', '');
+    const b = await strongFingerprint('小明', '第二种设定', '');
+    const weakFp = await weakFingerprint('小明');
+    // Card A's fixes were saved under its own strong fingerprint; nothing was ever saved weakly.
+    const m = resolveCardRules({ [a]: entry('A的修正') }, b, weakFp);
+    expect(m.via).toBe('none');
+    expect(m.fp).toBe(b);
+    expect(applyCardRule(m.rules, m.fp, {}, []).appliedOverrideKeys).toEqual([]);
+  });
+
+  it('migrates an old weak-only entry onto the strong fingerprint and keeps the weak one', () => {
+    const m = resolveCardRules({ [weak]: entry('老王') }, strong, weak);
+    expect(m.fp).toBe(strong);
+    // Hedged: a same-name match is not proof it is the same card.
+    expect(m.via).toBe('weak');
+    expect(m.rules[strong]).toEqual(entry('老王'));
+    // The weak entry survives, so a later name-only (.jsonl) import still finds it.
+    expect(m.rules[weak]).toEqual(entry('老王'));
+    // Copied by value: editing one entry must not edit the other.
+    expect(m.rules[strong]).not.toBe(m.rules[weak]);
+    expect(applyCardRule(m.rules, m.fp, {}, []).appliedOverrideKeys).toEqual(['老王']);
+  });
+
+  it('a migrated card saves later edits under the strong fingerprint only', () => {
+    const migrated = resolveCardRules({ [weak]: entry('老王') }, strong, weak);
+    const after = saveCardRule(migrated.rules, migrated.fp, { overrides: { 茶馆: { kind: 'place' } } });
+    expect(Object.keys(after[strong].overrides).sort()).toEqual(['老王', '茶馆'].sort());
+    expect(Object.keys(after[weak].overrides)).toEqual(['老王']);
+  });
+
+  it('with no card data the weak fingerprint is still used', () => {
+    const rules: CardRules = { [weak]: entry('老王') };
+    const m = resolveCardRules(rules, undefined, weak);
+    expect(m).toEqual({ fp: weak, via: 'weak', rules });
+    expect(applyCardRule(m.rules, m.fp, {}, []).appliedOverrideKeys).toEqual(['老王']);
+  });
+
+  it('nothing saved: reports no match and still names the fingerprint to save under', () => {
+    expect(resolveCardRules({}, strong, weak)).toEqual({ fp: strong, via: 'none', rules: {} });
+    expect(resolveCardRules(undefined, undefined, weak)).toEqual({ fp: weak, via: 'none', rules: {} });
+  });
+});
+
+/**
+ * The strong fingerprint needs `first_mes`/`description`, which are the card author's narrative
+ * text. They may be read into memory to be hashed and nothing else: notes/docs/23 §3 lists them
+ * as never-transmitted, so they must not reach `DataBundle`, the worker reply, the contribute
+ * payload (which reads only counts off `DataBundle`), a share link, or an exported JSON.
+ */
+describe('card text is hashed and dropped, never carried', () => {
+  const FIRST_MES = '开场白独有句子甲';
+  const DESCRIPTION = '角色设定独有句子乙';
+
+  function cardPng(name: string, firstMes: string, description: string): Uint8Array {
+    const png = new PNG({ width: 2, height: 2 });
+    png.data.fill(200);
+    const card = {
+      spec: 'chara_card_v2',
+      data: { name, first_mes: firstMes, description, character_book: { entries: [{ keys: ['排练厅'] }] } },
+    };
+    const b64 = Buffer.from(JSON.stringify(card), 'utf8').toString('base64');
+    return embedText(new Uint8Array(PNG.sync.write(png)), 'chara', b64);
+  }
+
+  const zip = () => zipSync({
+    'default-user/characters/排练厅的下午.png': cardPng('排练厅的下午', FIRST_MES, DESCRIPTION),
+    'default-user/chats/排练厅的下午/聊天 - 2026-01-01@00h00m00s000ms.jsonl': strToU8(
+      [JSON.stringify({ user_name: '我', character_name: '排练厅的下午' }),
+        JSON.stringify({ name: '我', is_user: true, mes: '通告单递给制片主任。' })].join('\n'),
+    ),
+  });
+
+  it('readDataBundle hands the fields to the callback but keeps them off the bundle', () => {
+    const seen: CardIdentity[] = [];
+    const bundle = readDataBundle(zip(), undefined, (c) => seen.push(c));
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ name: '排练厅的下午', fileName: '排练厅的下午', firstMes: FIRST_MES, description: DESCRIPTION });
+    const serialized = JSON.stringify(bundle);
+    expect(serialized).not.toContain(FIRST_MES);
+    expect(serialized).not.toContain(DESCRIPTION);
+    expect(bundle.characterCards).toBe(1);
+  });
+
+  it('the worker reply carries the hash only — no card text in any posted message', async () => {
+    const posted: WorkerResponse[] = [];
+    const handle = createHandler((m) => posted.push(m));
+    const data = zip();
+    await handle({ id: 1, kind: 'loadBundle', name: 'export.zip', data: data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer });
+    const reply = posted.find((m) => !m.progress && m.ok && m.kind === 'bundle');
+    expect(reply).toBeTruthy();
+    const fps = (reply as Extract<WorkerResponse, { kind: 'bundle' }>).cardFingerprints;
+    expect(fps[normalizeCardName('排练厅的下午')]).toBe(await strongFingerprint('排练厅的下午', FIRST_MES, DESCRIPTION));
+    // Not the weak, name-only form: same-name cards must land on different fingerprints.
+    expect(fps[normalizeCardName('排练厅的下午')]).not.toBe(await weakFingerprint('排练厅的下午'));
+    const everything = JSON.stringify(posted);
+    expect(everything).not.toContain(FIRST_MES);
+    expect(everything).not.toContain(DESCRIPTION);
+  });
+
+  it('share links and exported JSON never see the card text', async () => {
+    const words = [{ text: '排练厅', count: 12 }];
+    const share = await encodeSharePayload({ theme: 'sunset', words });
+    expect(share).not.toContain(FIRST_MES);
+    expect(share).not.toContain(DESCRIPTION);
+    const json = await wordsToJson(words, { card: '排练厅的下午', mode: 'freq', total: 1 }).text();
+    expect(json).not.toContain(FIRST_MES);
+    expect(json).not.toContain(DESCRIPTION);
+    // The card *name* is legitimately part of an export the user asked for; the text behind the hash is not.
+    expect(JSON.parse(json).card).toBe('排练厅的下午');
   });
 });

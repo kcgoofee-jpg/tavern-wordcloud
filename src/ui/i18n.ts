@@ -365,6 +365,7 @@ const EN: Record<string, string> = {
   '本世界书': 'world-info files',
   '其中的 {n} 个关键词将用作专名词典': '{n} of its keywords will be used as a proper-noun dictionary',
   '这张卡有你之前保存的 {n} 条修正，已自动套用。': 'This card has {n} fixes you saved before — applied automatically.',
+  '有一张同名的卡保存过 {n} 条修正，已先套用；如果不是同一张卡，可以撤销。': 'A card with the same name has {n} saved fixes — applied for now; undo them if this is a different card.',
   '撤销本次套用': 'Undo this',
   '预设': 'Preset',
   '这个包里没有世界书': 'No world info in this export',

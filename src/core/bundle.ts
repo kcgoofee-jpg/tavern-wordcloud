@@ -42,6 +42,24 @@ export interface DataBundle {
   warnings: UserText[];
 }
 
+/**
+ * A character card's identity fields, handed to `readDataBundle`'s `onCard` callback while the
+ * card PNG is being parsed. `firstMes`/`description` are the card's own narrative text: they exist
+ * only for the caller to hash into a strong fingerprint (`core/cardRules.ts`) and must be dropped
+ * immediately afterwards. They are deliberately NOT part of `DataBundle` — nothing that leaves this
+ * function (export JSON, share links, `/api/contribute`) may ever carry them (notes/docs/23 §3).
+ */
+export interface CardIdentity {
+  /** The card's own `data.name`, falling back to the PNG file name. */
+  name: string;
+  /** PNG file name without the extension — the zip's `chats/<dir>/` name, which may differ from `name`. */
+  fileName: string;
+  /** Transient: hash it, then drop it. */
+  firstMes: string;
+  /** Transient: hash it, then drop it. */
+  description: string;
+}
+
 export interface BundleProgress {
   phase: 'unzip' | 'scan' | 'read';
   /** Elapsed / speed / estimated remaining time for large archives. */
@@ -73,10 +91,14 @@ function usableKeyword(k: string): boolean {
  * Read a full-export zip.
  *
  * @param onProgress per-file progress
+ * @param onCard called once per readable character card with its identity fields, including the
+ *   transient `firstMes`/`description`. Callers use them to compute a strong card fingerprint and
+ *   must not keep them: they never appear on the returned `DataBundle`.
  */
 export function readDataBundle(
   data: Uint8Array,
   onProgress?: (p: BundleProgress) => void,
+  onCard?: (card: CardIdentity) => void,
 ): DataBundle {
   const out: DataBundle = {
     chats: [], worldKeywords: [], worlds: [], characterCards: 0, regexScripts: [], warnings: [],
@@ -131,8 +153,20 @@ export function readDataBundle(
         const b64 = readText(files[path], 'chara');
         if (b64) {
           const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-          const card = JSON.parse(new TextDecoder().decode(bytes)) as { data?: { character_book?: { entries?: { keys?: string[]; key?: string[] }[] }; extensions?: { regex_scripts?: unknown } } };
+          type CardFields = { name?: string; first_mes?: string; description?: string };
+          const card = JSON.parse(new TextDecoder().decode(bytes)) as CardFields & { data?: CardFields & { character_book?: { entries?: { keys?: string[]; key?: string[] }[] }; extensions?: { regex_scripts?: unknown } } };
           const d = card.data;
+          if (onCard) {
+            // V2 cards keep everything under `data`; V1 cards have it at the top level.
+            const fileName = base.replace(/\.png$/i, '');
+            const str = (v: unknown) => (typeof v === 'string' ? v : '');
+            onCard({
+              name: str(d?.name ?? card.name).trim() || fileName,
+              fileName,
+              firstMes: str(d?.first_mes ?? card.first_mes),
+              description: str(d?.description ?? card.description),
+            });
+          }
           const keys: string[] = [];
           for (const e of d?.character_book?.entries ?? []) for (const k of e.keys ?? e.key ?? []) if (usableKeyword(k)) keys.push(k.trim());
           if (keys.length) { out.worlds.push({ name: base.replace(/\.png$/i, ''), keywords: keys.length }); out.worldKeywords.push(...keys); }

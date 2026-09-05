@@ -4,7 +4,8 @@ import { analyzeAsync, prepareTexts, type AnalyzeOptions, type SourceFile } from
 import { parseFileName } from '../core/meta';
 import { parseChatFile } from '../core/parse';
 import { segmentToChunks } from '../core/tokenize';
-import { readDataBundle, type DataBundle } from '../core/bundle';
+import { readDataBundle, type CardIdentity, type DataBundle } from '../core/bundle';
+import { normalizeCardName, strongFingerprint } from '../core/cardRules';
 import { curateWords, type CurateResult } from '../core/curate';
 import { fill, zh, type TextTpl, type UserText } from '../core/zh';
 import type { AnalysisResult, WordCount } from '../core/types';
@@ -60,7 +61,13 @@ export interface WorkerProgress {
 /** Final reply of a request; progress messages are not replies. */
 export type WorkerResult =
   | { id: number; progress?: false; ok: true; kind: 'load'; fileCount: number; chars: number; characters: string[] }
-  | { id: number; progress?: false; ok: true; kind: 'bundle'; fileCount: number; chars: number; characters: string[]; bundle: Omit<DataBundle, 'chats'>; files: SourceFile[] }
+  | { id: number; progress?: false; ok: true; kind: 'bundle'; fileCount: number; chars: number; characters: string[]; bundle: Omit<DataBundle, 'chats'>; files: SourceFile[];
+      /**
+       * Strong card fingerprints (notes/docs/23), normalized card name -> hash. Computed here from the
+       * cards' `first_mes`/`description`, which are dropped as soon as the hash exists: only the
+       * irreversible hash crosses back to the UI thread, never the card text.
+       */
+      cardFingerprints: Record<string, string> }
   | { id: number; progress?: false; ok: true; kind: 'analyze'; result: AnalysisResult }
   | { id: number; progress?: false; ok: true; kind: 'curate'; words: WordCount[]; curate: CurateResult; base: AnalysisResult }
   | { id: number; progress?: false; ok: true; kind: 'context'; snippets: string[] }
@@ -70,7 +77,13 @@ export type WorkerResult =
 export type WorkerResponse =
   | WorkerProgress
   | { id: number; progress?: false; ok: true; kind: 'load'; fileCount: number; chars: number; characters: string[] }
-  | { id: number; progress?: false; ok: true; kind: 'bundle'; fileCount: number; chars: number; characters: string[]; bundle: Omit<DataBundle, 'chats'>; files: SourceFile[] }
+  | { id: number; progress?: false; ok: true; kind: 'bundle'; fileCount: number; chars: number; characters: string[]; bundle: Omit<DataBundle, 'chats'>; files: SourceFile[];
+      /**
+       * Strong card fingerprints (notes/docs/23), normalized card name -> hash. Computed here from the
+       * cards' `first_mes`/`description`, which are dropped as soon as the hash exists: only the
+       * irreversible hash crosses back to the UI thread, never the card text.
+       */
+      cardFingerprints: Record<string, string> }
   | { id: number; progress?: false; ok: true; kind: 'analyze'; result: AnalysisResult }
   | { id: number; progress?: false; ok: true; kind: 'curate'; words: WordCount[]; curate: CurateResult; base: AnalysisResult }
   | { id: number; progress?: false; ok: true; kind: 'context'; snippets: string[] }
@@ -195,11 +208,25 @@ export function createHandler(
       }
 
       if (req.kind === 'loadBundle') {
+        /**
+         * Card rule packs (notes/docs/23): the cards' `first_mes`/`description` live in this array
+         * only long enough to be hashed into a strong fingerprint, then it is emptied. They are not
+         * on `DataBundle` and never leave the worker — the reply carries hashes only.
+         */
+        const identities: CardIdentity[] = [];
         const bundle = readDataBundle(new Uint8Array(req.data), (p) =>
           report({
             id: req.id, phase: p.phase, done: p.done, total: p.total,
             label: p.label, detail: p.detail, note: p.note,
-          }));
+          }), (c) => identities.push(c));
+        const cardFingerprints: Record<string, string> = {};
+        for (const c of identities) {
+          const fp = await strongFingerprint(c.name, c.firstMes, c.description);
+          // Chats are grouped by the PNG file name, which is not always the card's own name.
+          cardFingerprints[normalizeCardName(c.name)] = fp;
+          cardFingerprints[normalizeCardName(c.fileName)] ??= fp;
+        }
+        identities.length = 0;
         // The zip directory name is more reliable than the file name for card grouping
         files = bundle.chats.map((c) => ({
           name: c.character && !c.name.startsWith(c.character) ? `${c.character} - ${c.name}` : c.name,
@@ -208,7 +235,7 @@ export function createHandler(
         const { chats: _drop, ...extra } = bundle;
         bundleExtra = extra;
         post({
-          id: req.id, ok: true, kind: 'bundle', ...summarize(), bundle: extra, files,
+          id: req.id, ok: true, kind: 'bundle', ...summarize(), bundle: extra, files, cardFingerprints,
         } as WorkerResponse);
         return;
       }

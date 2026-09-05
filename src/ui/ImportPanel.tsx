@@ -56,7 +56,7 @@ function estimate(chars: number, ai: AnalyzeOptions['ai'] | null, t: (s: string,
 
 export default function ImportPanel({
   summary, options, setOptions, busy, progress, onStart, onCancel, onConfigureAi, contribute, hasServer, load,
-  cardRuleApplied, onUndoCardRule,
+  cardRuleApplied, cardRuleWeak, onUndoCardRule,
 }: {
   /** On by default; only a notice on import, switchable in the community panel */
   contribute: boolean;
@@ -75,6 +75,12 @@ export default function ImportPanel({
   onConfigureAi: () => void;
   /** Card rule packs (notes/docs/23): how many overrides/stopwords a saved pack for this card just auto-applied. Null/0 shows nothing. */
   cardRuleApplied?: number | null;
+  /**
+   * True when only the weak (name-only) fingerprint matched: the pack may have been saved for a
+   * different card that happens to share this name, so the note says "a card with the same name"
+   * rather than "this card" and points at the undo.
+   */
+  cardRuleWeak?: boolean;
   /** One-click undo for the note above. */
   onUndoCardRule?: () => void;
 }) {
@@ -118,7 +124,9 @@ export default function ImportPanel({
 
           {!!cardRuleApplied && (
             <p className="note">
-              {t('这张卡有你之前保存的 {n} 条修正，已自动套用。', { n: cardRuleApplied })}
+              {cardRuleWeak
+                ? t('有一张同名的卡保存过 {n} 条修正，已先套用；如果不是同一张卡，可以撤销。', { n: cardRuleApplied })
+                : t('这张卡有你之前保存的 {n} 条修正，已自动套用。', { n: cardRuleApplied })}
               <button type="button" className="field-act" onClick={onUndoCardRule}>{t('撤销本次套用')}</button>
             </p>
           )}

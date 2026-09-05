@@ -40,7 +40,7 @@ import type { AnalysisResult, WordCount } from '../core/types';
 import type { CurateResult } from '../core/curate';
 import type { WorkerProgress } from '../worker/analyze.worker';
 import type { DataBundle } from '../core/bundle';
-import { applyCardRule, cardFingerprint, revertCardRule, saveCardRule } from '../core/cardRules';
+import { applyCardRule, normalizeCardName, resolveCardRules, revertCardRule, saveCardRule, weakFingerprint, type CardMatchVia } from '../core/cardRules';
 import './styles/index.css';
 
 /**
@@ -139,7 +139,12 @@ export default function App() {
    * overrides/stopwords (shown as a note in the import panel, with a one-click undo).
    */
   const [cardFp, setCardFp] = useState<string | null>(null);
-  const [cardRuleApplied, setCardRuleApplied] = useState<{ appliedOverrideKeys: string[]; appliedStopwords: string[] } | null>(null);
+  const [cardRuleApplied, setCardRuleApplied] = useState<{ appliedOverrideKeys: string[]; appliedStopwords: string[]; via: CardMatchVia } | null>(null);
+  /**
+   * Strong fingerprints from the last `.zip`, normalized card name -> hash. The worker computes
+   * them from the cards' first_mes/description and drops the text; only these hashes arrive here.
+   */
+  const cardFpsRef = useRef<Record<string, string>>({});
   /** Keyword-mode result. Kept alongside `result` so switching modes does not recompute or re-pay. */
   const [curation, setCuration] = useState<{ words: WordCount[]; result: CurateResult } | null>(null);
 
@@ -260,23 +265,33 @@ export default function App() {
   }, [patch]);
 
   /**
-   * Card rule packs (notes/docs/23): fingerprint the card being imported (weak — name only,
-   * this first step never reads first_mes/description) and, if this browser has saved fixes
-   * for it, auto-apply them on top of the session's own overrides/stopwords. The current
+   * Card rule packs (notes/docs/23): fingerprint the card being imported and, if this browser has
+   * saved fixes for it, auto-apply them on top of the session's own overrides/stopwords. The current
    * session always wins on a conflicting key. Only called for imports that go through the
    * confirmation panel, so the note below has somewhere to show.
+   *
+   * A `.zip` import carries the strong fingerprint (name + hashed first_mes/description, computed in
+   * the worker) so two cards sharing a name keep separate packs; a bare `.jsonl` has only the name,
+   * so it falls back to the weak fingerprint and the note hedges accordingly.
    */
   const applyCardRuleForCharacter = useCallback(async (name: string | undefined) => {
     if (!name) { setCardFp(null); setCardRuleApplied(null); return; }
-    const { fp } = await cardFingerprint(name);
-    setCardFp(fp);
-    const result = applyCardRule(settings.cardRules, fp, settings.overrides, settings.options.tokenize.extraStopwords);
-    if (!result.appliedOverrideKeys.length && !result.appliedStopwords.length) { setCardRuleApplied(null); return; }
-    setSettings((s) => ({
-      ...s, overrides: result.overrides,
-      options: { ...s.options, tokenize: { ...s.options.tokenize, extraStopwords: result.extraStopwords } },
-    }));
-    setCardRuleApplied({ appliedOverrideKeys: result.appliedOverrideKeys, appliedStopwords: result.appliedStopwords });
+    const weakFp = await weakFingerprint(name);
+    const match = resolveCardRules(settings.cardRules, cardFpsRef.current[normalizeCardName(name)], weakFp);
+    setCardFp(match.fp);
+    const result = applyCardRule(match.rules, match.fp, settings.overrides, settings.options.tokenize.extraStopwords);
+    const applied = !!(result.appliedOverrideKeys.length || result.appliedStopwords.length);
+    // The weak -> strong migration is persisted even when it applied nothing this time.
+    const migrated = match.rules !== settings.cardRules;
+    if (migrated || applied) {
+      setSettings((s) => ({
+        ...s,
+        ...(migrated ? { cardRules: { ...s.cardRules, ...match.rules } } : {}),
+        overrides: result.overrides,
+        options: { ...s.options, tokenize: { ...s.options.tokenize, extraStopwords: result.extraStopwords } },
+      }));
+    }
+    setCardRuleApplied(applied ? { appliedOverrideKeys: result.appliedOverrideKeys, appliedStopwords: result.appliedStopwords, via: match.via } : null);
   }, [settings.cardRules, settings.overrides, settings.options.tokenize.extraStopwords, setSettings]);
 
   /** One-click undo for the note above: removes exactly what the saved rule pack contributed, leaving any edit made since alone. */
@@ -335,7 +350,7 @@ export default function App() {
     if (replace) {
       filesRef.current = [];
       setHasFiles(false); setResult(null); setSharedWords(null); setShare(null); setBundle(null);
-      setCardFp(null); setCardRuleApplied(null);
+      setCardFp(null); setCardRuleApplied(null); cardFpsRef.current = {};
       // Regex from the previous zip/script must not leak into the next chat.
       setOptions((o) => (o.clean.customRules?.length ? { ...o, clean: { ...o.clean, customRules: [] } } : o));
     }
@@ -399,6 +414,8 @@ export default function App() {
             fileCount: res.fileCount, chars: res.chars, uploadBytes: uploadBytes(filesRef.current),
             characters: res.characters, bundle: res.bundle, fromZip: true,
           });
+          // Hashes only: the worker computed them from the cards' first_mes/description and dropped the text.
+          cardFpsRef.current = res.cardFingerprints;
           void applyCardRuleForCharacter(res.characters[0]);
           setLoadSeq((n) => n + 1);
         } else if (!res.ok) {
@@ -420,6 +437,7 @@ export default function App() {
       for (const f of read) merged.set(f.name, f);
       filesRef.current = [...merged.values()];
       setBundle(null);
+      cardFpsRef.current = {};
       setSharedWords(null);
       setOptions((o) => ({ ...o, onlyCharacter: null, roles: o.roles.filter((r) => r !== 'system') }));
       const res = await send({ kind: 'load', files: filesRef.current });
@@ -451,7 +469,7 @@ export default function App() {
     filesRef.current = [];
     setHasFiles(false); setResult(null); setSharedWords(null);
     setShare(null); closeAll(); setError(null); setBundle(null);
-    setCardFp(null); setCardRuleApplied(null);
+    setCardFp(null); setCardRuleApplied(null); cardFpsRef.current = {};
     void send({ kind: 'load', files: [] });
   }, [send, closeAll]);
 
@@ -1338,6 +1356,7 @@ export default function App() {
           onConfigureAi={() => { setImportAsk(null); setHasFiles(true); openPanel('ai'); }}
           contribute={settings.contribute}
           cardRuleApplied={cardRuleApplied ? cardRuleApplied.appliedOverrideKeys.length + cardRuleApplied.appliedStopwords.length : null}
+          cardRuleWeak={cardRuleApplied?.via === 'weak'}
           onUndoCardRule={undoCardRuleApply}
         />
       )}

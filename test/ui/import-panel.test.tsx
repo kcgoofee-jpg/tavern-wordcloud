@@ -38,6 +38,14 @@ describe('ImportPanel: card rule pack note', () => {
     fireEvent.click(undoBtn);
     expect(onUndo).toHaveBeenCalledTimes(1);
   });
+
+  /** A weak (name-only) match may be a different card that shares the name; the wording must not claim otherwise. */
+  it('hedges the wording when only the weak fingerprint matched', () => {
+    panel({ cardRuleApplied: 3, cardRuleWeak: true });
+    expect(screen.queryByText(/这张卡有你之前保存的/)).toBeNull();
+    expect(screen.getByText(/有一张同名的卡保存过 3 条修正/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: '撤销本次套用' })).toBeTruthy();
+  });
 });
 
 describe('ImportPanel: over the 10 MB upload cap', () => {
