@@ -106,6 +106,21 @@ export function wordsToCsv(words: WordCount[]): Blob {
   return new Blob(['﻿' + rows.map((r) => r.map(esc).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
 }
 
+/**
+ * The visible watermark line: card name, date, then whatever the user typed.
+ *
+ * Composed here so the live preview and the saved file cannot drift apart — they were two
+ * separate expressions before, and the file's version left a dangling separator when a chat
+ * had no card name. Empty pieces drop out.
+ */
+export function watermarkLine(card: string | null | undefined, text: string, at: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  // i18n-exempt: a card name, an ISO-style date and the user's own words
+  const date = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+  const head = [(card ?? '').trim(), date].filter(Boolean).join(' · ');
+  return [head, text.trim()].filter(Boolean).join(' · ');
+}
+
 /** Template variables the file-name box understands. */
 export const NAME_VARS = ['{card}', '{mode}', '{date}', '{n}'] as const;
 

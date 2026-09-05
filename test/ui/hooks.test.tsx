@@ -71,6 +71,39 @@ describe('useOverlay', () => {
     expect(result.current.sampleOpen).toBe(true);
   });
 
+  it('outside click does not dismiss the sample view or the community cloud', () => {
+    const { result } = renderHook(() => useOverlay<'theme' | 'community'>());
+    act(() => result.current.openPanel('theme'));
+    act(() => { document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); });
+    expect(result.current.panel).toBeNull();
+    expect(result.current.sampleOpen).toBe(true);
+
+    act(() => result.current.cycleCommunity());
+    act(() => result.current.cycleCommunity());
+    expect(result.current.communityCloud).toBe(true);
+    act(() => result.current.openPanel('theme'));
+    expect(result.current.communityCloud).toBe(true);
+    act(() => { document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); });
+    expect(result.current.panel).toBeNull();
+    expect(result.current.communityCloud).toBe(true);
+  });
+
+  it('language, scheme and cloud-mode chrome are not outside clicks', () => {
+    const { result } = renderHook(() => useOverlay<'theme'>());
+    const nodes = ['.lang-quick', '.mode-quick', '.cloudmode', '.land-top'].map((cls) => {
+      const el = document.createElement('button');
+      el.className = cls.slice(1);
+      document.body.append(el);
+      return el;
+    });
+    act(() => result.current.openPanel('theme'));
+    for (const el of nodes) {
+      act(() => { el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); });
+      expect(result.current.panel, el.className).toBe('theme');
+    }
+    nodes.forEach((el) => el.remove());
+  });
+
   it('the sample view is open at start, opens and closes, and closeAll dismisses it', () => {
     const { result } = renderHook(() => useOverlay<'theme'>());
     expect(result.current.sampleOpen).toBe(true);

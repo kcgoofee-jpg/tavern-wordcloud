@@ -31,7 +31,7 @@ import { useNotice } from './hooks/useNotice';
 import { useFlash } from './hooks/useFlash';
 import { useHashRoute } from './hooks/useHashRoute';
 import { useIsNarrow } from './hooks/useIsNarrow';
-import { downloadBlob, exportName, outputSize, svgBlob, wordsToCsv, wordsToJson, wordsToTsv } from './export';
+import { downloadBlob, exportName, outputSize, svgBlob, watermarkLine, wordsToCsv, wordsToJson, wordsToTsv } from './export';
 import { watermarkPayload } from './watermark';
 import { hostOf } from './url';
 import { armErrorReporting, reportError } from '../net/report';
@@ -726,17 +726,11 @@ export default function App() {
       }
     }
     const stamp = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
     const paintOpts = {
       width: out.w, height: out.h,
       bg: o.bg, bgColor: o.bgColor, radius: o.radius,
-      // i18n-exempt: a date and the card name, no translatable words
-      watermark: o.watermark
-        ? [
-            `${card ?? ''} · ${stamp.getFullYear()}-${pad(stamp.getMonth() + 1)}-${pad(stamp.getDate())}`.trim(),
-            o.watermarkText.trim(),
-          ].filter(Boolean).join(' · ')
-        : null,
+      // Composed by the same helper the live preview uses, so the two cannot drift.
+      watermark: o.watermark ? watermarkLine(card, o.watermarkText, stamp) : null,
       watermarkPos: o.watermarkPos,
       watermarkOpacity: o.watermarkOpacity,
       qr: qrUrl,
@@ -1155,7 +1149,7 @@ export default function App() {
       {/* The export panel has the most controls, so on a phone it takes the whole screen. */}
       {panel && panel !== 'community' && (
         <aside
-          className={`sheet${panel === 'words' ? ' wide' : ''}${narrow && panel === 'export' ? ' fullscreen' : ''}`}
+          className={`sheet${panel === 'words' ? ' wide' : ''}${panel === 'export' ? ' export-view' : ''}${narrow && panel === 'export' ? ' fullscreen' : ''}`}
           role="dialog" tabIndex={-1} aria-label={panelTitle}
         >
           <div className="sheet-bar">
@@ -1229,6 +1223,7 @@ export default function App() {
               <ExportPanel opts={settings.exportOpts} setOpts={(o) => patch({ exportOpts: o })}
                 size={cloudRef.current?.pixelSize() ?? { w: 0, h: 0 }}
                 all={result?.allWords.length ?? words.length}
+                card={result?.meta?.character ?? null}
                 paint={(c, o) => cloudRef.current?.paint(c, o) ?? false}
                 onPng={() => void savePng()} onCsv={result ? saveCsv : undefined}
                 onJson={result ? saveJson : undefined} onCopy={result ? copyWords : undefined}

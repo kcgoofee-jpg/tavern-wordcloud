@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** Clicks inside these areas do not count as outside clicks. */
-const KEEP = '.sheet, .community-page, .community-quick, .cardinfo, .rail, .dock, .note-pop, .notice-pop, .notice-quick, .version-pop, .version-quick, .toast, .import-veil, .confirm-veil';
+const KEEP = '.sheet, .community-page, .community-quick, .cardinfo, .rail, .dock, .note-pop, .notice-pop, .notice-quick, .version-pop, .version-quick, .toast, .import-veil, .confirm-veil, .mode-quick, .lang-quick, .cloudmode, .land-top';
 
 /**
  * Shell that takes keyboard focus for each overlay state. Chosen by state rather than by a
@@ -55,8 +55,8 @@ export function useOverlay<P extends string>() {
   const closeAll = useCallback(() => { setPanel(null); setCardOpen(false); setSampleOpen(false); setCommunityCloud(false); setNoticeOpen(false); setVersionOpen(false); }, []);
   /**
    * Escape's close: the overlays only. `closeAll` also dismisses the sample view — that is
-   * right for a click on the canvas (any click there starts the import flow) but wrong for a
-   * key press, which would unmount the very button focus is supposed to return to.
+   * the canvas click-catcher (`closeSample`), not this handler. A key press must not unmount
+   * the button focus is supposed to return to.
    */
   const closeOverlays = useCallback(() => { setPanel(null); setCardOpen(false); setCommunityCloud(false); setNoticeOpen(false); setVersionOpen(false); }, []);
   /**
@@ -104,17 +104,27 @@ export function useOverlay<P extends string>() {
     if (opener?.isConnected) opener.focus();
   }, [overlayOpen, panel, cardOpen, noticeOpen, versionOpen]);
 
+  /**
+   * Outside click closes the overlay that is in the way, not the view underneath.
+   * `closeAll` also dismisses the sample cloud (that is the canvas click that starts
+   * import) and the community-cloud-only state (a canvas click is how you live with
+   * that state). Neither belongs on "I clicked next to the filter".
+   */
+  const dismissOverlay = useCallback(() => {
+    setPanel(null); setCardOpen(false); setNoticeOpen(false); setVersionOpen(false);
+  }, []);
+
   /** Capture-phase pointerdown, since some panel buttons stop propagation. */
   useEffect(() => {
     if (!panel && !cardOpen && !noticeOpen && !versionOpen) return;
     const onDown = (e: PointerEvent) => {
       const el = e.target as Element | null;
       if (el?.closest?.(KEEP)) return;
-      closeAll();
+      dismissOverlay();
     };
     document.addEventListener('pointerdown', onDown, true);
     return () => document.removeEventListener('pointerdown', onDown, true);
-  }, [panel, cardOpen, noticeOpen, versionOpen, closeAll]);
+  }, [panel, cardOpen, noticeOpen, versionOpen, dismissOverlay]);
 
   /**
    * Escape closes whatever overlay is on top. Registered separately from the outside-click

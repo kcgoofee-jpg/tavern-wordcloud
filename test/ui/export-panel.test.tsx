@@ -4,7 +4,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ExportPanel } from '../../src/ui/panels';
-import { MAX_EXPORT_PX, downloadBlob, exportName, mimeOf, svgBlob } from '../../src/ui/export';
+import { MAX_EXPORT_PX, downloadBlob, exportName, mimeOf, svgBlob, watermarkLine } from '../../src/ui/export';
+import { previewBox, stageContentBox } from '../../src/ui/exportLayout';
 import { cloudToSvg } from '../../src/render/svg';
 import { DEFAULT_SETTINGS, type ExportOpts } from '../../src/ui/settings';
 import { PLATFORM_PRESETS } from '../../src/ui/exportPresets';
@@ -243,34 +244,83 @@ describe('ExportPanel on a phone', () => {
   };
   afterEach(() => vi.unstubAllGlobals());
 
-  it('goes full screen and swaps the dropdown for a chip row', () => {
+  it('swaps the dropdown for a chip row', () => {
     setWidth(390);
     const h = panel();
-    expect(document.querySelector('.export-panel.fullscreen')).toBeTruthy();
+    // The full-screen box is the sheet's job (App adds `.sheet.fullscreen`); the panel itself
+    // only swaps the thirty-option dropdown for a scrollable chip row.
     expect(screen.queryByLabelText('常用尺寸')?.tagName).not.toBe('SELECT');
     const chip = screen.getByRole('button', { name: 'Instagram 竖版' });
     fireEvent.click(chip);
     expect(h.get()).toMatchObject({ sizeMode: 'custom', customW: 1080, customH: 1350 });
   });
 
-  it('stays a normal sheet on a desktop width', () => {
+  it('keeps the dropdown on a desktop width', () => {
     setWidth(1280);
     panel();
-    expect(document.querySelector('.export-panel.fullscreen')).toBeNull();
     expect((screen.getByLabelText('常用尺寸') as HTMLElement).tagName).toBe('SELECT');
   });
 });
 
 describe('ExportPanel preview', () => {
-  it('draws the thumbnail through the canvas, with the chosen background and a contained size', () => {
+  /**
+   * happy-dom lays nothing out, so `.export-fit` measures 0 and the panel falls back to
+   * `exportLayout`'s arithmetic for the window it thinks it is in. That is the same
+   * arithmetic test/ui/export-layout.test.ts drives over a grid of viewports, so these cases
+   * pin the wiring (the panel really uses it) rather than the containment rule itself.
+   */
+  const room = () => stageContentBox(window.innerWidth || 1024, window.innerHeight || 768);
+
+  it('draws through the canvas with the chosen background, at the size the stage allows', () => {
     const paint = vi.fn(() => true);
     panel({ sizeMode: 'custom', customW: 1160, customH: 580, bg: 'transparent' }, { paint });
     expect(paint).toHaveBeenCalled();
-    const [canvas, o] = paint.mock.calls[0] as unknown as [HTMLCanvasElement, { width: number; height: number; bg: string }];
+    const [canvas, o] = paint.mock.calls.at(-1) as unknown as [HTMLCanvasElement, { width: number; height: number; bg: string }];
     expect(canvas.tagName).toBe('CANVAS');
     expect(o.bg).toBe('transparent');
-    // 1160 × 580 contained in 232 px is 232 × 116
-    expect([o.width, o.height]).toEqual([232, 116]);
+    const box = previewBox(room(), 2);
+    expect([o.width, o.height]).toEqual([box.w, box.h]);
+    // Far larger than the 232px thumbnail it replaced: this is the whole point of the view.
+    expect(o.width).toBeGreaterThan(400);
+  });
+
+  it('the canvas is sized in CSS pixels and fits the stage in BOTH axes, portrait included', () => {
+    const stage = room();
+    // 1080 × 1920 is the tallest thing the presets can ask for; a width-only rule overflows here.
+    const paint = vi.fn(() => true);
+    panel({ sizeMode: 'custom', customW: 1080, customH: 1920 }, { paint });
+    const el = document.querySelector('.export-preview-canvas') as HTMLCanvasElement;
+    const w = parseFloat(el.style.width);
+    const h = parseFloat(el.style.height);
+    expect(w).toBeGreaterThan(0);
+    expect(w).toBeLessThanOrEqual(stage.w);
+    expect(h).toBeLessThanOrEqual(stage.h);
+    // Height-limited, so it uses the whole height of the stage
+    expect(h).toBeGreaterThan(stage.h - 2);
+  });
+
+  it('the preview carries the watermark, composed by the same helper as the saved file', () => {
+    const paint = vi.fn(() => true);
+    const stamp = new Date(2026, 8, 5);
+    panel({ watermark: true, watermarkText: '我的词云', watermarkPos: 'tr', watermarkOpacity: 0.3 },
+      { paint, card: '陆时衍' });
+    const [, o] = paint.mock.calls.at(-1) as unknown as [HTMLCanvasElement, { watermark: string | null; watermarkPos: string; watermarkOpacity: number }];
+    expect(o.watermark).toBe(watermarkLine('陆时衍', '我的词云', stamp));
+    expect(o.watermarkPos).toBe('tr');
+    expect(o.watermarkOpacity).toBeCloseTo(0.3);
+
+    cleanup();
+    const off = vi.fn(() => true);
+    panel({ watermark: false }, { paint: off, card: '陆时衍' });
+    const [, o2] = off.mock.calls.at(-1) as unknown as [HTMLCanvasElement, { watermark: string | null }];
+    expect(o2.watermark).toBeNull();
+  });
+
+  it('watermarkLine drops the empty pieces instead of leaving a dangling separator', () => {
+    const at = new Date(2026, 8, 5);
+    expect(watermarkLine(null, '', at)).toBe('2026-09-05');
+    expect(watermarkLine('  ', '我的词云', at)).toBe('2026-09-05 · 我的词云');
+    expect(watermarkLine('陆时衍', '我的词云', at)).toBe('陆时衍 · 2026-09-05 · 我的词云');
   });
 });
 

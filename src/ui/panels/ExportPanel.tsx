@@ -1,7 +1,8 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { LangContext, useT } from '../i18n';
 import type { ExportBg, ExportFormat, ExportOpts } from '../settings';
-import { MAX_EXPORT_PX, NAME_VARS, SIZE_PRESETS, outputSize, tooLarge, type PaintOpts } from '../export';
+import { MAX_EXPORT_PX, NAME_VARS, SIZE_PRESETS, outputSize, tooLarge, watermarkLine, type PaintOpts } from '../export';
+import { previewBox, stageContentBox, type Box } from '../exportLayout';
 import { PLATFORM_PRESETS } from '../exportPresets';
 import { readHiddenWatermark, type WatermarkPos } from '../watermark';
 import { useIsNarrow } from '../hooks/useIsNarrow';
@@ -9,25 +10,29 @@ import Icon from '../Icons';
 import Note from '../Note';
 import Slider from './Slider';
 
-/** Thumbnail bounds in CSS pixels. Portrait exports would otherwise push the controls off screen. */
-const PREVIEW_W = 232;
-const PREVIEW_H = 150;
-/** On a phone the panel is the whole screen, so the thumbnail gives up most of its height. */
-const PREVIEW_H_NARROW = 60;
+/**
+ * Ceiling on the preview bitmap's long side. The picture is drawn at the stage's CSS size
+ * times the device pixel ratio; on a 2× 2560px screen that would otherwise be ~4000px of
+ * canvas repainted on every slider tick.
+ */
+const MAX_PREVIEW_PX = 2200;
 
 const CORNERS: readonly WatermarkPos[] = ['tl', 'tr', 'bl', 'br'];
 
 /**
- * Export panel. Seven groups, top to bottom: format, size, background, contents,
- * watermark, data and file name. Everything writes into `settings.exportOpts` (reset
- * scope `export`); the actions are passed in, so the panel never touches the canvas or
- * the analysis result itself.
+ * Export panel. The picture is the subject: it fills a stage that the controls sit beside on a
+ * wide screen and below on a narrow one (`.export-panel` in `styles/38-export.css`). Seven
+ * control groups: format, size, background, contents, watermark, data and file name.
+ * Everything writes into `settings.exportOpts` (reset scope `export`); the actions are passed
+ * in, so the panel never touches the canvas or the analysis result itself.
  *
- * Below 640 px the panel renders as a full-screen page (`.sheet.fullscreen` in App)
- * and the size presets become a scrollable chip row instead of a dropdown.
+ * The preview is literally the export — same `paint()`, same frozen pose, same `PaintOpts` —
+ * scaled down uniformly. Its size comes from `exportLayout.previewBox()`, which fits the
+ * output ratio inside the measured stage in **both** axes; see that file for why containment
+ * is enforced three separate ways.
  */
 export function ExportPanel({
-  opts, setOpts, size, all, paint, onPng, onCsv, onJson, onCopy, copied,
+  opts, setOpts, size, all, card, paint, onPng, onCsv, onJson, onCopy, copied,
 }: {
   opts: ExportOpts;
   setOpts: (o: ExportOpts) => void;
@@ -35,7 +40,9 @@ export function ExportPanel({
   size: { w: number; h: number };
   /** Every counted word: the CSV slider's ceiling. */
   all: number;
-  /** Draws the frozen cloud into the thumbnail; absent in tests and before the first layout. */
+  /** Card name, for the watermark line the preview shows. */
+  card?: string | null;
+  /** Draws the frozen cloud into the preview; absent in tests and before the first layout. */
   paint?: (canvas: HTMLCanvasElement, o: PaintOpts) => boolean;
   onPng: () => void;
   /** Absent when there is no analysis result (shared clouds have words but no table). */
@@ -68,24 +75,73 @@ export function ExportPanel({
   /** Picking any preset switches to custom and writes its literal pixel size. */
   const applyPreset = (w: number, h: number) => setOpts({ ...opts, sizeMode: 'custom', customW: w, customH: h });
 
+  /**
+   * Room the picture has, in CSS pixels. Measured rather than assumed: the stage is sized by
+   * the grid, and `exportLayout`'s arithmetic only stands in where there is nothing to measure
+   * (happy-dom, and the first render before layout).
+   */
+  const fitRef = useRef<HTMLDivElement>(null);
+  const [avail, setAvail] = useState<Box>(() => (typeof window === 'undefined'
+    ? { w: 640, h: 360 }
+    : stageContentBox(window.innerWidth || 1024, window.innerHeight || 768)));
+  useEffect(() => {
+    const el = fitRef.current;
+    const read = (): boolean => {
+      const w = el?.clientWidth ?? 0;
+      const h = el?.clientHeight ?? 0;
+      if (w <= 0 || h <= 0) return false;
+      setAvail((p) => (p.w === w && p.h === h ? p : { w, h }));
+      return true;
+    };
+    if (!read() && typeof window !== 'undefined') {
+      const f = stageContentBox(window.innerWidth || 1024, window.innerHeight || 768);
+      setAvail((p) => (p.w === f.w && p.h === f.h ? p : f));
+    }
+    if (!el || typeof ResizeObserver === 'undefined') {
+      if (typeof window === 'undefined') return;
+      const on = () => { read(); };
+      window.addEventListener('resize', on);
+      return () => window.removeEventListener('resize', on);
+    }
+    const ro = new ResizeObserver(() => { read(); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  /** Contained in both axes by construction: this is the rule the layout test asserts. */
+  const shown = previewBox(avail, out.h > 0 ? out.w / out.h : ratio);
+
+  /** One date for the panel's lifetime; the watermark would otherwise repaint every render. */
+  const stamp = useMemo(() => new Date(), []);
+  const mark = opts.watermark ? watermarkLine(card, opts.watermarkText, stamp) : null;
+
   const previewRef = useRef<HTMLCanvasElement>(null);
-  const previewH = narrow ? PREVIEW_H_NARROW : PREVIEW_H;
-  // The thumbnail is the export, drawn small: same paint(), same frozen pose, same options
   useEffect(() => {
     const el = previewRef.current;
-    if (!el || !paint) return;
-    const k = Math.min(PREVIEW_W / out.w, previewH / out.h, 1);
+    if (!el || !paint || out.w <= 0 || out.h <= 0) return;
+    const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2);
+    // Never above 1: the preview shows the export, so it must not carry detail the file lacks.
+    const k = Math.min(
+      (shown.w * dpr) / out.w,
+      (shown.h * dpr) / out.h,
+      MAX_PREVIEW_PX / Math.max(out.w, out.h),
+      1,
+    );
     paint(el, {
       width: Math.max(1, Math.round(out.w * k)),
       height: Math.max(1, Math.round(out.h * k)),
       bg: opts.bg,
       bgColor: opts.bgColor,
       radius: opts.radius * k,
-      // Left out of the thumbnail on purpose: both are unreadable at this size
-      watermark: null,
+      watermark: mark,
+      watermarkPos: opts.watermarkPos,
+      watermarkOpacity: opts.watermarkOpacity,
+      // The share link encodes the whole word list; re-encoding it on every keystroke to draw a
+      // 100px stamp is not worth it, so the QR is the one thing the preview leaves out.
       qr: null,
     });
-  }, [paint, out.w, out.h, opts.bg, opts.bgColor, opts.radius, previewH]);
+  }, [paint, out.w, out.h, shown.w, shown.h, opts.bg, opts.bgColor, opts.radius,
+    mark, opts.watermarkPos, opts.watermarkOpacity]);
 
   const presetLabel = (id: (typeof SIZE_PRESETS)[number]['id']) =>
     id === 'hd' ? t('16:9 宽屏')
@@ -105,14 +161,24 @@ export function ExportPanel({
   const chosen = (w: number, h: number) => opts.sizeMode === 'custom' && opts.customW === w && opts.customH === h;
 
   return (
-    <div className={`export-panel${narrow ? ' fullscreen' : ''}`}>
-      <div className="export-preview">
-        <canvas ref={previewRef} className="export-preview-canvas" aria-hidden="true" />
+    <div className="export-panel">
+      <div className="export-stage">
+        <div className="export-fit" ref={fitRef}>
+          <canvas ref={previewRef} className="export-preview-canvas" aria-hidden="true"
+            style={{ width: `${shown.w}px`, height: `${shown.h}px` }} />
+        </div>
+      </div>
+
+      <div className="export-foot">
         <p className="export-size" aria-live="polite">
           {t('{w} × {h} 像素', { w: out.w, h: out.h })}
         </p>
+        <button type="button" className="export-act" onClick={onPng} disabled={over}>
+          <Icon name="image" size={16} />{t('存成图片')}
+        </button>
       </div>
 
+      <div className="export-controls">
       <div className="group-label">{t('格式')}</div>
       <div className="seg" role="group" aria-label={t('格式')}>
         {(['png', 'jpg', 'webp', 'svg'] as const).map((f) => (
@@ -282,10 +348,6 @@ export function ExportPanel({
       </button>
       {verdict !== null && <p className="export-size" role="status">{verdict}</p>}
 
-      <button type="button" className="export-act" onClick={onPng} disabled={over}>
-        <Icon name="image" size={16} />{t('存成图片')}
-      </button>
-
       <div className="group-label">{t('词表')}</div>
       {/* One control: how many words go into the table, top-down by count. */}
       <Slider label={t('导出多少词')} value={Math.min(opts.csvN, 500)} min={20} max={500} step={10}
@@ -311,6 +373,7 @@ export function ExportPanel({
       <p className="export-size">
         {t('可用变量：{vars}', { vars: NAME_VARS.join(' ') })}
       </p>
+      </div>
     </div>
   );
 }
