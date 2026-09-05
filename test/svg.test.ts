@@ -3,8 +3,10 @@
  * exact coordinates `layoutCloud` produced, the same ones the frozen canvas pose draws.
  */
 import { describe, expect, it } from 'vitest';
-import { layoutCloud, type Measure } from '../src/render/layout';
+import { layoutCloud, stackedLines, type Measure } from '../src/render/layout';
 import { cloudToSvg, escapeXml } from '../src/render/svg';
+import { CloudRenderer } from '../src/render/renderer';
+import { THEMES } from '../src/theme/themes';
 import type { WordCount } from '../src/core/types';
 
 const measure: Measure = (text, fontSize) => ({ w: text.length * fontSize, h: fontSize * 0.92 });
@@ -44,6 +46,8 @@ describe('cloudToSvg matches the layout', () => {
   it('writes one <text> per placement, in the same order', () => {
     const found = texts(cloudToSvg(placements, svgOpts));
     expect(placements.length).toBeGreaterThan(10);
+    // `词N` carries ASCII digits, so nothing here takes the stacked path (covered below).
+    expect(placements.every((p) => !p.stacked)).toBe(true);
     expect(found).toHaveLength(placements.length);
     expect(found.map((f) => f.body)).toEqual(placements.map((p) => p.display ?? p.text));
   });
@@ -77,6 +81,123 @@ describe('cloudToSvg matches the layout', () => {
       if (p.rotated) expect(found[i].transform).toMatch(/^rotate\(-90 /);
       else expect(found[i].transform).toBeUndefined();
     });
+  });
+});
+
+/**
+ * Hard rule 4 across the two vertical shapes. An all-CJK vertical word is a column of
+ * upright glyphs on the canvas, so the vector file has to put the glyphs at the very same
+ * centres — `stackedLines` is the single source both read, and this asserts the SVG really
+ * used it rather than a `writing-mode` the renderer places differently.
+ */
+describe('vertical CJK exports as an upright column, Latin still rotates', () => {
+  const vertical: WordCount[] = [
+    { text: '星澜文化', count: 90, rotate: 'v' },
+    { text: '酒馆词云', count: 80, rotate: 'v' },
+    { text: '猫', count: 70, rotate: 'v' },
+    { text: 'sydney', count: 60, rotate: 'v' },
+    { text: '星澜文化AI', count: 50, rotate: 'v' },
+    { text: 'rav4', count: 40, rotate: 'v' },
+  ];
+  // Small type: a 6-letter word rotated at the default max size would not fit anywhere.
+  const placements = layoutCloud(vertical, { ...layoutOpts, maxFontSize: 90, minFontSize: 22 }, measure);
+  const at = (t: string) => placements.find((p) => p.text === t)!;
+
+  it('a stacked word becomes one <text> per glyph at the canvas glyph centres', () => {
+    const found = texts(cloudToSvg(placements, svgOpts));
+    const p = at('星澜文化');
+    expect(p.stacked).toBe(true);
+    const lines = stackedLines(p.text, p.fontSize);
+    const mine = found.filter((f) => lines.some((l) => l.ch === f.body));
+    expect(mine.map((f) => f.body)).toEqual(['星', '澜', '文', '化']);
+    lines.forEach((l, i) => {
+      // x is the word centre for every glyph (text-anchor="middle" on the group)
+      expect(mine[i].x).toBe(Math.round(p.x * 1000) / 1000);
+      // y walks down by one pitch, exactly what ctx.fillText(ch, 0, l.dy) draws
+      expect(mine[i].y).toBe(Math.round((p.y + l.dy) * 1000) / 1000);
+      // upright: no per-glyph transform at all
+      expect(mine[i].transform).toBeUndefined();
+    });
+  });
+
+  it('the column stays inside the placement box the layout reserved', () => {
+    const p = at('酒馆词云');
+    for (const l of stackedLines(p.text, p.fontSize)) {
+      expect(Math.abs(l.dy) + p.fontSize / 2).toBeLessThanOrEqual(p.h / 2 + 0.001);
+    }
+  });
+
+  it('a one-glyph vertical word is a single upright <text>, never a rotated one', () => {
+    const found = texts(cloudToSvg(placements, svgOpts));
+    const one = found.filter((f) => f.body === '猫');
+    expect(at('猫').stacked).toBe(true);
+    expect(one).toHaveLength(1);
+    expect(one[0].transform).toBeUndefined();
+    expect(one[0].y).toBe(Math.round(at('猫').y * 1000) / 1000);
+  });
+
+  it('Latin and mixed vertical words stay one rotated <text>', () => {
+    const found = texts(cloudToSvg(placements, svgOpts));
+    for (const t of ['sydney', 'rav4', '星澜文化AI']) {
+      expect(at(t).stacked, t).toBe(false);
+      const f = found.filter((q) => q.body === t);
+      expect(f, t).toHaveLength(1);
+      expect(f[0].transform, t).toMatch(/^rotate\(-90 /);
+    }
+  });
+
+  /**
+   * The canvas half of hard rule 4. A stub 2D context records what the frozen export pose
+   * actually paints; at progress 1 the entrance easing is finished, so the only transform
+   * left is the translate to the word centre — which makes every fillText offset directly
+   * comparable to the `<text> y` the vector export wrote.
+   */
+  it('the frozen canvas paints each glyph where the SVG puts it', () => {
+    const drawn: { ch: string; x: number; y: number; rotate: number }[] = [];
+    let tx = 0, ty = 0, rot = 0;
+    const stack: number[][] = [];
+    const ctx = {
+      canvas: {}, letterSpacing: '0px',
+      save: () => { stack.push([tx, ty, rot]); },
+      restore: () => { [tx, ty, rot] = stack.pop() ?? [0, 0, 0]; },
+      translate: (x: number, y: number) => { tx += x; ty += y; },
+      rotate: (a: number) => { rot += a; },
+      scale: () => {}, clearRect: () => {}, fillRect: () => {},
+      fillText: (ch: string, x: number, y: number) => drawn.push({ ch, x: tx + x, y: ty + y, rotate: rot }),
+    } as unknown as CanvasRenderingContext2D;
+
+    const renderer = new CloudRenderer({
+      placements, theme: THEMES[0], qr: null,
+      width: layoutOpts.width, height: layoutOpts.height,
+      fontFamily: 'Inter', fontWeight: '600', tracking: 0, idleAmplitude: 0,
+    });
+    renderer.draw(ctx, {
+      progress: 1, morph: 0, time: 0, pointer: null, highlight: null,
+      frozen: true, scale: 1, panX: 0, panY: 0, dt: 0.016,
+    });
+
+    const svgTexts = texts(cloudToSvg(placements, svgOpts));
+    expect(drawn).toHaveLength(svgTexts.length);
+    drawn.forEach((d, i) => {
+      expect(d.ch, `#${i}`).toBe(svgTexts[i].body);
+      expect(d.x, `#${i} x`).toBeCloseTo(svgTexts[i].x, 3);
+      expect(d.y, `#${i} y`).toBeCloseTo(svgTexts[i].y, 3);
+      // A stacked glyph is upright on the canvas exactly where the SVG carries no transform.
+      const upright = Math.abs(d.rotate) < 1e-9;
+      expect(upright, `#${i} rotate`).toBe(svgTexts[i].transform === undefined);
+    });
+    // Both shapes are actually present in this fixture, so the check means something.
+    expect(placements.some((p) => p.stacked)).toBe(true);
+    expect(placements.some((p) => p.rotated && !p.stacked)).toBe(true);
+  });
+
+  it('tracking is cancelled per glyph, matching the canvas', () => {
+    const svg = cloudToSvg(placements, { ...svgOpts, tracking: 0.06 });
+    expect(svg).toContain('letter-spacing="0.06em"');
+    // Every glyph of a column carries the override; the rotated words do not need it.
+    expect([...svg.matchAll(/letter-spacing="0"/g)]).toHaveLength(
+      placements.filter((p) => p.stacked).reduce((n, p) => n + [...p.text].length, 0),
+    );
   });
 });
 

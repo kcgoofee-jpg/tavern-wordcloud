@@ -7,9 +7,14 @@
  * point of the vector file is that it stays small and editable. The file therefore
  * renders with whatever the opening machine has; the export panel says so and points at
  * PNG for pixel-identical output.
+ *
+ * Vertical words come in two shapes, exactly as on the canvas: an all-CJK word is a column
+ * of upright glyphs (one `<text>` per character, offsets from `stackedLines`), anything with
+ * Latin letters or digits keeps the whole-word `rotate(-90 …)`.
  */
 
 import type { Placement } from './layout';
+import { stackedLines } from './layout';
 
 /** What goes underneath the words; `null` leaves the canvas transparent (no `<rect>`). */
 export type SvgBackground = string | null;
@@ -123,11 +128,26 @@ export function cloudToSvg(placements: Placement[], opts: SvgOptions): string {
   out.push(`<g${groupAttrs}>`);
 
   for (const p of placements) {
-    const fill = ramp[Math.max(0, Math.min(ramp.length - 1, p.step))];
+    const fill = escapeXml(ramp[Math.max(0, Math.min(ramp.length - 1, p.step))]);
+    const fs = num(p.fontSize);
+    if (p.stacked) {
+      // Real vertical CJK: one upright glyph per line. `writing-mode` is not used because
+      // renderers disagree about where it puts the glyph centres, and hard rule 4 needs the
+      // glyph positions to be the canvas's — so the offsets come from the same
+      // `stackedLines` the renderer draws from. `letter-spacing` is horizontal tracking and would shift a
+      // single centred glyph, so it is zeroed exactly as the canvas does.
+      const ls = tracking ? ' letter-spacing="0"' : '';
+      for (const line of stackedLines(p.display ?? p.text, p.fontSize)) {
+        out.push(
+          `<text x="${num(p.x)}" y="${num(p.y + line.dy)}" font-size="${fs}" fill="${fill}"${ls}>${escapeXml(line.ch)}</text>`,
+        );
+      }
+      continue;
+    }
     // -90°, the same direction the canvas renderer rotates a vertical word.
     const rot = p.rotated ? ` transform="rotate(-90 ${num(p.x)} ${num(p.y)})"` : '';
     out.push(
-      `<text x="${num(p.x)}" y="${num(p.y)}" font-size="${num(p.fontSize)}" fill="${escapeXml(fill)}"${rot}>${escapeXml(p.display ?? p.text)}</text>`,
+      `<text x="${num(p.x)}" y="${num(p.y)}" font-size="${fs}" fill="${fill}"${rot}>${escapeXml(p.display ?? p.text)}</text>`,
     );
   }
   out.push('</g>');

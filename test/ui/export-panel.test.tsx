@@ -283,7 +283,7 @@ describe('SVG export goes out as a vector blob', () => {
     });
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
     const svg = cloudToSvg(
-      [{ text: '词', count: 3, x: 10, y: 20, w: 30, h: 30, fontSize: 30, rotated: false, step: 1, delay: 0, phase: 0 }],
+      [{ text: '词', count: 3, x: 10, y: 20, w: 30, h: 30, fontSize: 30, rotated: false, stacked: false, step: 1, delay: 0, phase: 0 }],
       { width: 100, height: 100, ramp: ['#000', '#111'], fontFamily: 'Inter', fontWeight: '600' },
     );
     downloadBlob(svgBlob(svg), 'cloud.svg');

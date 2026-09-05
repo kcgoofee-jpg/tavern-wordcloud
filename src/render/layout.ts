@@ -14,6 +14,11 @@ export interface Placement {
   h: number;
   fontSize: number;
   rotated: boolean;
+  /**
+   * Vertical word drawn as a column of upright glyphs (real CJK 直排) instead of a -90°
+   * rotation. Implies `rotated`. Only ever true for all-CJK words; see `canStack`.
+   */
+  stacked: boolean;
   /** Color ramp index, 0 = lowest frequency */
   step: number;
   /** Normalized distance to the canvas center, 0..1; drives the inside-out ripple */
@@ -43,6 +48,51 @@ export interface LayoutOptions {
 }
 
 export type Measure = (text: string, fontSize: number) => { w: number; h: number };
+
+/**
+ * Line pitch of a stacked vertical word, as a multiple of the font size.
+ *
+ * A CJK glyph's advance is exactly 1em, so the horizontal path already packs characters
+ * at a 1em pitch (its measured width is n x 1em). 1.0 would therefore give a column the
+ * same character density as a row — except that a horizontal word's bounding box is its
+ * *ink* height (`canvasMeasure` falls back to 0.92em for CJK), while a column's box has
+ * to be full em boxes end to end. At 1.0 the column reads visibly tighter than the rows
+ * beside it, because the layout gap around it is measured from em boxes rather than ink.
+ * 1.05 hands back that ~0.05em, which is the optical gap horizontal neighbours get.
+ * Checked on a real render (`npm run shot`, 2026-09-05): 1.0 looked cramped next to the
+ * horizontal words, 1.15 broke a word apart into unrelated characters.
+ */
+export const VERTICAL_LINE_RATIO = 1.05;
+
+/**
+ * Han (+ ext. A/B-F, compat), kana and hangul only. Latin letters, digits, fullwidth
+ * forms and punctuation are deliberately excluded: stacking `sydney` or `rav4` one
+ * character per line is unreadable, so those keep the -90° rotation. A mixed word like
+ * 「星澜文化AI」 falls out of this test on its Latin tail and is rotated as a whole —
+ * splitting one word into an upright part and a rotated part would read as two words.
+ */
+const CJK_ONLY = /^[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff\u{20000}-\u{2ebef}]+$/u;
+
+/** True when a vertical word should be a column of upright glyphs rather than rotated. */
+export function canStack(text: string): boolean {
+  return CJK_ONLY.test(text);
+}
+
+/**
+ * The one place the glyph positions of a stacked word are computed. Layout sizes the
+ * bounding box from it, the canvas renderer draws from it and the SVG export writes from
+ * it, so the three cannot drift apart (hard rule 4).
+ *
+ * `dy` is the offset of each glyph's centre from the word's centre, in the same units as
+ * `fontSize` (device pixels), for a centred baseline (`textBaseline: 'middle'` /
+ * `dominant-baseline: central`).
+ */
+export function stackedLines(text: string, fontSize: number): { ch: string; dy: number }[] {
+  const chars = [...text];
+  const pitch = fontSize * VERTICAL_LINE_RATIO;
+  const first = -((chars.length - 1) / 2) * pitch;
+  return chars.map((ch, i) => ({ ch, dy: first + i * pitch }));
+}
 
 /** mulberry32: same words + same seed = same layout. */
 export function makeRandom(seed: number): () => number {
@@ -213,9 +263,24 @@ export function layoutCloud(words: WordCount[], opts: LayoutOptions, measure: Me
     } else if (word.rotate) {
       rotated = word.rotate === 'v';
     }
-    const m = measure(word.display ?? word.text, fontSize);
-    const bw = rotated ? m.h : m.w;
-    const bh = rotated ? m.w : m.h;
+    const label = word.display ?? word.text;
+    // A vertical all-CJK word is a column of upright glyphs, not a word lying on its side.
+    const stacked = rotated && canStack(label);
+    let bw: number;
+    let bh: number;
+    if (stacked) {
+      // Box = widest single glyph across, one line pitch per glyph down. Measured per
+      // glyph rather than as `m.w / n` because a column of mixed-width kana is not uniform.
+      const lines = stackedLines(label, fontSize);
+      let maxW = 0;
+      for (const l of lines) maxW = Math.max(maxW, measure(l.ch, fontSize).w);
+      bw = maxW;
+      bh = lines.length * fontSize * VERTICAL_LINE_RATIO;
+    } else {
+      const m = measure(label, fontSize);
+      bw = rotated ? m.h : m.w;
+      bh = rotated ? m.w : m.h;
+    }
     if (bw + 2 * pad > areaW || bh + 2 * pad > areaH) continue;
 
     let placed = false;
@@ -263,6 +328,7 @@ export function layoutCloud(words: WordCount[], opts: LayoutOptions, measure: Me
           h: bh,
           fontSize,
           rotated,
+          stacked,
           step: stepOf(wi),
           delay: Math.min(1, Math.hypot(centerX - cx, centerY - cy) / maxRadius),
           phase: rng() * Math.PI * 2,

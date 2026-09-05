@@ -1,5 +1,5 @@
 import type { Placement } from './layout';
-import { makeRandom } from './layout';
+import { makeRandom, stackedLines } from './layout';
 import type { QrAnalysis } from './qr';
 import { toScannerDark } from './qrColor';
 import type { Theme } from '../theme/themes';
@@ -247,7 +247,9 @@ export class CloudRenderer {
       ctx.globalAlpha = a;
       ctx.fillStyle = theme.ramp[p.step];
       ctx.translate(p.x + dx, p.y + dy);
-      if (p.rotated) ctx.rotate(-Math.PI / 2);
+      // A stacked word is already vertical by construction: its glyphs stay upright and
+      // only their baselines walk down the column, so it must not be rotated as a block.
+      if (p.rotated && !p.stacked) ctx.rotate(-Math.PI / 2);
       if (spin) ctx.rotate(spin);
       ctx.scale(scale, scale);
       ctx.font = `${fontWeight} ${p.fontSize}px ${fontFamily}`;
@@ -256,7 +258,15 @@ export class CloudRenderer {
         ctx.shadowColor = theme.accent;
         ctx.shadowBlur = 26 * h;
       }
-      ctx.fillText(p.display ?? p.text, 0, 0);
+      if (p.stacked) {
+        // Tracking is horizontal letter spacing; Chrome also adds it after the last glyph,
+        // which would shift a single centred character off the column. Zeroed here (and in
+        // the SVG export) so the two agree. ctx.restore() puts the row value back.
+        if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+        for (const line of stackedLines(p.display ?? p.text, p.fontSize)) ctx.fillText(line.ch, 0, line.dy);
+      } else {
+        ctx.fillText(p.display ?? p.text, 0, 0);
+      }
       ctx.restore();
     }
   }

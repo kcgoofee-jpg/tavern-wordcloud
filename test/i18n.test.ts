@@ -20,6 +20,8 @@ const walk = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: tru
 });
 const sources = walk(UI)
   .map((p) => ({ file: path.relative(UI, p), text: fs.readFileSync(p, 'utf8') }));
+/** The public mirror ships without server/, so strings only that layer uses cannot be attributed there. */
+const allLayersPresent = LOWER.every((d) => fs.existsSync(d));
 const lowerSources = LOWER.filter((d) => fs.existsSync(d)).flatMap(walk)
   .filter((p) => !p.endsWith(path.join('core', 'zh.ts')))
   .map((p) => ({ file: path.relative(ROOT, p), text: fs.readFileSync(p, 'utf8') }));
@@ -82,7 +84,8 @@ describe('UI translation', () => {
     // Stale entries mislead when editing copy
     const used = new Set([...sources.flatMap((s) => callSites(s.text)), ...zhSites()]);
     const stale = englishKeys().filter((k) => !used.has(k));
-    expect(stale).toEqual([]);
+    // Only meaningful with every source layer present; a stripped checkout would flag its own missing layers
+    expect(allLayersPresent ? stale : []).toEqual([]);
   });
 
   it('t() arguments must be literals', () => {
