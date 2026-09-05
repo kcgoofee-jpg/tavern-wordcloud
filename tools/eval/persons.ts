@@ -41,14 +41,13 @@ interface Positive {
 
 /**
  * Gated = detected as a person at the 2026-09-04 baseline, so losing one is a
- * regression. The rest are ground-truth proper nouns the entity layer never
- * claimed (an institution and a place longer or shorter than a name candidate,
- * and card names, which are titles rather than people) — reported for recall,
- * not gated, because no person rule is supposed to produce them.
+ * regression. `通告单` was on that list as a frozen false positive (C5: the
+ * corpus pass stole document/media/event nouns in subject position); it now
+ * lives in NEGATIVES instead.
  */
 const BASELINE_DETECTED = new Set([
   '沈砚秋', '沈高飞', '周敬亭', '尹昭', '苏挽', '韩野', '佟慧', '郑晓龙',
-  '制片主任', '通告单',
+  '制片主任',
 ]);
 
 const POSITIVES: Positive[] = [
@@ -80,6 +79,8 @@ const NEGATIVES: string[] = [
   '塑料叶子', '第一场戏', '厨房门口', '客厅地板',
   // harvested from fixtures/*.jsonl
   '保温杯', '台词本', '监视器', '折叠椅', '笔记本', '电梯门', '生意场', '云顶公馆',
+  // C5: corpus person pass used to promote these in subject/possessive slots
+  '合同', '协议', '通告单', '台词', '开幕式',
 ];
 
 /* ---------- Corpora ---------- */

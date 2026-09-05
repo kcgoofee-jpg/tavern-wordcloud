@@ -36,4 +36,12 @@ describe('regex scripts as cleaning rules', () => {
     const long = '正文'.repeat(200);
     expect(applyRules(long, rules)).toBe(long);
   });
+  it('nested-quantifier scripts are ignored so they cannot hang the tab', () => {
+    const wall = 'a'.repeat(24) + '!';
+    const t0 = Date.now();
+    const out = applyRules(wall, [{ find: '(a+)+$', flags: 'g', replace: '' }]);
+    expect(Date.now() - t0).toBeLessThan(50);
+    expect(out).toBe(wall);
+    expect(parseRegexScripts([{ findRegex: '(a+)+$', replaceString: '' }])).toEqual([]);
+  });
 });

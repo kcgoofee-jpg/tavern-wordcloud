@@ -27,3 +27,7 @@
   margin: 14px 0 0; font-size: var(--t-xs); line-height: 1.6;
   color: var(--fg-dim); opacity: .85;
 }
+
+/* The 简/繁 switch sits directly above the font list; without this they touch. */
+.seg-lead { margin-bottom: 10px; }
+

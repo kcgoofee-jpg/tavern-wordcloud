@@ -57,8 +57,8 @@ export function FontPanel({
 
   return (
     <>
-      <div className="group-label">{t('繁体显示')}</div>
-      <div className="seg" role="group" aria-label={t('繁体显示')}>
+      {/* No heading: two buttons labelled 简 / 繁 say what they do. */}
+      <div className="seg seg-lead" role="group" aria-label={t('繁体显示')}>
         <button type="button" className={!traditional ? 'on' : ''} aria-pressed={!traditional} onClick={() => setTraditional(false)}>
           {t('简')}
         </button>

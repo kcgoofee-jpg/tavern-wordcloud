@@ -293,6 +293,27 @@ describe('looksLikePerson（无上下文的人名判断）', () => {
   });
 });
 
+describe('corpus person pass does not steal closed-class nouns', () => {
+  /** Enough subject/says/possessive hits to pass the dictionary-word threshold. */
+  const flood = (w: string): string[] => Array.from({ length: 10 }, () => [
+    `${w}已经放在桌上。`,
+    `${w}从抽屉里拿出来。`,
+    `${w}看了一眼。`,
+    `${w}说道："行。"`,
+    `${w}点了点头。`,
+    `${w}的声音很轻。`,
+    `${w}，你先坐。`,
+  ]).flat();
+
+  it.each(['合同', '协议', '通告单', '台词', '开幕式'])('%s 即使站在主语位也不是人名', (w) => {
+    expect(detectEntities(flood(w)).personNames).not.toContain(w);
+  });
+
+  it('沈砚秋 still is a person under the same flood', () => {
+    expect(detectEntities(flood('沈砚秋')).personNames).toContain('沈砚秋');
+  });
+});
+
 /**
  * Coreference proposals. `detectCoref` never touches counts, so these tests only
  * check which strings it is willing to put in one group.

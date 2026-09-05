@@ -137,6 +137,24 @@ describe('parsing', () => {
     expect(bag).not.toMatch(/周转/);
   });
 
+  it('includeAllSwipes still drops the fileLength prefix on every swipe that carries it', () => {
+    const prefix = 'ZXLEAK附件正文\n\n';
+    const rec = {
+      name: 'a',
+      mes: prefix + '第一版她推开门。',
+      swipes: [prefix + '第一版她推开门。', prefix + '第二版她坐下。'],
+      swipe_id: 0,
+      extra: { fileLength: prefix.length },
+    };
+    const all = parseChatFile('a.jsonl', msg(rec), {
+      clean: { stripCustomTags: true, stripCodeBlocks: true, stripStructuredLines: true, stripOOC: true },
+      includeAllSwipes: true,
+    });
+    expect(all.messages[0].raw).toContain('她推开门');
+    expect(all.messages[0].raw).toContain('她坐下');
+    expect(all.messages[0].raw).not.toContain('ZXLEAK');
+  });
+
   it('reads lastInContextMessageId from the metadata line', () => {
     const content = [
       JSON.stringify({ chat_metadata: { lastInContextMessageId: 12 }, user_name: 'unused', character_name: 'unused' }),

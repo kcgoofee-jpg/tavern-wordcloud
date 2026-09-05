@@ -51,6 +51,15 @@ function roleOf(m: RawMessage, charName: string | undefined, storySpeakers: Read
  * (`slash-commands.js` addSwipeCallback / script.js syncMesToSwipe). If a file
  * was saved mid-edit they can diverge; the selector is `swipe_id`.
  */
+function stripAttachmentPrefix(body: string, m: RawMessage): string {
+  const fl = extraOf(m).fileLength;
+  if (typeof fl !== 'number' || !Number.isInteger(fl) || fl <= 0) return body;
+  const src = m.mes ?? '';
+  if (fl > src.length) return body;
+  const prefix = src.slice(0, fl);
+  return body.startsWith(prefix) ? body.slice(fl) : body;
+}
+
 function currentMes(m: RawMessage): string {
   const id = m.swipe_id;
   let body = m.mes ?? '';
@@ -62,11 +71,7 @@ function currentMes(m: RawMessage): string {
   }
   // chats.js appendFileContent prepends attachment text and stores its length.
   // Only applied on the raw mes/swipe path: display_text is what the UI showed.
-  const fl = extraOf(m).fileLength;
-  if (typeof fl === 'number' && Number.isInteger(fl) && fl > 0 && fl <= body.length) {
-    return body.slice(fl);
-  }
-  return body;
+  return stripAttachmentPrefix(body, m);
 }
 
 /** What the user saw: regex display output, else the selected swipe / `mes`. */
@@ -124,7 +129,7 @@ function pushMessage(
 ): void {
   const texts: string[] = [];
   if (opts.includeAllSwipes && Array.isArray(m.swipes) && m.swipes.length > 1) {
-    for (const s of m.swipes) if (typeof s === 'string') texts.push(s);
+    for (const s of m.swipes) if (typeof s === 'string') texts.push(stripAttachmentPrefix(s, m));
   } else {
     texts.push(messageBody(m));
   }

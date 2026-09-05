@@ -58,6 +58,7 @@ function toRule(script: RegexScript): CleanRule | null {
   const body = m ? m[1] : script.findRegex;
   let flags = m ? m[2] : '';
   if (!flags.includes('g')) flags += 'g';
+  if (NESTED_QUANT.test(body)) return null;
   try { new RegExp(body, flags); } catch { return null; }
   // Beautifiers replace markup with HTML; for cleaning the block is simply removed.
   const replace = /<[a-z]/i.test(rep) ? '' : rep.replace(/\$\{(\d)\}/g, '$$$1');
@@ -88,6 +89,9 @@ export function parseRegexScripts(json: unknown): CleanRule[] {
   return rules;
 }
 
+/** Nested quantifiers like `(a+)+$` — the server drops these; the browser must too. */
+const NESTED_QUANT = /\([^()]*[+*][^()]*\)[+*?{]/;
+
 const cache = new Map<string, RegExp>();
 
 function applyOne(t: string, r: CleanRule, re: RegExp): string {
@@ -113,6 +117,7 @@ export function applyRules(
   let t = text;
   for (const r of rules) {
     if (placement != null && r.placement?.length && !r.placement.includes(placement)) continue;
+    if (NESTED_QUANT.test(r.find)) continue;
     const key = r.find + ' ' + r.flags;
     let re = cache.get(key);
     if (!re) {

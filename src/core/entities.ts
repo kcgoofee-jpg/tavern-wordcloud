@@ -881,6 +881,14 @@ export interface EntityIndex {
   personConfidence: Map<string, number>;
 }
 
+/** For context-free kind checks before the corpus pass writes `kindOf`. */
+const EMPTY_INDEX: EntityIndex = {
+  kindOf: new Map(),
+  brands: new Set(),
+  personNames: [],
+  personConfidence: new Map(),
+};
+
 /**
  * Detect entities in cleaned texts.
  *
@@ -930,6 +938,10 @@ export function detectEntities(texts: string[], known: string[] = []): EntityInd
     if (HEAD_FRAGMENT.test(name) && !(oov && pats.size >= 3)) return false;
     // Function words are never names.
     if (DEFAULT_STOPWORDS.has(name)) return false;
+    // Closed-class nouns (合同 / 通告单 / 台词 / 开幕式) sit in the same
+    // subject/possessive slots as names. Only document/media/event: a given
+    // name can share a place suffix (周敬亭 / 亭) and must still pass.
+    if (classifyKinds(name, EMPTY_INDEX).some((k) => k.kind === 'document' || k.kind === 'media' || k.kind === 'event')) return false;
     // The 2..4 character capture is greedy and may swallow a neighbouring character.
     // Two cheap trims:
     // (1) a name does not end with a function word
