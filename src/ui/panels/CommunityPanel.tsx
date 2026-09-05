@@ -335,7 +335,9 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
       <p className="note">{peak === null ? t('还没有数据') : t('按小时（北京时间），最活跃是 {h} 点', { h: peak })}</p>
       <p className="stat-line">{peak === null ? t('还没有数据') : t('{h} 点最热闹，占全天 {p}%', { h: peak, p: peakShare })}</p>
       </section>
-      {cardStats && (
+      {/* Every share at 0 means no contribution has carried these fields yet: three 0.0% rows
+          read as a broken panel, so say so instead (seen live 2026-09-05). */}
+      {cardStats && (cardStats.withCards + cardStats.withWorlds + cardStats.withPreset > 0 ? (
       <section className="community-sec">
       <div className="group-label">{t('大家导入了什么')}</div>
       <ul className="found">
@@ -346,7 +348,12 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
       <p className="note">{t('只统计数量，不记录任何卡名、预设名或世界书名。共 {n} 份。', { n: cardStats.reports })}</p>
       <p className="stat-line">{t('平均每份 {c} 张卡 · {w} 本世界书', { c: cardStats.avgCards.toFixed(1), w: cardStats.avgWorlds.toFixed(1) })}</p>
       </section>
-      )}
+      ) : (
+      <section className="community-sec">
+      <div className="group-label">{t('大家导入了什么')}</div>
+      <p className="note">{t('还没有带角色卡或世界书的记录。')}</p>
+      </section>
+      ))}
       {claimed.length > 0 && (
       <section className="community-sec">
       <div className="group-label">{t('已认领的角色卡')}</div>

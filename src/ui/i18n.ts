@@ -512,6 +512,7 @@ const EN: Record<string, string> = {
   '已填': ' set',
   '没填': ' not set',
   '【原始信息】': '[RAW]',
+  '还没有带角色卡或世界书的记录。': 'No contribution has included a character card or lorebook yet.',
   '这一小时已经分析了 {n} 次，约 {m} 分钟后可以继续；本地版没有次数限制。': 'That is {n} analyses this hour; the limit frees up in about {m} minutes. The local edition has no limit.',
   '下载本地版可以立刻继续，而且不用上传。': 'The local edition works right away and uploads nothing.',
   '还没填接口地址——点一下去配': 'No endpoint URL yet — click to set it up',
