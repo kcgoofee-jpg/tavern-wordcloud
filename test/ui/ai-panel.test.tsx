@@ -13,6 +13,24 @@ const renderPanel = () => render(
 );
 
 describe('AiPanel', () => {
+  it('the missing-model shortcut waits for the test button to stop being disabled', async () => {
+    // With no endpoint the button is disabled, and focus() on a disabled element is a no-op;
+    // the overlay shell then keeps the focus. Regression for a CI-only flake (2026-09-05).
+    const ai = { ...DEFAULT_AI_CONFIG, endpoint: '' };
+    const view = render(
+      <AiPanel ai={ai} setAi={() => {}} canRun={false} busy={false} onRun={() => {}} relay={false} focus="model" />,
+    );
+    const button = screen.getByRole('button', { name: '测试连接' });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(document.activeElement).not.toBe(button);
+
+    view.rerender(
+      <AiPanel ai={{ ...ai, endpoint: 'https://api.example.com/v1/chat/completions' }}
+        setAi={() => {}} canRun={false} busy={false} onRun={() => {}} relay={false} focus="model" />,
+    );
+    await vi.waitFor(() => expect(document.activeElement).toBe(button));
+  });
+
   it('the address and the key are not on the same row', () => {
     renderPanel();
     const url = screen.getByLabelText('地址');

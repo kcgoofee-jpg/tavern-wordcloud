@@ -265,7 +265,8 @@ describe('keyword switch: which endpoint field is missing', () => {
       expect(el).toBeTruthy();
       return el as HTMLButtonElement;
     });
-    expect(document.activeElement).toBe(test);
+    // The panel is lazy and the button starts disabled, so the focus lands a tick after it exists
+    await vi.waitFor(() => expect(document.activeElement).toBe(test));
     expect((document.querySelector('select.ai-model') as HTMLSelectElement).disabled).toBe(true);
   });
 });

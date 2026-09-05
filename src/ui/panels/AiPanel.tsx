@@ -44,11 +44,25 @@ export function AiPanel({
   const keyRef = useRef<HTMLInputElement>(null);
   const testRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    const el = focus === 'endpoint' ? endpointRef.current
-      // No model box until the list is fetched: the missing-model shortcut lands on the test button.
-      : focus === 'model' ? (modelRef.current ?? testRef.current)
-        : focus === 'key' ? keyRef.current : null;
-    el?.focus();
+    if (!focus) return undefined;
+    /**
+     * The target can be missing or still disabled on the first pass: this panel arrives through
+     * React.lazy, and the test button stays disabled until the saved endpoint is read back.
+     * focus() on a disabled element does nothing, and the overlay shell then takes the focus
+     * itself — which is what made this flaky on CI (2026-09-05). Retry for a few ticks.
+     */
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let tries = 0;
+    const put = (): void => {
+      const el = focus === 'endpoint' ? endpointRef.current
+        // No model box until the list is fetched: the missing-model shortcut lands on the test button.
+        : focus === 'model' ? (modelRef.current ?? testRef.current)
+          : focus === 'key' ? keyRef.current : null;
+      if (el && !el.disabled) { el.focus(); return; }
+      if (++tries < 6) timer = setTimeout(put, 16);
+    };
+    put();
+    return () => { if (timer !== undefined) clearTimeout(timer); };
   }, [focus]);
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; hint?: string } | null>(null);
