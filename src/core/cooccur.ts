@@ -1,11 +1,9 @@
 /**
  * Lightweight co-occurrence index (notes/docs/27 s2.2).
  *
- * The tokenizer does not keep per-message token lists, so presence is measured by
- * substring scan over the cleaned messages — the same technique the generic-word
- * detector in analyze.ts already uses. Only the head of the frequency list is
- * indexed: those are the words that can reach the cloud and therefore the only
- * ones the equivalence picker can offer.
+ * Presence is exact tokens when `tokensByMessage` is passed (the tokenizer keeps
+ * them after merge/lemmatization). Tests and eval tools may omit it and fall
+ * back to a substring scan of the cleaned messages.
  *
  * It is analysis-time scratch data: never shared, exported or contributed
  * (see `stripCooccur`, used before the result leaves the app).
@@ -32,7 +30,7 @@ export interface Cooccur {
 export function buildCooccur(
   texts: string[],
   words: { text: string }[],
-  opts: { topN?: number; minPair?: number; maxPairs?: number } = {},
+  opts: { topN?: number; minPair?: number; maxPairs?: number; tokensByMessage?: readonly string[][] } = {},
 ): Cooccur {
   const topN = opts.topN ?? COOCCUR_TOP_N;
   const minPair = opts.minPair ?? COOCCUR_MIN_PAIR;
@@ -50,22 +48,41 @@ export function buildCooccur(
   }
 
   const n = keys.length;
-  const m = texts.length;
+  const m = opts.tokensByMessage?.length ?? texts.length;
   const docs: Record<string, number> = {};
   if (n === 0 || m === 0) return { docs, pairs: {} };
 
-  const lower = texts.map((t) => t.toLowerCase());
-  // Presence bitmap, one row per word. Uint8Array keeps 120 x 1500 at ~180 KB.
   const present: Uint8Array[] = [];
-  for (let i = 0; i < n; i++) {
-    const row = new Uint8Array(m);
-    const w = keys[i];
-    let d = 0;
+  if (opts.tokensByMessage) {
+    const keySet = new Set(keys);
+    const idx = new Map(keys.map((k, i) => [k, i]));
+    const rows = keys.map(() => new Uint8Array(m));
+    const d = new Int32Array(n);
     for (let k = 0; k < m; k++) {
-      if (lower[k].indexOf(w) >= 0) { row[k] = 1; d++; }
+      const hit = new Set<string>();
+      for (const tok of opts.tokensByMessage[k]) {
+        const x = tok.toLowerCase();
+        if (keySet.has(x)) hit.add(x);
+      }
+      for (const x of hit) {
+        const i = idx.get(x)!;
+        rows[i][k] = 1;
+        d[i]++;
+      }
     }
-    present.push(row);
-    docs[w] = d;
+    for (let i = 0; i < n; i++) { present.push(rows[i]); docs[keys[i]] = d[i]; }
+  } else {
+    const lower = texts.map((t) => t.toLowerCase());
+    for (let i = 0; i < n; i++) {
+      const row = new Uint8Array(m);
+      const w = keys[i];
+      let d = 0;
+      for (let k = 0; k < m; k++) {
+        if (lower[k].indexOf(w) >= 0) { row[k] = 1; d++; }
+      }
+      present.push(row);
+      docs[w] = d;
+    }
   }
 
   // Pairwise intersection over the bitmap.

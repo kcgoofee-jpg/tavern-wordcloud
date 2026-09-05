@@ -3,7 +3,10 @@
  * Constructed data only — nothing here reads the local corpus.
  */
 import { describe, expect, it } from 'vitest';
-import { ALIAS_WEIGHTS, rankAliasCandidates, scoreAliasCandidate } from '../src/core/aliasScore';
+import {
+  affixScore, ALIAS_WEIGHTS, neighborSimilarity, rankAliasCandidates, scoreAliasCandidate,
+} from '../src/core/aliasScore';
+import { cjkSkeleton, spellingSimilarity, translitSimilarity } from '../src/core/translit';
 import { buildCooccur, cooccurRate, stripCooccur, type Cooccur } from '../src/core/cooccur';
 
 const target = { text: '西德妮', count: 30, kind: 'person' as const };
@@ -39,8 +42,10 @@ describe('scoreAliasCandidate', () => {
   });
 
   it('scores a prefix above a substring match', () => {
-    const pre = scoreAliasCandidate({ text: 'sydney', count: 9 }, target, { needle: 'syd' })!;
-    const sub = scoreAliasCandidate({ text: 'asydneyb', count: 9 }, target, { needle: 'syd' })!;
+    // Both candidates are the same string apart from where the needle sits, so
+    // every other signal cancels and only prefix − includes is left.
+    const pre = scoreAliasCandidate({ text: 'qqzz', count: 9 }, target, { needle: 'qq' })!;
+    const sub = scoreAliasCandidate({ text: 'zqqz', count: 9 }, target, { needle: 'qq' })!;
     expect(pre - sub).toBe(ALIAS_WEIGHTS.prefix - ALIAS_WEIGHTS.includes);
   });
 
@@ -82,7 +87,72 @@ describe('rankAliasCandidates', () => {
   it('honours the limit and orders equal scores by count', () => {
     const out = rankAliasCandidates(target, words, {}, 2);
     expect(out).toHaveLength(2);
-    expect(out[0].count).toBeGreaterThanOrEqual(out[1].count);
+    // sydney wins on transliteration; the two words that tie at zero evidence
+    // are then ordered by count, which is what the tie-break has to guarantee.
+    expect(out[0].text).toBe('sydney');
+    // 超市 and 早餐 carry no evidence at all against 西德妮 and tie on score,
+    // so the count breaks the tie and the more frequent word comes first.
+    const tied = rankAliasCandidates(target, words, {}).filter((w) => w.text === '超市' || w.text === '早餐');
+    expect(tied.map((w) => w.text)).toEqual(['超市', '早餐']);
+  });
+});
+
+/** The signals added by TODO C.10, each measured on its own. */
+describe('C.10 的新信号', () => {
+  it('把同指组里的短称排到最前', () => {
+    const words = [
+      { text: '砚秋', count: 5 },
+      { text: '合同', count: 400, kind: 'person' as const },
+      { text: '剧组', count: 380, kind: 'person' as const },
+    ];
+    const full = { text: '沈砚秋', count: 9, kind: 'person' as const };
+    const coref = [{ full: '沈砚秋', aliases: ['砚秋'] }];
+    expect(rankAliasCandidates(full, words, { coref })[0].text).toBe('砚秋');
+    // Without the group the far more frequent same-kind words win instead.
+    expect(rankAliasCandidates(full, words, { signals: { coref: false, affix: false } })[0].text)
+      .not.toBe('砚秋');
+  });
+
+  it('缩写：子串按覆盖率给分，取字缩写走子序列', () => {
+    expect(affixScore('砚山文化', '砚山')).toBeGreaterThan(ALIAS_WEIGHTS.contain);
+    expect(affixScore('中央戏剧学院', '中戏')).toBe(ALIAS_WEIGHTS.subsequence);
+    // Same first character but neither contains nor selects from the other.
+    expect(affixScore('电话', '电视')).toBe(0);
+    // Single characters are too common to be evidence.
+    expect(affixScore('电话', '电')).toBe(0);
+  });
+
+  it('音译：中英各一边才算，普通中文词没有骨架', () => {
+    expect(translitSimilarity('西德妮', 'sydney')).toBe(1);
+    expect(translitSimilarity('玛丽', 'mary')).toBe(1);
+    expect(translitSimilarity('艾莉丝', 'alice')).toBe(1);
+    expect(translitSimilarity('索菲亚', 'sophia')).toBe(1);
+    expect(translitSimilarity('莉莉丝', 'lilith')).toBe(1);
+    // 合同 is ordinary Chinese: not one character is in the transliteration table.
+    expect(cjkSkeleton('合同')).toBeNull();
+    expect(translitSimilarity('合同', 'contract')).toBe(0);
+    // Two Chinese words, or two Latin words, are not this signal's business.
+    expect(translitSimilarity('玛丽', '玛雅')).toBe(0);
+    expect(translitSimilarity('mary', 'mari')).toBe(0);
+  });
+
+  it('英文异写用编辑距离，拼写差得远的不算', () => {
+    expect(spellingSimilarity('sydney', 'sydny')).toBeGreaterThan(0.8);
+    expect(spellingSimilarity('claire', 'clair')).toBeGreaterThan(0.8);
+    expect(spellingSimilarity('sydney', 'sandy')).toBeLessThan(0.6);
+  });
+
+  it('互补分布不单独成立：没有别的证据时邻居相似度不给分', () => {
+    // a and b never share a message (no pair between them) but keep identical company.
+    const idx = co({ a: 10, b: 10, x: 10, y: 10 }, [['a', 'x', 8], ['a', 'y', 8], ['b', 'x', 8], ['b', 'y', 8]]);
+    expect(neighborSimilarity(idx, 'a', 'b')).toBeCloseTo(1);
+    const alone = scoreAliasCandidate({ text: 'b', count: 5 }, { text: 'a', count: 5 }, { cooccur: idx })!;
+    const withKind = scoreAliasCandidate(
+      { text: 'b', count: 5, kind: 'person' }, { text: 'a', count: 5, kind: 'person' }, { cooccur: idx },
+    )!;
+    // Same length in both calls, so the gap is the kind bonus plus the neighbour
+    // bonus that the kind evidence unlocked — never the neighbour bonus alone.
+    expect(withKind - alone).toBeCloseTo(ALIAS_WEIGHTS.kind + ALIAS_WEIGHTS.neighbor);
   });
 });
 

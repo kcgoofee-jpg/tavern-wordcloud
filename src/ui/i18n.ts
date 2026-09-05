@@ -589,7 +589,7 @@ const EN: Record<string, string> = {
   '把「{a}」并入「{b}」': 'Merge "{a}" into "{b}"',
   '没有匹配的词；回车会改成只修改「{w}」的显示名': 'No match; Enter will rename "{w}" instead',
   '没有匹配的词，已改为只修改显示名': 'No matching word — renaming instead',
-  '候选顺序是实验功能：按同类、共现和输入前缀猜的，不一定对': 'Experimental ranking: guessed from entity kind, co-occurrence and what you typed — often wrong',
+  '候选按同指、缩写、音译和上下文排序；同义词还是要你自己认': 'Ranked by coreference, abbreviation, transliteration and context — synonyms are still yours to spot',
   '「{a}」已经并到「{b}」那边了，再并回来会绕圈': '"{a}" is already merged into "{b}"; merging back would loop',
   '已按同指并入「{w}」：{list}。点一下拆开，各自单独计数':
     'Folded into "{w}" as the same person: {list}. Click to split them apart and count each on its own',

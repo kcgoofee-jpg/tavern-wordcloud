@@ -357,6 +357,12 @@ export interface TokenizeResult {
   uniqueTokens: number;
   discovered: string[];
   usedFallbackSegmenter: boolean;
+  /**
+   * Counted tokens per input message, after dictionary merge and English
+   * lemmatization. Aligned with `texts`. Generic / template / co-occurrence
+   * scan these instead of substring-matching the raw message.
+   */
+  tokensByMessage: string[][];
 }
 
 /** Rebuild chunks from an external token list, breaking at punctuation tokens. */
@@ -388,15 +394,24 @@ export function tokenizeCorpus(
   const stop = buildStopwords(opts.extraStopwords, opts.useStopwords, opts.useNarrativeStopwords);
 
   const allChunks: Chunk[] = [];
-  segmentRange(texts, presegmented, 0, texts.length, allChunks, new Map());
-  const it = finishTokenizeSteps(allChunks, opts, stop, 0, 1);
+  const chunkMsg: number[] = [];
+  segmentRange(texts, presegmented, 0, texts.length, allChunks, chunkMsg, new Map());
+  const it = finishTokenizeSteps(allChunks, opts, stop, 0, 1, texts.length, chunkMsg);
   let r = it.next();
   while (!r.done) r = it.next();
   return r.value;
 }
 
-/** Segment texts[from, to) into chunks and append to `out`. */
-function segmentRange(texts: string[], presegmented: (string[] | undefined)[] | undefined, from: number, to: number, out: Chunk[], table?: AtomTable): void {
+/** Segment texts[from, to) into chunks and append to `out`. `chunkMsg[i]` is the `texts` index of `out[i]`. */
+function segmentRange(
+  texts: string[],
+  presegmented: (string[] | undefined)[] | undefined,
+  from: number,
+  to: number,
+  out: Chunk[],
+  chunkMsg: number[],
+  table?: AtomTable,
+): void {
   for (let i = from; i < to; i++) {
     const t = texts[i];
     if (!t) continue;
@@ -404,7 +419,7 @@ function segmentRange(texts: string[], presegmented: (string[] | undefined)[] | 
     // push(...arr) copies through the argument list; a plain loop avoids that (and the
     // stack limit on very long chunk lists).
     const cs = pre?.length ? chunksFromTokens(pre, table) : segmentToChunks(t, table);
-    for (const c of cs) out.push(c);
+    for (const c of cs) { out.push(c); chunkMsg.push(i); }
   }
 }
 
@@ -446,6 +461,7 @@ export async function tokenizeCorpusAsync(
   const opts: TokenizeOptions = { ...DEFAULT_TOKENIZE_OPTIONS, ...options };
   const stop = buildStopwords(opts.extraStopwords, opts.useStopwords, opts.useNarrativeStopwords);
   const allChunks: Chunk[] = [];
+  const chunkMsg: number[] = [];
   // One table for the whole corpus, dropped as soon as segmentation is done: past that
   // point the chunks are the only thing that has to stay alive.
   let atomTable: AtomTable | undefined = new Map();
@@ -465,14 +481,14 @@ export async function tokenizeCorpusAsync(
       chars += texts[to]?.length ?? 0;
       to++;
     }
-    segmentRange(texts, presegmented, i, to, allChunks, atomTable);
+    segmentRange(texts, presegmented, i, to, allChunks, chunkMsg, atomTable);
     doneChars += chars;
     onProgress?.(doneChars, total);
     await yieldFn();
     i = to;
   }
   atomTable = undefined;
-  const it = finishTokenizeSteps(allChunks, opts, stop, segTotal, total);
+  const it = finishTokenizeSteps(allChunks, opts, stop, segTotal, total, texts.length, chunkMsg);
   let r = it.next();
   while (!r.done) {
     onProgress?.(r.value, total);
@@ -494,6 +510,8 @@ function* finishTokenizeSteps(
   stop: Set<string>,
   base: number,
   total: number,
+  nMessages: number,
+  chunkMsg: number[],
 ): Generator<number, TokenizeResult, void> {
   const at = (stage: number): number => base + ((total - base) * stage) / FINISH_STAGES;
   const discovered = opts.discoverPhrases
@@ -515,14 +533,18 @@ function* finishTokenizeSteps(
   yield at(2);
   const counts = new Map<string, number>();
   let totalTokens = 0;
+  const tokensByMessage: string[][] = Array.from({ length: nMessages }, () => []);
   // The merge/count pass is the longest stretch here; it reports as it goes.
   for (let c = 0; c < allChunks.length; c++) {
     if (c > 0 && c % COUNT_TICK === 0) yield at(2) + ((at(3) - at(2)) * c) / allChunks.length;
+    const msg = chunkMsg[c];
+    const bag = tokensByMessage[msg];
     for (const tok of mergeChunk(allChunks[c], lexicon, prefixes)) {
       const w = normalize(tok);
       totalTokens++;
       if (!acceptable(w, opts.minLength, stop)) continue;
       counts.set(w, (counts.get(w) ?? 0) + 1);
+      bag.push(w);
     }
   }
   yield at(3);
@@ -537,6 +559,19 @@ function* finishTokenizeSteps(
       // Forms that lemmatize to a stop word are dropped.
       if (stop.has(to)) continue;
       counts.set(to, (counts.get(to) ?? 0) + n);
+    }
+    if (plan.map.size) {
+      for (let m = 0; m < tokensByMessage.length; m++) {
+        const src = tokensByMessage[m];
+        const dst: string[] = [];
+        for (const t of src) {
+          const mapped = plan.map.get(t);
+          if (mapped === undefined) { dst.push(t); continue; }
+          if (stop.has(mapped)) continue;
+          dst.push(mapped);
+        }
+        tokensByMessage[m] = dst;
+      }
     }
   }
 
@@ -563,5 +598,6 @@ function* finishTokenizeSteps(
       .sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0))
       .slice(0, 100),
     usedFallbackSegmenter: !hasIntlSegmenter(),
+    tokensByMessage,
   };
 }

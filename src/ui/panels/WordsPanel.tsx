@@ -48,7 +48,7 @@ export function WordsPanel({
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   /**
-   * Equivalence mode (experimental, notes/docs/27 s2.2, simplified): the word whose bucket
+   * Equivalence mode (notes/docs/27 s2.2, simplified): the word whose bucket
    * other words are being merged into. The search box doubles as its input.
    */
   const [aliasInto, setAliasInto] = useState<string | null>(null);
@@ -117,16 +117,18 @@ export function WordsPanel({
 
   /**
    * Equivalence candidates for `aliasInto`, ranked by core/aliasScore.ts:
-   * same kind, prefix/substring of what was typed, co-occurrence rate, similar
-   * length, minus a penalty for a word already aliased elsewhere. Experimental:
-   * `npm run eval:alias` puts the top-3 hit rate below the 60% bar, so the list
-   * is a shortcut, not an answer.
+   * coreference group first, then abbreviation / containment, transliteration
+   * (西德妮 ↔ sydney), Latin spelling distance, neighbour similarity and kind,
+   * with co-occurrence and length as tie-breakers. C.10 measures 72.7% top-1 /
+   * 81.8% top-3 on the 22-pair set (`npm run eval:alias`), above the 60% bar,
+   * so the list is no longer labelled experimental — it is still a shortcut for
+   * the shapes it can see, not a synonym dictionary.
    */
   const candidates = useMemo(() => {
     if (!aliasInto) return [];
     const target = words.find((w) => key(w.text) === key(aliasInto)) ?? { text: aliasInto, count: 0 };
-    return rankAliasCandidates(target, words, { needle: q, cooccur, aliased }) as WordCount[];
-  }, [words, q, aliasInto, cooccur, aliased]);
+    return rankAliasCandidates(target, words, { needle: q, cooccur, coref, aliased }) as WordCount[];
+  }, [words, q, aliasInto, cooccur, coref, aliased]);
 
   const exitAlias = () => { setAliasInto(null); setQ(''); setHint(null); };
 
@@ -228,7 +230,7 @@ export function WordsPanel({
       </div>
       {aliasInto && (
         <div className="alias-cands">
-          <p className="note alias-exp">{t('候选顺序是实验功能：按同类、共现和输入前缀猜的，不一定对')}</p>
+          <p className="note alias-exp">{t('候选按同指、缩写、音译和上下文排序；同义词还是要你自己认')}</p>
           {candidates.length === 0
             ? <p className="note">{t('没有匹配的词；回车会改成只修改「{w}」的显示名', { w: aliasInto })}</p>
             : candidates.map((c) => (

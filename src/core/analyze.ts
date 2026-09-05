@@ -94,32 +94,35 @@ export const DEFAULT_GENERIC_TUNING: GenericTuning = {
  * only the words that could reach the cloud are measured, and `skip` excludes dictionary words
  * and anything the entity layer already claimed.
  */
+function countToken(toks: readonly string[], word: string): number {
+  let n = 0;
+  for (const t of toks) if (t === word) n++;
+  return n;
+}
+
 export function detectGenericWords(
   allowed: readonly { text: string; count: number }[],
-  texts: readonly string[],
+  tokensByMessage: readonly string[][],
   skip: (word: string) => boolean,
   tuning: GenericTuning = DEFAULT_GENERIC_TUNING,
 ): Set<string> {
   const generic = new Set<string>();
-  if (texts.length < tuning.minMessages) return generic;
-  const totalLen = texts.reduce((a, t) => a + t.length, 0) || 1;
-  // The expected share of each message is the same for every word, so it is computed once
-  // instead of `t.length / totalLen` inside the per-word loop; `occ` is a reused typed
-  // array rather than a fresh 1500-element array per word.
-  const share = texts.map((t) => t.length / totalLen);
-  const occ = new Int32Array(texts.length);
+  const msgN = tokensByMessage.length;
+  if (msgN < tuning.minMessages) return generic;
+  const sizes = tokensByMessage.map((t) => t.length);
+  const totalTok = sizes.reduce((a, n) => a + n, 0) || 1;
+  const share = sizes.map((n) => n / totalTok);
+  const occ = new Int32Array(msgN);
   for (const w of allowed.slice(0, tuning.scan)) {
     if (w.count < 4 || skip(w.text)) continue;
     let dp = 0, inMsgs = 0, total = 0;
-    const word = w.text, wlen = word.length;
-    for (let k = 0; k < texts.length; k++) {
-      const t = texts[k];
-      let n = 0, i = 0;
-      while ((i = t.indexOf(word, i)) >= 0) { n++; i += wlen; }
+    const word = w.text;
+    for (let k = 0; k < msgN; k++) {
+      const n = countToken(tokensByMessage[k], word);
       occ[k] = n; total += n;
     }
     if (!total) continue;
-    for (let k = 0; k < texts.length; k++) { if (occ[k]) inMsgs++; dp += Math.abs(occ[k] / total - share[k]); }
+    for (let k = 0; k < msgN; k++) { if (occ[k]) inMsgs++; dp += Math.abs(occ[k] / total - share[k]); }
     if (dp * 0.5 < tuning.dp && total <= inMsgs * tuning.perMessage) generic.add(w.text);
   }
   return generic;
@@ -354,8 +357,8 @@ function* prepare(files: SourceFile[], options: AnalyzeOptions): Generator<Step,
   // and stays alive for the whole run — and `chats` / `scoped` / `kept` mention every
   // message twice over, once as `raw` and once as cleaned `text`. Reading them here
   // instead means the parse tree is unreachable the moment `prepare` returns, i.e.
-  // before tokenization (the longest phase) allocates anything at all. `texts` still
-  // holds the cleaned text, which the template, generic and co-occurrence passes need.
+  // before tokenization (the longest phase) allocates anything at all. `texts` is
+  // still the sample snippet; template / generic / co-occurrence read `tokensByMessage`.
   const warnings = chats.flatMap((c) => c.warnings);
   const perSource = scoped.map((c) => ({
     source: c.source,
@@ -417,11 +420,12 @@ function* prepare(files: SourceFile[], options: AnalyzeOptions): Generator<Step,
       if (dict.has(w.text) || entities.kindOf.get(w.text) === 'person') continue;
       // Present in most messages, about once each, and anchored at the start or end of the message
       let inMsgs = 0; let edge = 0;
-      for (const t of texts) {
-        const i = t.indexOf(w.text);
+      const word = w.text;
+      for (const toks of tok.tokensByMessage) {
+        const i = toks.indexOf(word);
         if (i < 0) continue;
         inMsgs++;
-        const rel = i / Math.max(1, t.length);
+        const rel = i / Math.max(1, toks.length);
         if (rel <= 0.2 || rel >= 0.8) edge++;
       }
       if (inMsgs >= msgN * 0.6 && w.count <= inMsgs * 1.15 && edge >= inMsgs * 0.8) drop.add(w.text);
@@ -438,7 +442,7 @@ function* prepare(files: SourceFile[], options: AnalyzeOptions): Generator<Step,
   const genericDict = new Set(tokOpts.dictionary);
   const generic = detectGenericWords(
     allowed,
-    texts,
+    tok.tokensByMessage,
     (w) => genericDict.has(w) || entities.kindOf.has(w),
     options.genericTuning ?? DEFAULT_GENERIC_TUNING,
   );
@@ -462,7 +466,7 @@ function* prepare(files: SourceFile[], options: AnalyzeOptions): Generator<Step,
 
   yield { done: 4, total: FINISH_STEPS };
   // Co-occurrence is messages × visible words; on 20 MB it is the second longest stretch.
-  const cooccur = buildCooccur(texts, visible);
+  const cooccur = buildCooccur(texts, visible, { tokensByMessage: tok.tokensByMessage });
   yield { done: 5, total: FINISH_STEPS };
 
   const result: AnalysisResult = {
