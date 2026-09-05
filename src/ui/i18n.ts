@@ -54,7 +54,6 @@ const EN: Record<string, string> = {
   '剥掉思维链与状态栏': 'Strips reasoning and status blocks',
   '大模型挑出故事题眼': 'A model picks the story motifs',
   '本地版单文件、可离线跑': 'Single-file local edition, runs offline',
-  '示例词云 · 点任意位置开始导入': 'Sample cloud · click anywhere to start importing',
 
   // ── Modes ──
   '词频': 'Frequency',

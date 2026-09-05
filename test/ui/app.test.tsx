@@ -68,7 +68,7 @@ describe('App empty state', () => {
     render(<App />);
     // Sample cloud first; the landing (import page) is one click away
     expect(screen.queryByRole('button', { name: /把聊天记录拖进来/ })).toBeNull();
-    await user.click(screen.getByRole('button', { name: '示例词云 · 点任意位置开始导入' }));
+    await user.click(screen.getByRole('button', { name: '开始' }));
     // Landing: upload card, top bar controls, footer links
     expect(screen.getByRole('button', { name: /把聊天记录拖进来/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: '社区排行榜' })).toBeTruthy();
@@ -87,10 +87,10 @@ describe('App empty state', () => {
   it('the sample button opens the sample cloud; clicking it returns to the landing', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: '示例词云 · 点任意位置开始导入' }));
+    await user.click(screen.getByRole('button', { name: '开始' }));
     await user.click(screen.getByRole('button', { name: '先看示例' }));
     expect(screen.queryByRole('button', { name: /把聊天记录拖进来/ })).toBeNull();
-    await user.click(screen.getByRole('button', { name: '示例词云 · 点任意位置开始导入' }));
+    await user.click(screen.getByRole('button', { name: '开始' }));
     expect(screen.getByRole('button', { name: /把聊天记录拖进来/ })).toBeTruthy();
   });
 
@@ -107,7 +107,7 @@ describe('App empty state', () => {
   it('switching to English translates the landing', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: '示例词云 · 点任意位置开始导入' }));
+    await user.click(screen.getByRole('button', { name: '开始' }));
     await user.click(screen.getByTitle('Switch to English'));
     expect(screen.getByRole('heading', { name: 'Turn your tavern chat logs into a word cloud' })).toBeTruthy();
     expect(screen.getAllByRole('link', { name: 'Terms of Service' })[0]).toBeTruthy();
@@ -125,7 +125,7 @@ describe('legal routes', () => {
     await user.click(screen.getAllByRole('link', { name: '← 返回词云' })[0]);
     await vi.waitFor(() => expect(screen.queryByRole('document')).toBeNull());
     // Back on the sample cloud (the first view)
-    expect(screen.getByRole('button', { name: '示例词云 · 点任意位置开始导入' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '开始' })).toBeTruthy();
     window.location.hash = '';
   });
 });
@@ -222,7 +222,7 @@ describe('rail icons carry no captions', () => {
   it('每个按钮只有图标，说明只在 title / aria-label 里', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: '示例词云 · 点任意位置开始导入' }));
+    await user.click(screen.getByRole('button', { name: '开始' }));
     await user.click(screen.getByRole('button', { name: '先看示例' }));
     const rail = document.querySelector('.rail') as HTMLElement;
     expect(rail.classList.contains('caps')).toBe(false);
@@ -247,7 +247,7 @@ describe('keyword switch: which endpoint field is missing', () => {
     }));
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: '示例词云 · 点任意位置开始导入' }));
+    await user.click(screen.getByRole('button', { name: '开始' }));
     const input = document.querySelector('input[type=file]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [new File(['{"messages":[]}'], 'a.jsonl')] } });
     await vi.waitFor(() => expect(document.querySelector('.cloudmode')).toBeTruthy());

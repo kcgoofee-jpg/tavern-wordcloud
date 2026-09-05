@@ -53,11 +53,12 @@ const P = {
   // LLM tokenization
   chip: <><rect x="7" y="7" width="10" height="10" rx="2" /><path d="M10 3.5v3.5" /><path d="M14 3.5v3.5" /><path d="M10 17v3.5" /><path d="M14 17v3.5" /><path d="M3.5 10H7" /><path d="M3.5 14H7" /><path d="M17 10h3.5" /><path d="M17 14h3.5" /></>,
   // Alert
-  /** Font: the "文 / A" glyph pair */
+  /**
+   * Font: a serif capital T — the convention for a typeface picker (Lucide `type`, Figma, Word).
+   * The old mark packed an "A" and a 文 into 24px and read as "A↓" at the 17px it ships at.
+   */
   font: <>
-    <path d="M3.2 17.4 7 6.6h1.5l3.8 10.8" /><path d="M4.9 13.7h5.6" />
-    <path d="M17.6 5.5v13" /><path d="M13.5 8.6h8.2" />
-    <path d="M14.6 12.2c1 2.6 2 4.3 3 5.2" /><path d="M20.6 12.2c-1 2.6-2 4.3-3 5.2" />
+    <path d="M4.5 7.5V5.5h15v2" /><path d="M12 5.5v13" /><path d="M8.6 18.5h6.8" />
   </>,
   /** Frequency mode: bar chart */
   chart: <><path d="M4 20h16" /><rect x="5.5" y="11" width="3.4" height="6.5" rx="1" /><rect x="10.3" y="6" width="3.4" height="11.5" rx="1" /><rect x="15.1" y="14" width="3.4" height="3.5" rx="1" /></>,

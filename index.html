@@ -5,30 +5,49 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#17120d" />
-    <title>酒馆词云</title>
-    <meta name="description" content="把 SillyTavern 的聊天记录变成一张词云。上传即出图，处理完即丢；也有完全离线的本地版。" />
+    <!-- Bilingual on purpose, and no hreflang: one URL, language follows the browser. notes/docs/34 §1.5 -->
+    <title>酒馆词云 Tavern WordCloud · SillyTavern 聊天记录词云</title>
+    <meta name="description" content="把 SillyTavern 的聊天记录变成一张词云。中文分词无需词典，上传即出图，处理完即丢；也有完全离线的单文件本地版。Turn SillyTavern chat logs into a word cloud — no dictionary, nothing stored, offline single-file edition included." />
     <link rel="canonical" href="https://wordcloud.davidzhao.top/" />
     <meta name="robots" content="index, follow" />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="酒馆词云 Tavern WordCloud" />
     <meta property="og:url" content="https://wordcloud.davidzhao.top/" />
-    <meta property="og:title" content="酒馆词云 · SillyTavern 聊天记录词云" />
-    <meta property="og:description" content="把 SillyTavern 的聊天记录变成一张词云。中文分词无需词典，上传即出图，处理完即丢；也有完全离线的单文件本地版。" />
-    <meta property="og:image" content="https://wordcloud.davidzhao.top/favicon.svg" />
+    <meta property="og:title" content="酒馆词云 Tavern WordCloud · SillyTavern 聊天记录词云" />
+    <meta property="og:description" content="把 SillyTavern 的聊天记录变成一张词云。中文分词无需词典，处理完即丢；另有完全离线的单文件本地版。Turn SillyTavern chat logs into a word cloud — no dictionary, nothing stored, offline edition included." />
+    <!-- 1200x630 card built by `npm run og:card` from the project's own theme and layout. -->
+    <meta property="og:image" content="https://wordcloud.davidzhao.top/og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A word cloud of the tool's own vocabulary in Chinese and English, over the title 酒馆词云 Tavern WordCloud." />
     <meta property="og:locale" content="zh_CN" />
     <meta property="og:locale:alternate" content="en_US" />
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="酒馆词云 Tavern WordCloud · SillyTavern 聊天记录词云" />
+    <meta name="twitter:description" content="把 SillyTavern 的聊天记录变成一张词云，处理完即丢；另有离线单文件版。Turn SillyTavern chat logs into a word cloud — nothing stored, offline edition included." />
+    <meta name="twitter:image" content="https://wordcloud.davidzhao.top/og.png" />
+    <meta name="twitter:image:alt" content="A word cloud of the tool's own vocabulary in Chinese and English, over the title 酒馆词云 Tavern WordCloud." />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"WebApplication","name":"酒馆词云 Tavern WordCloud","url":"https://wordcloud.davidzhao.top/","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"description":"把 SillyTavern（酒馆）导出的聊天记录变成词云：浏览器内中文分词，不依赖词典或大模型，处理完即丢弃正文，另有完全离线的单文件本地版。","inLanguage":["zh-CN","en"]}
+      {"@context":"https://schema.org","@type":"WebApplication","name":"酒馆词云 Tavern WordCloud","url":"https://wordcloud.davidzhao.top/","image":"https://wordcloud.davidzhao.top/og.png","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"description":"把 SillyTavern（酒馆）导出的聊天记录变成词云：浏览器内中文分词，不依赖词典或大模型，处理完即丢弃正文，另有完全离线的单文件本地版。","inLanguage":["zh-CN","en"]}
     </script>
   </head>
   <body>
     <div id="root"></div>
-    <!-- Crawlers that do not run JavaScript still get the gist and the two entry points. -->
+    <!--
+      Crawlers that do not run JavaScript still get the gist and the two entry points. This is
+      also, in practice, the first thing a search engine indexes: the rest of the page is drawn
+      by JavaScript and renders in a later queue.
+
+      It has to describe the *web* edition, which uploads the text and discards it after
+      processing — "entirely in your browser" is true of the single-file build only, and the
+      privacy wording on the page and in the markup must match the code path (AGENTS hard rule 1).
+    -->
     <noscript>
       <h1>酒馆词云 — 把 SillyTavern 聊天记录变成词云</h1>
-      <p>上传 SillyTavern 导出的 .jsonl / .json / .zip，在浏览器里分词并画成词云。中文分词不依赖词典或大模型；正文处理完即丢弃。</p>
-      <p><a href="/download/index.html">下载单文件离线版</a> · <a href="https://github.com/kcgoofee-jpg/tavern-wordcloud">源码与本地部署</a></p>
-      <p>This page needs JavaScript. Tavern WordCloud turns SillyTavern chat exports into a word cloud, entirely in your browser.</p>
+      <p>上传 SillyTavern 导出的 .jsonl / .json / .zip，自动分词并画成词云。中文分词不依赖词典或大模型；网页版正文在服务器上处理，处理完即丢弃。</p>
+      <p><a href="/download/index.html">下载单文件离线版</a>（完全在本机运行，不出网） · <a href="https://github.com/kcgoofee-jpg/tavern-wordcloud">源码与本地部署</a></p>
+      <p>This page needs JavaScript. Tavern WordCloud turns SillyTavern chat exports into a word cloud. The web edition processes the text on the server and discards it; the single-file edition runs entirely offline.</p>
     </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -84,7 +84,7 @@ describe('priority words and the rest of the app', () => {
     localStorage.setItem('tw-settings', JSON.stringify({ priority: '爱我吗；用力' }));
     render(<App />);
     // The sample view returns DEMO_WORDS before the priority pass runs.
-    expect(screen.getByRole('button', { name: '示例词云 · 点任意位置开始导入' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '开始' })).toBeTruthy();
     expect(applyPrioritySpy).not.toHaveBeenCalled();
   });
 });

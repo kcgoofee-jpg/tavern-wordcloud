@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One URL, on purpose. The legal pages live at #/privacy and #/terms, and a search engine
+  drops the fragment before it looks a URL up: listing them here submits the home page
+  three times under three names. The single-file download is served with
+  X-Robots-Tag: noindex, so it does not belong here either.
+-->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://wordcloud.davidzhao.top/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://wordcloud.davidzhao.top/#/privacy</loc><priority>0.3</priority></url>
-  <url><loc>https://wordcloud.davidzhao.top/#/terms</loc><priority>0.3</priority></url>
 </urlset>

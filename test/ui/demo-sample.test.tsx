@@ -54,14 +54,14 @@ describe('sample cloud language', () => {
     render(<App />);
 
     // Chinese first: the sample words are Chinese and none of the English ones are present
-    expect(screen.getByRole('button', { name: '示例词云 · 点任意位置开始导入' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '开始' })).toBeTruthy();
     for (const w of ['雨夜', '书房', '旧信', '沉默']) expect(cloudText()).toContain(w);
     expect(cloudText()).not.toContain('Elias');
     expect(cloudText()).not.toContain('lighthouse');
 
     // Same click that switches the copy switches the sample — no reload
     await user.click(screen.getByTitle('Switch to English'));
-    expect(screen.getByRole('button', { name: 'Sample cloud · click anywhere to start importing' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
     for (const w of ['Elias', 'lighthouse', 'silence', 'harbor']) expect(cloudText()).toContain(w);
     expect(CJK.test(cloudText())).toBe(false);
 

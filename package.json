@@ -37,7 +37,8 @@
     "eval:import-fixes": "node tools/eval/import-fixes.mjs",
     "bench:big": "node tools/optimize/bigfile.mjs",
     "optimize:measure": "node tools/optimize/measure.mjs",
-    "optimize:gate": "node tools/optimize/gate.mjs"
+    "optimize:gate": "node tools/optimize/gate.mjs",
+    "og:card": "npx --yes vite-node tools/og-card.ts"
   },
   "dependencies": {
     "fflate": "^0.8.3",

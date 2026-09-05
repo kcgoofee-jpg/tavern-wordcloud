@@ -950,11 +950,6 @@ export default function App() {
       )}
 
       {demoMode && <button type="button" className="demo-catch" aria-label={t('开始')} onClick={closeSample} />}
-      {demoMode && (
-        <button type="button" className="demo-hint" onClick={closeSample}>
-          {t('示例词云 · 点任意位置开始导入')}
-        </button>
-      )}
       {/* Community cloud without the board: say whose cloud this is and how to get back */}
       {communityCloud && !panel && (
         <button type="button" className="demo-hint" onClick={cycleCommunity}>
