@@ -1,9 +1,19 @@
 # Every push and PR: typecheck, lint, tests, build.
+#
+# deploy.yml and mirror.yml both run on `workflow_run: [ci]`, so skipping ci here skips
+# the deploy too. That is the point: a push that only edits the private notes or the board
+# used to rebuild the image and restart the live container for nothing (2026-09-06).
+#
+# Only paths that reach neither the build nor the public mirror belong in the ignore list.
+# `docs/**` is deliberately NOT ignored — the manual ships to the public mirror, so it still
+# has to run the chain. Same for `.github/**`, which is how this rule itself gets verified.
 name: ci
 on:
   push:
     branches: [main]
+    paths-ignore: ['notes/**', 'TODO.md', 'AGENTS.md', 'PROGRESS.md', 'CLAUDE.md']
   pull_request:
+    paths-ignore: ['notes/**', 'TODO.md', 'AGENTS.md', 'PROGRESS.md', 'CLAUDE.md']
 jobs:
   test:
     runs-on: ubuntu-latest
