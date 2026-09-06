@@ -6,6 +6,7 @@ import type { Role } from '../core/types';
 import Icon from './Icons';
 import Note from './Note';
 import Progress from './Progress';
+import { shouldAnalyzeOnServer } from '../net/server';
 import { hostOf } from './url';
 import { MAX_UPLOAD_BYTES } from '../net/server';
 
@@ -90,6 +91,13 @@ export default function ImportPanel({
   const t = useT();
   // The server publishes the cap it is enforcing; the built-in value is only a fallback for
   // an older server that does not send one.
+  // The server takes one plain file at a time and applies neither the visitor's regexes nor a
+  // zip's world info, so those imports are analyzed in the worker even when a server is up.
+  const uploadsText = shouldAnalyzeOnServer({
+    fileCount: summary.fileCount,
+    hasCustomRules: !!options.clean.customRules?.length,
+    fromZip: summary.fromZip,
+  });
   const cap = maxBytes ?? MAX_UPLOAD_BYTES;
   const mb = (b: number) => String(Math.round(b / (1024 * 1024)));
   const aiOn = options.ai.enabled && !!options.ai.endpoint && !!options.ai.model;
@@ -191,8 +199,15 @@ export default function ImportPanel({
           )}
           {contribute && hasServer && <p className="note">{t('匿名统计（高频词、条数字数，不含正文、不含角色卡名）会计入社区排行榜。请仅在您有权分享这份记录的统计时参与；不想参与，在「社区排行榜」面板里关掉。')}</p>}
           <p className="note disclaimer">
-            {hasServer ? t('上传即表示你有权使用这些记录并用于分析。服务器不保存正文，处理完即丢弃；结果仅供参考。')
-              : t('上传即表示你有权使用这些记录并用于分析。所有处理都在这台电脑上完成，不出网；结果仅供参考。')}
+            {/* Which path this import takes is decided by `shouldAnalyzeOnServer`, so ask it
+                rather than restating the rule: a zip, several files or the visitor's own
+                cleaning regexes never leave the browser even when a server is there. The
+                anonymous statistics above are a separate switch and do go either way. */}
+            {!hasServer
+              ? t('上传即表示你有权使用这些记录并用于分析。所有处理都在这台电脑上完成，不出网；结果仅供参考。')
+              : uploadsText
+                ? t('上传即表示你有权使用这些记录并用于分析。服务器不保存正文，处理完即丢弃；结果仅供参考。')
+                : t('这次导入的正文不上传：整包、多份文件和自定义清洗正则都在浏览器里算。导入即表示你有权使用这些记录并用于分析；结果仅供参考。')}
             {' '}<a href="#/disclaimer">{t('《免责声明》')}</a>{' '}<a href="#/privacy">{t('《隐私政策》')}</a>
           </p>
         </div>

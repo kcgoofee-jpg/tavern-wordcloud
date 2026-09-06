@@ -129,8 +129,11 @@ export default function Landing({
         </div>
 
         <p className="land-privacy">
+          {/* No file has been picked yet, so which path applies is not known here: say both.
+              `shouldAnalyzeOnServer` in src/net/server.ts is the rule this sentence describes;
+              ImportPanel says which one actually applies once the files are in. */}
           {hasServer
-            ? t('记录上传到服务器处理，处理完即丢弃；上传即表示你有权使用这些记录。')
+            ? t('单份聊天记录会上传到服务器分析，处理完即丢弃；整包 .zip、多份文件、或你自己写的清洗正则，都在浏览器里算，正文不出网。导入即表示你有权使用这些记录。')
             : t('所有处理都在这台电脑上，不出网；导入即表示你有权使用这些记录。')}
           <a href="#/privacy">{t('《隐私政策》')}</a>
           <a href="#/disclaimer">{t('《免责声明》')}</a>

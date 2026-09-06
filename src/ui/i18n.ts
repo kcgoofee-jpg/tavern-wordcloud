@@ -60,8 +60,6 @@ const EN: Record<string, string> = {
   '把文件（或整个文件夹打包成 zip）拖进上面的虚线框即可。': 'Drop the files (or the whole folder zipped) into the dashed box above.',
   '先看示例': 'See a sample first',
   '特性': 'Features',
-  '记录上传到服务器处理，处理完即丢弃；上传即表示你有权使用这些记录。':
-    'Logs are processed on the server and discarded right after; by uploading you confirm you may use them.',
   '所有处理都在这台电脑上，不出网；导入即表示你有权使用这些记录。':
     'Everything is processed on this computer, never online; by importing you confirm you may use these logs.',
   '上传即表示你有权使用这些记录并用于分析。服务器不保存正文，处理完即丢弃；结果仅供参考。':
@@ -887,6 +885,10 @@ const EN: Record<string, string> = {
   '按次数从高到低，最多 {n} 个（统计到 {all} 个）': 'Most frequent first, up to {n} of the {all} counted',
   '网站正在维护，服务器暂时不能分析。下载本地版可以在自己电脑上算，功能一样。': 'The site is under maintenance, so the server cannot analyze anything right now. The local edition does the same work on your own machine.',
   '网页版上限 {cap} MB，这份传上去有 {size} MB。上限按序列化后真正发出去的字节算，不是文件在硬盘上显示的大小。下载本地版可以在你自己的电脑上算，多大都行。': 'The web edition accepts {cap} MB and this one would upload as {size} MB. The limit counts the bytes actually sent after serialization, not the file size shown on disk. The local edition runs on your own computer with no size limit.',
+  '单份聊天记录会上传到服务器分析，处理完即丢弃；整包 .zip、多份文件、或你自己写的清洗正则，都在浏览器里算，正文不出网。导入即表示你有权使用这些记录。':
+    'A single chat log is uploaded for analysis and discarded right after. A .zip, several files at once, or your own cleaning regexes are all processed in the browser — that text never leaves it. By importing you confirm you may use these logs.',
+  '这次导入的正文不上传：整包、多份文件和自定义清洗正则都在浏览器里算。导入即表示你有权使用这些记录并用于分析；结果仅供参考。':
+    'The text of this import is not uploaded: a zip, several files and custom cleaning regexes are all processed in the browser. By importing you confirm you may use these logs for analysis; results are indicative only.',
   '服务器正在限流：上传上限暂时降到 {cap} MB，一次只跑一个分析，排队会更久。下载本地版不受影响。': 'The server is rate-limiting: the upload cap is temporarily {cap} MB, one analysis runs at a time, and the queue will be slower. The local edition is unaffected.',
 };
 

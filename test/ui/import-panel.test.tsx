@@ -92,3 +92,50 @@ describe('ImportPanel kind buckets', () => {
     expect(current.kinds).toContain('place');
   });
 });
+
+/**
+ * The disclaimer under the import form used to say "uploaded to the server, discarded after"
+ * whenever a server was reachable — but a zip, several files at once, or the visitor's own
+ * cleaning regexes are analyzed in the worker and never leave the browser
+ * (`shouldAnalyzeOnServer` in src/net/server.ts). The sentence now follows that rule.
+ */
+describe('ImportPanel: the disclaimer names the path this import actually takes', () => {
+  const uploaded = /服务器不保存正文，处理完即丢弃/;
+  const stays = /这次导入的正文不上传/;
+  const localBuild = /所有处理都在这台电脑上完成，不出网/;
+
+  it('says "uploaded" only for a single plain file with no custom regexes', () => {
+    panel({ hasServer: true });
+    expect(screen.getByText(uploaded)).toBeTruthy();
+    expect(screen.queryByText(stays)).toBeNull();
+  });
+
+  it('says the text stays in the browser for a zip', () => {
+    panel({ hasServer: true, summary: { ...summary, fromZip: true } });
+    expect(screen.getByText(stays)).toBeTruthy();
+    expect(screen.queryByText(uploaded)).toBeNull();
+  });
+
+  it('says the text stays in the browser for several files at once', () => {
+    panel({ hasServer: true, summary: { ...summary, fileCount: 3 } });
+    expect(screen.getByText(stays)).toBeTruthy();
+    expect(screen.queryByText(uploaded)).toBeNull();
+  });
+
+  it('says the text stays in the browser when the visitor wrote cleaning regexes', () => {
+    const withRules = {
+      ...DEFAULT_ANALYZE_OPTIONS,
+      clean: { ...DEFAULT_ANALYZE_OPTIONS.clean, customRules: [{ find: 'a', replace: '', flags: 'g' }] },
+    };
+    panel({ hasServer: true, options: withRules });
+    expect(screen.getByText(stays)).toBeTruthy();
+    expect(screen.queryByText(uploaded)).toBeNull();
+  });
+
+  it('says everything is local for the single-file edition, whatever the input is', () => {
+    panel({ hasServer: false, summary: { ...summary, fromZip: true } });
+    expect(screen.getByText(localBuild)).toBeTruthy();
+    expect(screen.queryByText(uploaded)).toBeNull();
+    expect(screen.queryByText(stays)).toBeNull();
+  });
+});

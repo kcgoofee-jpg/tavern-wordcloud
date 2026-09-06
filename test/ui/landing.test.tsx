@@ -55,7 +55,11 @@ describe('Landing', () => {
 
   it('privacy line follows the processing path: server vs local, and is said once', () => {
     const { container, unmount } = render(<Landing {...landingProps()} hasServer />);
-    expect(screen.getByText(/记录上传到服务器处理，处理完即丢弃/)).toBeTruthy();
+    // No file has been picked here, so both paths have to be named: one plain file is
+    // uploaded, while a zip / several files / custom regexes are analyzed in the browser
+    // (`shouldAnalyzeOnServer`). Saying only the first was true of the copy, not the code.
+    expect(screen.getByText(/单份聊天记录会上传到服务器分析，处理完即丢弃/)).toBeTruthy();
+    expect(screen.getByText(/整包 \.zip、多份文件、或你自己写的清洗正则，都在浏览器里算，正文不出网/)).toBeTruthy();
     // The whole privacy story is told once, right under the drop box: no second disclaimer paragraph
     const text = container.textContent ?? '';
     expect((text.match(/处理完即丢弃/g) ?? []).length).toBe(1);
