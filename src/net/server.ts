@@ -10,7 +10,8 @@ import type { UserText } from '../core/zh';
 import { fill, zh } from '../core/zh';
 
 export interface ServerProgress {
-  phase: 'upload' | 'parse' | 'tokenize' | 'curate';
+  /** `queued` means the upload is in and this request is waiting for one of the analysis slots. */
+  phase: 'upload' | 'queued' | 'parse' | 'tokenize' | 'curate';
   done?: number;
   total?: number;
   label?: UserText;
@@ -365,7 +366,17 @@ export async function analyzeOnServer(
   };
 
   await postSSE('/api/analyze', { ...file, options: optionsForServer(options) }, onUpload, (ev, d) => {
-    if (ev === 'progress') {
+    if (ev === 'queued') {
+      // The slot pool sends this before the analysis starts, and again whenever the line
+      // moves. Saying "the server is parsing" through that wait was simply untrue.
+      sawServerEvent = true;
+      const { position } = d as { position: number };
+      onProgress({
+        phase: 'queued', done: 0, total: 1,
+        label: { key: zh('前面还有 {n} 人在排队'), params: { n: position } },
+        detail: zh('本地版不用排队，下载后在自己电脑上算'),
+      });
+    } else if (ev === 'progress') {
       sawServerEvent = true;
       // The server sends the real phase; 'parse' is only the fallback when it omits one
       const x = d as Partial<ServerProgress>;

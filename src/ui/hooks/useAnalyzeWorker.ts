@@ -15,12 +15,12 @@ import { phaseFraction } from './progressModel';
 
 export interface ProgressState {
   done: number; total: number; label: string;
-  /** 'upload' only exists on the server route; every other phase comes from the worker. */
-  phase?: WorkerProgress['phase'] | 'upload'; detail?: string; stream?: string; thinking?: string;
+  /** 'upload' and 'queued' only exist on the server route; every other phase comes from the worker. */
+  phase?: WorkerProgress['phase'] | 'upload' | 'queued'; detail?: string; stream?: string; thinking?: string;
 }
 
 export interface NetProgress {
-  phase: 'upload' | 'parse' | 'tokenize' | 'curate'; done?: number; total?: number;
+  phase: 'upload' | 'queued' | 'parse' | 'tokenize' | 'curate'; done?: number; total?: number;
   label?: UserText; detail?: UserText; stream?: string; thinking?: string; note?: UserText;
 }
 

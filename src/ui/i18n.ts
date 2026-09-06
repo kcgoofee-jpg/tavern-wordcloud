@@ -889,6 +889,9 @@ const EN: Record<string, string> = {
     'A single chat log is uploaded for analysis and discarded right after. A .zip, several files at once, or your own cleaning regexes are all processed in the browser — that text never leaves it. By importing you confirm you may use these logs.',
   '这次导入的正文不上传：整包、多份文件和自定义清洗正则都在浏览器里算。导入即表示你有权使用这些记录并用于分析；结果仅供参考。':
     'The text of this import is not uploaded: a zip, several files and custom cleaning regexes are all processed in the browser. By importing you confirm you may use these logs for analysis; results are indicative only.',
+  '前面还有 {n} 人在排队': '{n} ahead of you in the queue',
+  '本地版不用排队，下载后在自己电脑上算': 'The local edition never queues — download it and it runs on your own computer',
+  '正在排队': 'Waiting in the queue',
   '服务器正在限流：上传上限暂时降到 {cap} MB，一次只跑一个分析，排队会更久。下载本地版不受影响。': 'The server is rate-limiting: the upload cap is temporarily {cap} MB, one analysis runs at a time, and the queue will be slower. The local edition is unaffected.',
 };
 

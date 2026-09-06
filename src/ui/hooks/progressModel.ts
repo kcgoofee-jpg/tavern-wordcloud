@@ -22,6 +22,10 @@ export const PHASE_BANDS = {
   scan: [0.05, 0.07],
   read: [0.07, 0.1],
   upload: [0.1, 0.2],
+  // Zero width on purpose: while the request sits in the server's queue there is no work to
+  // report, so the ring holds at the top of `upload` rather than creeping through a band it
+  // cannot honour. The label carries the queue position instead.
+  queued: [0.2, 0.2],
   parse: [0.2, 0.26],
   tokenize: [0.26, 0.65],
   ai: [0.65, 0.85],
