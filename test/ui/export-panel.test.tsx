@@ -301,9 +301,15 @@ describe('ExportPanel preview', () => {
 
   it('the preview carries the watermark, composed by the same helper as the saved file', () => {
     const paint = vi.fn(() => true);
-    const stamp = new Date(2026, 8, 5);
+    // The panel stamps the watermark with `new Date()` at render time, so the clock has to be
+    // frozen for the assertion to name a date at all. Without this the test only passed on the
+    // day it was written (it went red on 2026-09-06 against an expectation of 2026-09-05).
+    const stamp = new Date(2026, 8, 5, 12);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(stamp);
     panel({ watermark: true, watermarkText: '我的词云', watermarkPos: 'tr', watermarkOpacity: 0.3 },
       { paint, card: '陆时衍' });
+    vi.useRealTimers();
     const [, o] = paint.mock.calls.at(-1) as unknown as [HTMLCanvasElement, { watermark: string | null; watermarkPos: string; watermarkOpacity: number }];
     expect(o.watermark).toBe(watermarkLine('陆时衍', '我的词云', stamp));
     expect(o.watermarkPos).toBe('tr');
