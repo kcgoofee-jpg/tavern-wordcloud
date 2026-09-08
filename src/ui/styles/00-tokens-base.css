@@ -110,11 +110,14 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
 }
 
 .cloud-wrap { position: absolute; inset: 0; }
-.app:has(.sheet) .cloud-canvas,
+/* Dim the cloud while the card popover covers it. A side panel dims it only below 1024px: on
+   desktop the words step aside for the panel instead (52-cloud-column.css, plan B1). */
 .app:has(.cardinfo.open) .cloud-canvas {
-  /* Dim the cloud while a panel is open */
   opacity: .38;
   transition: opacity .24s var(--ease);
+}
+@media (max-width: 1023px) {
+  .app:has(.sheet) .cloud-canvas { opacity: .38; transition: opacity .24s var(--ease); }
 }
 .cloud-canvas {
   display: block;

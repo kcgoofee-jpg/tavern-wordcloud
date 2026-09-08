@@ -1,0 +1,16 @@
+/* ---------- Desktop: the cloud steps aside for an open panel (plan B1, 2026-09-08) ----------
+   The three panels that change the picture (colours, font, filters) apply on click, and the
+   picture the visitor was looking at used to be the one dimmed to 38% under the panel. Now the
+   canvas inset follows the panel: CloudCanvas reads these tokens by its `layoutKey`
+   (free / column / column-wide) and re-lays the words in the remaining band. Below 1024px the
+   tokens stay at the free value, so phones and narrow windows keep the overlapping panel. */
+:root {
+  --cloud-left-column: var(--inset-left);
+  --cloud-left-column-wide: var(--inset-left);
+}
+@media (min-width: 1024px) {
+  :root {
+    --cloud-left-column: calc(var(--inset-left) + var(--panel-w) + var(--panel-gap));
+    --cloud-left-column-wide: calc(var(--inset-left) + var(--panel-w-wide) + var(--panel-gap));
+  }
+}

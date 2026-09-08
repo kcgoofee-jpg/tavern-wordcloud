@@ -932,6 +932,7 @@ export default function App() {
         highlight={hovered}
         onWordClick={(w) => (demoMode ? closeSample() : setHovered(w))}
         onWordHover={demoMode ? undefined : setHovered}
+        layoutKey={panel && panel !== 'community' && panel !== 'export' ? (panel === 'words' || panel === 'review' ? 'column-wide' : 'column') : 'free'}
       />
 
       {/* Keyword mode with no curated words yet: the empty state is the run button itself. */}

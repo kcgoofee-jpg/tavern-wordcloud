@@ -351,7 +351,9 @@ const auditLayout = async (label) => {
     // 词云被挡：浮动控件压在词的外接框上（手机上圆按钮和角落数字曾经盖住词）
     const b = window.__cloudBounds;
     if (b && b.right > b.left) {
-      for (const el of document.querySelectorAll('.cloudmode, .zoom-reset, .mode-quick, .lang-quick, .community-quick, .notice-quick, .version-quick, .quick-cluster > *, .dock, .dock-stats, .rail, .ratio span')) {
+      // Desktop (≥1024): a side panel must not sit on the words either — the cloud steps aside for it (plan B1).
+      const covers = '.cloudmode, .zoom-reset, .mode-quick, .lang-quick, .community-quick, .notice-quick, .version-quick, .quick-cluster > *, .dock, .dock-stats, .rail, .ratio span' + (innerWidth >= 1024 ? ', .sheet:not(.export-view)' : '');
+      for (const el of document.querySelectorAll(covers)) {
         if (!vis(el)) continue;
         const r = el.getBoundingClientRect();
         const ox = Math.min(r.right, b.right) - Math.max(r.left, b.left);

@@ -39,14 +39,20 @@ const prefersReducedMotion = (): boolean =>
  * tests and for a stylesheet that failed to load.
  */
 export const DESKTOP_INSET = { top: 96, right: 8, bottom: 62, left: 76 } as const;
+/** A token's value in CSS px, measured through a probe so calc() and media queries resolve (getPropertyValue would hand back the raw `calc(…)`). */
 const cssPx = (name: string, fallback: number): number => {
-  if (typeof document === 'undefined' || !document.documentElement) return fallback;
-  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
+  if (typeof document === 'undefined' || !document.body) return fallback;
+  const probe = document.createElement('div');
+  probe.style.cssText = `position:absolute;left:-9999px;top:0;width:1px;visibility:hidden;height:var(${name},0px)`;
+  document.body.appendChild(probe);
+  const v = probe.getBoundingClientRect().height;
+  probe.remove();
   return Number.isFinite(v) && v > 0 ? v : fallback;
 };
-export const desktopInset = () => ({
+const LEFT_TOKEN = { free: '--inset-left', column: '--cloud-left-column', 'column-wide': '--cloud-left-column-wide' } as const;
+export const desktopInset = (layout: keyof typeof LEFT_TOKEN = 'free') => ({
   top: cssPx('--cloud-top', DESKTOP_INSET.top), right: cssPx('--cloud-right', DESKTOP_INSET.right),
-  bottom: cssPx('--cloud-bottom', DESKTOP_INSET.bottom), left: cssPx('--inset-left', DESKTOP_INSET.left),
+  bottom: cssPx('--cloud-bottom', DESKTOP_INSET.bottom), left: cssPx(LEFT_TOKEN[layout], DESKTOP_INSET.left),
 });
 
 const mobileStackHeight = (): number => {
@@ -91,10 +97,17 @@ interface Props {
   highlight: string | null;
   onWordClick: (word: string) => void;
   onWordHover?: (word: string | null) => void;
+  /**
+   * Desktop layout state (plan B1): `column` while a side panel is open, `column-wide` for the
+   * wide ones (word table, review), `free` otherwise. The canvas inset follows so the words
+   * step aside for the panel instead of being dimmed under it; below 1024px the tokens keep
+   * the free-state value and nothing moves.
+   */
+  layoutKey?: 'free' | 'column' | 'column-wide';
 }
 
 const CloudCanvas = forwardRef<CloudApi, Props>(function CloudCanvas(
-  { words, theme, rotateRatio, shareUrl, highlight, onWordClick, onWordHover },
+  { words, theme, rotateRatio, shareUrl, highlight, onWordClick, onWordHover, layoutKey = 'free' },
   ref,
 ) {
   const t = useT();
@@ -169,9 +182,17 @@ const CloudCanvas = forwardRef<CloudApi, Props>(function CloudCanvas(
     const d = size.dpr;
     const narrow = size.w <= 720;
     if (narrow) return { top: NARROW_TOP * d, right: 8 * d, bottom: mobileStackHeight() * d, left: 8 * d };
-    const w = desktopInset();
+    const w = desktopInset(layoutKey);
     return { top: w.top * d, right: w.right * d, bottom: w.bottom * d, left: w.left * d };
-  }, [size.w, size.dpr]);
+  }, [size.w, size.dpr, layoutKey]);
+  // A panel opening or closing moves the words; a zoomed or panned view would land them off-screen.
+  const firstInset = useRef(true);
+  useEffect(() => {
+    if (firstInset.current) { firstInset.current = false; return; }
+    viewRef.current = { scale: 1, x: 0, y: 0 };
+    zoomedRef.current = false;
+    setZoomed(false);
+  }, [inset]);
 
   // Word-list fingerprint: `words` is a new array on every slider step even when unchanged.
   const wordsKey = useMemo(
@@ -545,7 +566,7 @@ const CloudCanvas = forwardRef<CloudApi, Props>(function CloudCanvas(
   }, [size.dpr]);
 
   return (
-    <div className="cloud-wrap" ref={wrapRef}>
+    <div className="cloud-wrap" ref={wrapRef} data-cloud-layout={layoutKey}>
       <canvas
         ref={canvasRef}
         className="cloud-canvas"
