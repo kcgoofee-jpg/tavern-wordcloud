@@ -1,6 +1,6 @@
 /* ---------- Import confirmation panel ---------- */
 .import-veil {
-  position: absolute; inset: 0; z-index: 10;
+  position: absolute; inset: 0; z-index: var(--z-veil);
   display: grid; place-items: center; padding: 20px;
   background: color-mix(in srgb, var(--surface) 72%, transparent);
   backdrop-filter: blur(6px);

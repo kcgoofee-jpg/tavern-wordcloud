@@ -77,7 +77,9 @@
 .seg.vertical button { justify-content: space-between; overflow: hidden; text-overflow: ellipsis; }
 .seg button em { font-style: normal; font-size: var(--t-xs); opacity: .7; }
 .seg button:hover { color: var(--fg); }
-.seg button.on { background: var(--surface2); color: var(--fg); font-weight: 500; box-shadow: 0 2px 8px -3px rgb(0 0 0 / .35); }
+/* Selected segment: accent fill. This used to be overridden from 26-mode-row.css (deleted, plan A8); the accent look is what shipped. */
+.seg button.on { background: var(--accent); color: var(--surface); font-weight: 600; }
+.seg button.on em { opacity: .85; }
 .seg button:active { transform: scale(.96); }
 
 /* Multi-line inputs in the advanced panel; the box is drawn in 10-fields.css. */

@@ -107,7 +107,8 @@ describe('first-screen graph', () => {
 
   it('loads them through import() instead', () => {
     const app = readFileSync(resolve(ROOT, 'src/ui/App.tsx'), 'utf8');
-    expect(app).toMatch(/lazy\(\(\) => import\('\.\/LegalPage'\)\)/);
+    // lazyPanel wraps React.lazy (ui/lazyPanel.ts); the point here is that it is still an import()
+    expect(app).toMatch(/lazyPanel\(\(\) => import\('\.\/LegalPage'\)\)/);
     expect(app).toMatch(/import\('\.\/panels\/AiPanel'\)/);
     expect(app).toMatch(/import\('\.\.\/core\/proposeRules'\)/);
     const loader = readFileSync(resolve(ROOT, 'src/render/qrLoad.ts'), 'utf8');

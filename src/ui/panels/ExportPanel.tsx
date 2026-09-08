@@ -356,15 +356,22 @@ export function ExportPanel({
         {t('按次数从高到低，最多 {n} 个（统计到 {all} 个）', { n: opts.csvN, all })}
         <Note>{t('CSV 带 BOM，Excel 直接打开不乱码；列：词、次数、词类')}</Note>
       </p>
-      <button type="button" className="export-act" onClick={onCsv} disabled={!onCsv}>
-        <Icon name="export" size={16} />{t('存成词表（CSV）')}
-      </button>
-      <button type="button" className="export-act" onClick={onJson} disabled={!onJson}>
-        <Icon name="export" size={16} />{t('存成全量数据（JSON）')}
-      </button>
-      <button type="button" className="export-act" onClick={onCopy} disabled={!onCopy}>
-        <Icon name={copied ? 'check' : 'files'} size={16} />{copied ? t('已复制') : t('复制到剪贴板')}
-      </button>
+      {/* One row, three actions (plan A7). The short visible label is the format; the full wording
+          stays as the accessible name and the tooltip, so nothing wraps in either language. */}
+      <div className="export-acts">
+        <button type="button" className="export-act" onClick={onCsv} disabled={!onCsv}
+          title={t('存成词表（CSV）')} aria-label={t('存成词表（CSV）')}>
+          <Icon name="export" size={16} />CSV
+        </button>
+        <button type="button" className="export-act" onClick={onJson} disabled={!onJson}
+          title={t('存成全量数据（JSON）')} aria-label={t('存成全量数据（JSON）')}>
+          <Icon name="export" size={16} />JSON
+        </button>
+        <button type="button" className="export-act" onClick={onCopy} disabled={!onCopy}
+          title={t('复制到剪贴板')} aria-label={copied ? t('已复制') : t('复制到剪贴板')}>
+          <Icon name={copied ? 'check' : 'files'} size={16} />{copied ? t('已复制') : t('复制')}
+        </button>
+      </div>
 
       <div className="group-label">{t('文件名')}</div>
       <input className="export-tpl" type="text" value={opts.nameTpl}

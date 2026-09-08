@@ -6,4 +6,5 @@
 .swatch-note { display: none; }
 
 /* UI font follows the theme */
-body { font-family: var(--font-ui, system-ui, "PingFang SC", sans-serif); }
+/* Latin first in the fallback too; the runtime value is FONT_STACKS.sans (src/theme/fonts.ts). */
+body { font-family: var(--font-ui, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif); }

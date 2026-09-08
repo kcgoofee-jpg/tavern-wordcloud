@@ -1,7 +1,7 @@
 /* ---------- Share of the pointed word ---------- */
 /* Centered below the cloud; full width, no pointer events. */
 .ratio {
-  position: absolute; left: 0; right: 0; bottom: 16px; z-index: 3;
+  position: absolute; left: 0; right: 0; bottom: 16px; z-index: var(--z-canvas-ui);
   display: flex; justify-content: center; pointer-events: none;
   /* Keep clear of the corner widgets */
   padding: 0 190px; min-height: 20px;

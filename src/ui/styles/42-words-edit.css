@@ -21,14 +21,7 @@
 }
 .wordlist.words-edit li { grid-template-columns: 22px minmax(0, 1fr) 44px var(--wl-acts); }
 
-/* Word + annotation chips share one track. A chip hanging off the <li> is a
-   fifth grid item; auto-placement then wraps the icon strip onto a new row. */
-.wordlist.words-edit .word-cell {
-  display: flex; align-items: center; gap: 6px; min-width: 0;
-}
-.wordlist.words-edit .word-cell > .word { min-width: 0; flex: 0 1 auto; }
-.wordlist.words-edit .word-cell > .word-edit { flex: 1 1 auto; }
-.wordlist.words-edit .word-cell > .coref-tag { margin-left: 0; }
+/* The word cell (word + annotation chips in one track) is styled in 51-alias-suggest.css. */
 
 /* Renamed word: the original stays visible in small type so the row is still findable. */
 .wordlist.words-edit .word .orig {

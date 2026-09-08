@@ -1,6 +1,7 @@
 /* ---------- Legal pages (#/terms, #/privacy, #/disclaimer, #/content, #/enforcement) ---------- */
 .legal-page {
-  position: fixed; inset: 0; z-index: 8; overflow-y: auto;
+  /* Above every in-app layer: 8 tied with the toast and lost to the progress ring (9) and the import veil (10). */
+  position: fixed; inset: 0; z-index: var(--z-legal); overflow-y: auto;
   background: var(--surface); color: var(--fg);
   animation: card-in .28s var(--ease) backwards;
 }

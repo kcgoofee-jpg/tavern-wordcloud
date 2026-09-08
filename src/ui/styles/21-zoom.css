@@ -4,7 +4,7 @@
 .zoom-reset {
   position: absolute; left: 50%; top: var(--quick-bottom); transform: translateX(-50%);
   padding: 6px 13px; border-radius: 999px; font-size: var(--t-sm);
-  color: var(--fg-dim); z-index: 3;
+  color: var(--fg-dim); z-index: var(--z-canvas-ui);
   background: color-mix(in srgb, var(--surface2) 84%, transparent);
   backdrop-filter: blur(12px);
   box-shadow: 0 6px 20px -10px rgb(0 0 0 / .4);

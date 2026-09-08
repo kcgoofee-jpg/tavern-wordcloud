@@ -10,7 +10,7 @@
 .note-dot.open > button { opacity: 1; color: var(--accent); }
 .note-pop {
   /* fixed + portal: not clipped by panel overflow */
-  position: fixed; z-index: 60;
+  position: fixed; z-index: var(--z-pop);
   width: max-content; max-width: min(300px, 70vw);
   padding: 10px 12px; border-radius: 12px;
   font-size: var(--t-xs); line-height: 1.62; color: var(--fg-dim); text-align: left;

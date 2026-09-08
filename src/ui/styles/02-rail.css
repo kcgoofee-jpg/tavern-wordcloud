@@ -1,8 +1,8 @@
 /* ---------- Tool rail ---------- */
 .rail {
-  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  position: absolute; left: var(--edge); top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; gap: 2px; padding: 6px;
-  border-radius: 999px; z-index: 5;
+  border-radius: 999px; z-index: var(--z-chrome);
   background: color-mix(in srgb, var(--surface2) 84%, transparent);
   backdrop-filter: blur(16px) saturate(1.4);
   box-shadow: 0 8px 30px -14px rgb(0 0 0 / .38);

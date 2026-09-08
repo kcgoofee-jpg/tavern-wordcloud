@@ -26,6 +26,9 @@
 .export-act:hover:not(:disabled) { filter: brightness(1.08); }
 .export-act:active:not(:disabled) { transform: scale(.97); }
 .export-act:disabled { opacity: .4; cursor: default; }
+/* The three data actions share one row; each keeps the primary look at a third of the width. */
+.export-acts { display: flex; gap: var(--sp-2); margin-top: 10px; }
+.export-acts .export-act { margin-top: 0; flex: 1 1 0; min-width: 0; padding: 10px 6px; white-space: nowrap; }
 
 /* ---------- Two panes: the picture, and the controls ----------
    Stacked by default (picture, its read-out and save button, then the controls); side by side
@@ -83,7 +86,7 @@
   /* `hidden` on the cross axis on purpose: a horizontal scroller here would swallow overflow
      that the layout audit is supposed to report. */
   overflow: hidden auto;
-  padding: 10px 16px 20px;
+  padding: var(--sp-2) 16px var(--sp-4);
   border-top: 1px solid var(--line);
 }
 .export-controls > .group-label:first-child { margin-top: 0; }
@@ -96,7 +99,7 @@
   }
   .export-controls {
     grid-area: 1 / 2 / span 2 / auto;
-    border-top: none; border-left: 1px solid var(--line); padding-top: 14px;
+    border-top: none; border-left: 1px solid var(--line); padding-top: var(--sp-3);
   }
 }
 
@@ -146,7 +149,7 @@
 @media (min-width: 721px) {
   .sheet.export-view {
     left: var(--exp-rail); right: var(--exp-inset); top: var(--exp-top); bottom: var(--exp-inset);
-    width: auto; max-width: none; max-height: none; z-index: 7;
+    width: auto; max-width: none; max-height: none; z-index: var(--z-page);
   }
 }
 /* 640–720: the rail has moved to the bottom and the round buttons have moved down, so the box
@@ -157,7 +160,7 @@
   .sheet.export-view {
     left: var(--exp-mid-inset); right: var(--exp-mid-inset);
     top: var(--exp-mid-top); bottom: var(--exp-mid-inset);
-    width: auto; max-width: none; max-height: none; z-index: 7;
+    width: auto; max-width: none; max-height: none; z-index: var(--z-page);
   }
 }
 
@@ -167,7 +170,7 @@
   left: 0; right: 0; top: 0; bottom: auto;
   width: 100%; max-width: none;
   height: 100dvh; max-height: 100dvh;
-  border-radius: 0; z-index: 12;
+  border-radius: 0; z-index: var(--z-fullscreen);
 }
 .sheet.fullscreen .sheet-bar { position: sticky; top: 0; z-index: 1; background: var(--surface2); }
 

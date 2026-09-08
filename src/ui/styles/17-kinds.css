@@ -1,5 +1,5 @@
 /* ---------- Entity kind toggles ---------- */
-.kinds { display: flex; flex-wrap: wrap; gap: 5px; }
+.kinds { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .kind {
   display: flex; align-items: baseline; gap: 5px;
   padding: 5px 10px; border-radius: 999px; font-size: var(--t-sm);

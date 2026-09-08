@@ -2,7 +2,7 @@
    Modal confirmation for outbound actions (feedback review). Shares the sheet's
    visual tokens; the veil dims the page like the toast veil. */
 .confirm-veil {
-  position: fixed; inset: 0; z-index: 40; display: grid; place-items: center;
+  position: fixed; inset: 0; z-index: var(--z-modal); display: grid; place-items: center;
   background: color-mix(in srgb, var(--surface) 55%, transparent);
   backdrop-filter: blur(6px);
   animation: veil-in .18s var(--ease) backwards;

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** Clicks inside these areas do not count as outside clicks. */
-const KEEP = '.sheet, .community-page, .community-quick, .cardinfo, .rail, .dock, .note-pop, .notice-pop, .notice-quick, .version-pop, .version-quick, .toast, .import-veil, .confirm-veil, .mode-quick, .lang-quick, .cloudmode, .land-top';
+const KEEP = '.sheet, .community-page, .quick-cluster, .community-quick, .cardinfo, .rail, .dock, .note-pop, .notice-pop, .notice-quick, .version-pop, .version-quick, .toast, .import-veil, .confirm-veil, .mode-quick, .lang-quick, .cloudmode, .land-top';
 
 /**
  * Shell that takes keyboard focus for each overlay state. Chosen by state rather than by a

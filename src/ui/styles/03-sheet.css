@@ -2,12 +2,12 @@
    The close button sits in its own title bar, never over content. */
 .sheet {
   /* Grows upward from the bottom, next to the buttons that open it; max-height keeps it below the mode switch. */
-  /* Leaves room for the rail on the left (76 = rail width + gap). */
-  position: absolute; left: 76px; bottom: 60px; top: auto; transform: none;
-  width: min(340px, calc(100vw - 96px));
-  max-height: calc(100vh - 118px);
+  /* Leaves room for the rail on the left (--inset-left = edge + rail + gap). */
+  position: absolute; left: var(--inset-left); bottom: var(--panel-bottom); top: auto; transform: none;
+  width: min(var(--panel-w), calc(100vw - var(--inset-left) - 20px));
+  max-height: calc(100vh - var(--panel-bottom) - var(--quick-bottom));
   display: flex; flex-direction: column;
-  border-radius: var(--r); z-index: 6; overflow: hidden;
+  border-radius: var(--r); z-index: var(--z-panel); overflow: hidden;
   /* Opaque enough to hide the cloud underneath. */
   background: var(--surface2);
   backdrop-filter: blur(20px) saturate(1.5);
@@ -15,7 +15,7 @@
   animation: sheet-in .34s var(--spring) backwards;
 }
 /* The word table shows six controls per row; 340px truncated long words and hid the counts. */
-.sheet.wide { width: min(520px, calc(100vw - 96px)); }
+.sheet.wide { width: min(var(--panel-w-wide), calc(100vw - var(--inset-left) - 20px)); }
 @keyframes sheet-in { from { opacity: 0; transform: translateY(10px) scale(.97); } }
 
 .sheet-bar {

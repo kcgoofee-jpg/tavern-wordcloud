@@ -10,7 +10,7 @@
 .kind-group {
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
-  background: var(--card);
+  background: var(--surface2);
 }
 
 .kind-group > summary {
@@ -20,8 +20,8 @@
   gap: var(--gap-xs, 6px);
   padding: 6px 10px;
   cursor: pointer;
-  font-size: var(--fs-sm);
-  color: var(--ink-2);
+  font-size: var(--t-sm);
+  color: var(--fg-dim);
   list-style: none;
 }
 
@@ -46,13 +46,13 @@
 /* Review page: the non-common tab groups fold away. */
 .review-more-tabs > summary {
   cursor: pointer;
-  font-size: var(--fs-sm);
-  color: var(--ink-2);
+  font-size: var(--t-sm);
+  color: var(--fg-dim);
   padding: 4px 0;
 }
 .review-more-tabs .review-tabs > b {
   font-weight: 600;
-  font-size: var(--fs-sm);
-  color: var(--ink-2);
+  font-size: var(--t-sm);
+  color: var(--fg-dim);
   align-self: center;
 }

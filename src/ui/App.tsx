@@ -1,4 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazyPanel, whenIdle } from './lazyPanel';
 import { copyText } from './clipboard';
 import { endpointKind } from './endpointKind';
 import { LangContext, tenK, tx, txv, type UserText } from './i18n';
@@ -48,18 +49,22 @@ import './styles/index.css';
  * pages carry ~80 kB of markdown, and every panel waits behind a click. `npm run build:single`
  * folds the chunks back into the one script, so the offline build is unaffected.
  */
-const LegalPage = lazy(() => import('./LegalPage'));
-const ThemePanel = lazy(() => import('./panels/ThemePanel').then((m) => ({ default: m.ThemePanel })));
-const FontPanel = lazy(() => import('./panels/FontPanel').then((m) => ({ default: m.FontPanel })));
-const FilterPanel = lazy(() => import('./panels/FilterPanel').then((m) => ({ default: m.FilterPanel })));
-const AdvancedPanel = lazy(() => import('./panels/AdvancedPanel').then((m) => ({ default: m.AdvancedPanel })));
-const PriorityPanel = lazy(() => import('./panels/PriorityPanel').then((m) => ({ default: m.PriorityPanel })));
-const WordsPanel = lazy(() => import('./panels/WordsPanel').then((m) => ({ default: m.WordsPanel })));
-const ReviewPanel = lazy(() => import('./panels/ReviewPanel').then((m) => ({ default: m.ReviewPanel })));
-const ExportPanel = lazy(() => import('./panels/ExportPanel').then((m) => ({ default: m.ExportPanel })));
+// Preloadable (ui/lazyPanel.ts): warmed on idle after the first paint so the first open of
+// any panel renders in one go instead of fallback → 300 ms throttle → content.
+const LegalPage = lazyPanel(() => import('./LegalPage'));
+const ThemePanel = lazyPanel(() => import('./panels/ThemePanel').then((m) => ({ default: m.ThemePanel })));
+const FontPanel = lazyPanel(() => import('./panels/FontPanel').then((m) => ({ default: m.FontPanel })));
+const FilterPanel = lazyPanel(() => import('./panels/FilterPanel').then((m) => ({ default: m.FilterPanel })));
+const AdvancedPanel = lazyPanel(() => import('./panels/AdvancedPanel').then((m) => ({ default: m.AdvancedPanel })));
+const PriorityPanel = lazyPanel(() => import('./panels/PriorityPanel').then((m) => ({ default: m.PriorityPanel })));
+const WordsPanel = lazyPanel(() => import('./panels/WordsPanel').then((m) => ({ default: m.WordsPanel })));
+const ReviewPanel = lazyPanel(() => import('./panels/ReviewPanel').then((m) => ({ default: m.ReviewPanel })));
+const ExportPanel = lazyPanel(() => import('./panels/ExportPanel').then((m) => ({ default: m.ExportPanel })));
 /** The AI panel drags in the model-endpoint code (aiTokenizer, labelKinds) — the biggest of the lot. */
-const AiPanel = lazy(() => import('./panels/AiPanel').then((m) => ({ default: m.AiPanel })));
-const CommunityPanel = lazy(() => import('./panels/CommunityPanel').then((m) => ({ default: m.CommunityPanel })));
+const AiPanel = lazyPanel(() => import('./panels/AiPanel').then((m) => ({ default: m.AiPanel })));
+const CommunityPanel = lazyPanel(() => import('./panels/CommunityPanel').then((m) => ({ default: m.CommunityPanel })));
+/** Everything behind a Suspense boundary; App warms these once the browser is idle. */
+const PRELOAD = [ThemePanel, FontPanel, FilterPanel, AdvancedPanel, PriorityPanel, WordsPanel, ReviewPanel, ExportPanel, AiPanel, CommunityPanel, LegalPage] as const;
 
 /** Hand-edited word count as a coarse bucket: a number would be far more identifying. */
 export const overrideBucket = (n: number): '0' | '1-10' | '11+' => (n === 0 ? '0' : n <= 10 ? '1-10' : '11+');
@@ -120,6 +125,8 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   /** Site notice from the server. The single-file build has none, so the bell stays hidden. */
   const { notice: siteNotice, unread: noticeUnread, updateAvailable } = useNotice(noticeOpen, busy);
+  // First open of a panel used to stall ~300 ms on the Suspense fallback; warm every panel module on idle instead.
+  useEffect(() => whenIdle(() => { for (const p of PRELOAD) void p.preload(); }), []);
   /** Progress overlay is delayed 300 ms so quick local recomputes do not flash it. */
   const [showProgress, setShowProgress] = useState(false);
   /** Whether a server exists behind this page. Static hosting has none. */
@@ -986,17 +993,6 @@ export default function App() {
         accept="application/json,text/plain,application/zip,application/x-zip-compressed,image/png,.jsonl,.json,.txt,.zip,.png" hidden
         onChange={(e) => { void ingest([...(e.target.files ?? [])]); e.target.value = ''; }} />
 
-      {/* Two schemes only (light / dark). On the landing these controls live in the top bar instead. */}
-      {!showLanding && (
-      <button
-        type="button" className="mode-quick"
-        title={resolveMode(settings.mode) === 'dark' ? t('深色 · 点一下切到淡色') : t('淡色 · 点一下切到深色')}
-        onClick={() => patch({ mode: resolveMode(settings.mode) === 'dark' ? 'light' : 'dark' })}
-      >
-        <Icon name={resolveMode(settings.mode) === 'dark' ? 'moon' : 'sun'} size={19} />
-      </button>
-      )}
-
       {/* Cloud mode switch: top-level, always visible. Keyword mode has its own run action; switching never sends a request. */}
       {/* Shown when files are loaded, not when the canvas has content; keyword mode may be empty. */}
       {hasFiles && (
@@ -1031,39 +1027,58 @@ export default function App() {
         </div>
       )}
 
-      {/* Language switch next to the scheme switch: both are display-only settings; on the landing they live in the top bar */}
+      {/* Top-right buttons, one cluster (plan A3): DOM order scheme → language → community → notice →
+          version, laid out right-to-left by the stylesheet, so an absent bell or update dot leaves no
+          hole and adding a button is one line here, not a `right:` recalculation in four files.
+          Scheme and language are display-only settings; on the landing they live in the top bar. */}
       {!showLanding && (
-      <button
-        type="button" className="lang-quick"
-        title={settings.lang === 'zh' ? 'Switch to English' : '切换到中文'}
-        onClick={() => patch({ lang: settings.lang === 'zh' ? 'en' : 'zh' })}
-      >
-        <Icon name="lang" size={19} />
-      </button>
-      )}
-
-      {/* Community board opens as a full page, not a side sheet */}
-      {!showLanding && (
-      <button
-        type="button" className={`community-quick${panel === 'community' || communityCloud ? ' on' : ''}`}
-        title={panel === 'community' ? t('再点一下：只看社区词云') : communityCloud ? t('再点一下：回到自己的词云') : t('社区排行榜')}
-        aria-pressed={panel === 'community' || communityCloud}
-        onClick={cycleCommunity}
-      >
-        <Icon name="people" size={19} />
-      </button>
-      )}
-
-      {/* Site notice: only the served version has one; the bell is absent without a server */}
-      {!showLanding && siteNotice && (
-      <button
-        type="button" className={`notice-quick${noticeOpen ? ' on' : ''}${siteNotice.level === 'warn' ? ' warn' : ''}`}
-        title={t('站内通知')} aria-pressed={noticeOpen}
-        onClick={toggleNotice}
-      >
-        <Icon name="bell" size={19} />
-        {noticeUnread && <span className="dot" />}
-      </button>
+      <div className="quick-cluster">
+        <button
+          type="button" className="quick mode-quick"
+          title={resolveMode(settings.mode) === 'dark' ? t('深色 · 点一下切到淡色') : t('淡色 · 点一下切到深色')}
+          onClick={() => patch({ mode: resolveMode(settings.mode) === 'dark' ? 'light' : 'dark' })}
+        >
+          <Icon name={resolveMode(settings.mode) === 'dark' ? 'moon' : 'sun'} size={19} />
+        </button>
+        <button
+          type="button" className="quick lang-quick"
+          title={settings.lang === 'zh' ? 'Switch to English' : '切换到中文'}
+          onClick={() => patch({ lang: settings.lang === 'zh' ? 'en' : 'zh' })}
+        >
+          <Icon name="lang" size={19} />
+        </button>
+        {/* Community board opens as a full page, not a side sheet */}
+        <button
+          type="button" className={`quick community-quick${panel === 'community' || communityCloud ? ' on' : ''}`}
+          title={panel === 'community' ? t('再点一下：只看社区词云') : communityCloud ? t('再点一下：回到自己的词云') : t('社区排行榜')}
+          aria-pressed={panel === 'community' || communityCloud}
+          onClick={cycleCommunity}
+        >
+          <Icon name="people" size={19} />
+        </button>
+        {/* Site notice: only the served version has one; the bell is absent without a server */}
+        {siteNotice && (
+        <button
+          type="button" className={`quick notice-quick${noticeOpen ? ' on' : ''}${siteNotice.level === 'warn' ? ' warn' : ''}`}
+          title={t('站内通知')} aria-pressed={noticeOpen}
+          onClick={toggleNotice}
+        >
+          <Icon name="bell" size={19} />
+          {noticeUnread && <span className="dot" />}
+        </button>
+        )}
+        {/* Deploy update: only shown once a version change was detected and no analysis is running */}
+        {updateAvailable && (
+        <button
+          type="button" className={`quick version-quick${versionOpen ? ' on' : ''}`}
+          title={t('网站更新了')} aria-pressed={versionOpen}
+          onClick={toggleVersion}
+        >
+          <Icon name="reset" size={19} />
+          <span className="dot" />
+        </button>
+        )}
+      </div>
       )}
       {noticeOpen && siteNotice && (
         <div className="notice-pop" role="note" tabIndex={-1} aria-label={t('站内通知')}>
@@ -1074,17 +1089,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Deploy update: only shown once a version change was detected and no analysis is running */}
-      {!showLanding && updateAvailable && (
-      <button
-        type="button" className={`version-quick${versionOpen ? ' on' : ''}`}
-        title={t('网站更新了')} aria-pressed={versionOpen}
-        onClick={toggleVersion}
-      >
-        <Icon name="reset" size={19} />
-        <span className="dot" />
-      </button>
-      )}
       {versionOpen && updateAvailable && (
         <div className="version-pop" role="note" tabIndex={-1} aria-label={t('网站更新了')}>
           <p>{t('网站更新了，刷新一下用新版；不刷新也能继续用，正在算的结果不受影响')}</p>
@@ -1146,7 +1150,7 @@ export default function App() {
       {/* The export panel has the most controls, so on a phone it takes the whole screen. */}
       {panel && panel !== 'community' && (
         <aside
-          className={`sheet${panel === 'words' ? ' wide' : ''}${panel === 'export' ? ' export-view' : ''}${narrow && panel === 'export' ? ' fullscreen' : ''}`}
+          className={`sheet${panel === 'words' || panel === 'review' ? ' wide' : ''}${panel === 'export' ? ' export-view' : ''}${narrow && panel === 'export' ? ' fullscreen' : ''}`}
           role="dialog" tabIndex={-1} aria-label={panelTitle}
         >
           <div className="sheet-bar">

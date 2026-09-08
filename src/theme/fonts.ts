@@ -3,10 +3,14 @@
  * Each stack is ordered macOS -> Windows -> Linux -> generic.
  */
 export const FONT_STACKS = {
-  /** Sans. Default for the UI and most themes */
+  /** Sans. Default for the UI and most themes. Latin families first: fallback is per glyph,
+   *  so CJK still comes from PingFang / YaHei, while Latin comes from the system UI face. With
+   *  PingFang first the whole English interface was drawn with a Chinese font's Latin glyphs
+   *  (and the tittle on "i" vanished at 14px) — this stack is the single source; body's
+   *  `--font-ui` is written from it (useSettings) and 00-tokens-base.css mirrors the order. */
   sans:
-    '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", ' +
-    '"Source Han Sans SC", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+    'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", ' +
+    '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif',
 
   /** Serif. Used by the Claude and scientific styles */
   serif:

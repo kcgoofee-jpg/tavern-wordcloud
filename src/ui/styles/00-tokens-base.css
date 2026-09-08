@@ -12,9 +12,35 @@
   --t-md: 13.5px;  /* body, controls */
   --t-lg: 15px;    /* emphasis */
 
-  /* Layout: where the top-centre mode switch ends (14px edge + its 44px pill), so anything
-     else that wants the top centre (the 「复位视图」 pill) starts below it, not on top of it. */
-  --quick-bottom: 58px;
+  /* ---------- Layout: one number per relationship, read by the stylesheets and by
+     CloudCanvas (cssPx) so the canvas inset and the chrome never drift apart again. ---------- */
+  --edge: 14px;            /* distance of every floating control from the viewport edge */
+  --rail-w: 56px;          /* the tool rail: 44px buttons + 6px padding each side */
+  --rail-gap: 6px;
+  --inset-left: 76px;      /* edge + rail + gap: where a panel or the export page begins */
+  --inset-top: 72px;       /* edge + round button + gap: below the top-right buttons */
+  --quick-bottom: 58px;    /* where the top-centre mode switch ends; the 「复位视图」 pill starts here */
+  --panel-bottom: 60px;    /* panels rise from just above the dock */
+  --panel-w: 340px;
+  --panel-w-wide: 520px;   /* word table, review: six controls per row */
+  --panel-gap: 8px;
+  --cloud-top: 96px;       /* canvas inset: mode switch + room for the reset pill */
+  --cloud-bottom: 62px;    /* dock buttons + corner figures */
+  --cloud-right: 8px;
+  /* Stacking ladder. Every z-index in src/ui/styles must be one of these (test/ui/tokens.test.ts),
+     so "on top of everything" is a fact, not a comment. */
+  --z-canvas-ui: 3;        /* things drawn over the cloud: reset pill, share figure */
+  --z-dock: 4;             /* bottom-left dock, the landing */
+  --z-chrome: 5;           /* rail, mode switch, top-right buttons */
+  --z-panel: 6;            /* sheets */
+  --z-page: 7;             /* full-page layers: export view, community board, drop veil */
+  --z-toast: 8;
+  --z-progress: 9;
+  --z-veil: 10;            /* import confirmation */
+  --z-fullscreen: 12;      /* phone export page */
+  --z-legal: 30;           /* legal pages sit above every in-app layer */
+  --z-modal: 40;           /* confirm dialog */
+  --z-pop: 60;             /* popovers: note, notice, version */
 
   --surface: #ece5da;
   --surface2: #f2eee7;

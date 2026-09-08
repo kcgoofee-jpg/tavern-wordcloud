@@ -2,7 +2,7 @@
    Serif display stack mirrors src/theme/fonts.ts `palatino`; colors/sizes/radii
    come from 00-tokens-base.css variables only. */
 .landing {
-  position: absolute; inset: 0; z-index: 4; overflow: hidden auto;
+  position: absolute; inset: 0; z-index: var(--z-dock); overflow: hidden auto;
   background: var(--surface);
   display: flex; flex-direction: column;
   animation: card-in .4s var(--ease) backwards;
@@ -87,7 +87,7 @@
 .land-export summary:hover { text-decoration: underline; }
 .land-steps {
   position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%);
-  width: min(400px, 88vw); margin: 0; padding: 16px 20px 16px 36px; z-index: 5;
+  width: min(400px, 88vw); margin: 0; padding: 16px 20px 16px 36px; z-index: var(--z-chrome);
   background: var(--surface2); border-radius: var(--r);
   box-shadow: 0 16px 40px -18px rgb(0 0 0 / .5);
   text-align: left; color: var(--fg-dim); font-size: var(--t-sm);

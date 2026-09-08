@@ -1,7 +1,7 @@
 /* ---------- Cloud mode switch ---------- */
 /* Top center, always visible. */
 .cloudmode {
-  position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 5;
+  position: absolute; left: 50%; top: var(--edge); transform: translateX(-50%); z-index: var(--z-chrome);
   display: flex; gap: 3px; padding: 3px; border-radius: 999px;
   background: color-mix(in srgb, var(--surface2) 82%, transparent);
   backdrop-filter: blur(14px);

@@ -12,24 +12,4 @@
 .board-n { color: var(--fg); white-space: nowrap; }
 .board-n em { font-style: normal; color: var(--fg-dim); margin-left: 6px; }
 .board-ci { color: var(--fg-dim); font-size: var(--t-xs); white-space: nowrap; }
-
-/* Author claim: a collapsed row until asked for. */
-.claim { margin-top: 10px; }
-.claim-toggle {
-  font-size: var(--t-sm); color: var(--fg-dim);
-  background: none; border: 0; padding: 2px 0; text-decoration: underline;
-}
-.claim-toggle:hover { color: var(--fg); }
-.claim-body { margin-top: 8px; max-width: 460px; }
-.claim-field { display: grid; gap: 3px; margin-top: 8px; font-size: var(--t-sm); color: var(--fg-dim); }
-/* The box is drawn in 10-fields.css. */
-.claim-field input[readonly] { color: var(--fg-dim); font-variant-numeric: tabular-nums; }
-.claim-preview { margin: 4px 0 0; padding-left: 1.1em; font-size: var(--t-sm); color: var(--fg); overflow-wrap: anywhere; }
-.claim-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
-.claim-btn {
-  font: inherit; font-size: var(--t-sm); padding: 5px 12px; border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--fg-dim) 34%, transparent);
-  background: none; color: var(--fg);
-}
-.claim-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
-.claim-btn:disabled { opacity: .5; }
+/* The author-claim form is styled in 47-claim.css (its older duplicate here was deleted, plan A8). */

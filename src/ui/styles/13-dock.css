@@ -2,11 +2,13 @@
 /* Palette button at the edge, card info to its right. */
 /* Flush left: the rail is vertical and higher up, so no offset is needed. */
 .dock {
-  position: absolute; left: 12px; bottom: 12px; z-index: 4;
+  position: absolute; left: 12px; bottom: 12px; z-index: var(--z-dock);
   display: flex; align-items: flex-end; gap: 8px;
   max-width: calc(100vw - 24px);
   animation: card-in .5s var(--spring) backwards;
 }
+/* Desktop: a long card name must not push the dock into the share figure at the bottom centre. */
+@media (min-width: 721px) { .dock { max-width: calc(50vw - 110px); } }
 .dock-style {
   flex: none; display: flex; align-items: center; gap: 7px;
   height: 38px; padding: 0 11px; border-radius: 12px;

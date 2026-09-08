@@ -1,19 +1,7 @@
 /* ---------- Community board: full page ---------- */
-.community-quick {
-  position: absolute; top: 14px; right: calc(14px + (var(--tap) + 6px) * 2);
-  width: var(--tap); height: var(--tap); border-radius: 50%; z-index: 6;
-  display: grid; place-items: center; color: var(--fg-dim);
-  background: color-mix(in srgb, var(--surface2) 84%, transparent);
-  backdrop-filter: blur(16px) saturate(1.4);
-  box-shadow: 0 8px 30px -14px rgb(0 0 0 / .38);
-  transition: color .18s var(--ease), background .18s var(--ease), transform .24s var(--spring);
-}
-.community-quick:hover { color: var(--fg); }
-.community-quick:hover svg { transform: scale(1.16); }
-.community-quick.on { color: var(--surface); background: var(--accent); }
-
+/* The button itself is a `.quick` in the top-right cluster (27-mode-quick.css). */
 .community-page {
-  position: absolute; inset: 72px 14px 14px 14px; z-index: 7;
+  position: absolute; inset: var(--inset-top) var(--edge) var(--edge) var(--edge); z-index: var(--z-page);
   display: flex; flex-direction: column; border-radius: 18px;
   background: color-mix(in srgb, var(--surface2) 96%, transparent);
   backdrop-filter: blur(18px) saturate(1.4);

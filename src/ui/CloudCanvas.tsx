@@ -33,6 +33,22 @@ const MOBILE_STACK = 12 + (44 + 12) + 8 + 44 + 8 + 22 + 8 + 30 + 8;
 const prefersReducedMotion = (): boolean =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/**
+ * Desktop canvas inset, read from the layout tokens in 00-tokens-base.css so the canvas and
+ * the chrome share one number per edge (2026-09-08, plan A1). The literal fallback is for
+ * tests and for a stylesheet that failed to load.
+ */
+export const DESKTOP_INSET = { top: 96, right: 8, bottom: 62, left: 76 } as const;
+const cssPx = (name: string, fallback: number): number => {
+  if (typeof document === 'undefined' || !document.documentElement) return fallback;
+  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
+  return Number.isFinite(v) && v > 0 ? v : fallback;
+};
+export const desktopInset = () => ({
+  top: cssPx('--cloud-top', DESKTOP_INSET.top), right: cssPx('--cloud-right', DESKTOP_INSET.right),
+  bottom: cssPx('--cloud-bottom', DESKTOP_INSET.bottom), left: cssPx('--inset-left', DESKTOP_INSET.left),
+});
+
 const mobileStackHeight = (): number => {
   if (typeof document === 'undefined' || !document.body) return MOBILE_STACK;
   const probe = document.createElement('div');
@@ -152,9 +168,9 @@ const CloudCanvas = forwardRef<CloudApi, Props>(function CloudCanvas(
   const inset = useMemo(() => {
     const d = size.dpr;
     const narrow = size.w <= 720;
-    return narrow
-      ? { top: NARROW_TOP * d, right: 8 * d, bottom: mobileStackHeight() * d, left: 8 * d }
-      : { top: 96 * d, right: 8 * d, bottom: 62 * d, left: 78 * d };
+    if (narrow) return { top: NARROW_TOP * d, right: 8 * d, bottom: mobileStackHeight() * d, left: 8 * d };
+    const w = desktopInset();
+    return { top: w.top * d, right: w.right * d, bottom: w.bottom * d, left: w.left * d };
   }, [size.w, size.dpr]);
 
   // Word-list fingerprint: `words` is a new array on every slider step even when unchanged.
