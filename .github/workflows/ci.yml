@@ -11,9 +11,9 @@ name: ci
 on:
   push:
     branches: [main]
-    paths-ignore: ['notes/**', 'TODO.md', 'AGENTS.md', 'PROGRESS.md', 'CLAUDE.md']
+    paths-ignore: ['notes/**', 'TODO.md', 'STATUS.md', 'AGENTS.md', 'PROGRESS.md', 'CLAUDE.md']
   pull_request:
-    paths-ignore: ['notes/**', 'TODO.md', 'AGENTS.md', 'PROGRESS.md', 'CLAUDE.md']
+    paths-ignore: ['notes/**', 'TODO.md', 'STATUS.md', 'AGENTS.md', 'PROGRESS.md', 'CLAUDE.md']
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -29,3 +29,24 @@ jobs:
       - run: npm run lint
       - run: npm run build:single   # before the tests: server tests serve dist-single/index.html (not tracked)
       - run: npm test
+  # The full layout audit, both languages, desktop and phone. deploy.yml waits for this
+  # workflow to succeed, so a layout regression now blocks the deploy instead of relying on
+  # whoever pushed having run `npm run audit` by hand (2026-09-08). Screenshots are kept
+  # only when it fails — that is when someone needs to look at them.
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run fixtures
+      - run: npm run build:single
+      - run: SHOT_NO_BUILD=1 SHOT_CHROME=google-chrome node tools/audit.mjs
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: audit-screenshots
+          path: /tmp/shot-*
+          retention-days: 7

@@ -11,7 +11,7 @@
     "build:single": "tsc -b && vite build --mode single",
     "blocklist": "node tools/blocklist-build.mjs",
     "shot": "node tools/shot.mjs",
-    "audit": "node tools/shot.mjs 1440 900 && SHOT_NO_BUILD=1 node tools/shot.mjs 390 844",
+    "audit": "node tools/audit.mjs",
     "audit:fast": "SHOT_FAST=1 node tools/shot.mjs 1440 900",
     "typecheck": "tsc -b",
     "lint": "oxlint",
@@ -38,7 +38,9 @@
     "bench:big": "node tools/optimize/bigfile.mjs",
     "optimize:measure": "node tools/optimize/measure.mjs",
     "optimize:gate": "node tools/optimize/gate.mjs",
-    "og:card": "npx --yes vite-node tools/og-card.ts"
+    "og:card": "npx --yes vite-node tools/og-card.ts",
+    "audit:serial": "node tools/shot.mjs 1440 900 && SHOT_NO_BUILD=1 node tools/shot.mjs 390 844",
+    "claim": "node tools/claim.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.3",

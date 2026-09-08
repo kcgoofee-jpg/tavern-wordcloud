@@ -6,12 +6,20 @@
  * Usage: node tools/shot.mjs [width] [height]
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { writeFileSync, mkdirSync, rmSync, readFileSync, readdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, rmSync, readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
 import { createServer } from 'node:http';
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+/**
+ * Chrome binary: SHOT_CHROME wins; otherwise the macOS bundle; otherwise whatever a Linux
+ * runner puts on PATH (ubuntu-latest ships google-chrome). The audit runs in CI now, so the
+ * hard-coded macOS path stopped being enough (2026-09-08).
+ */
+const CHROME = process.env.SHOT_CHROME
+  || ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium']
+    .find((f) => { try { return readFileSync(f).length > 0; } catch { return false; } })
+  || 'google-chrome';
 /** Random CDP port: a leaked Chrome on a fixed port would be attached to instead of a fresh profile (happened once; it carried localStorage across runs). */
 const PORT = Number(process.env.SHOT_PORT) || 9300 + Math.floor(Math.random() * 600);
 /** Without SHOT_URL the tool serves dist-single/index.html itself on a random port, so it never audits a stale or
@@ -46,7 +54,9 @@ if (!URL_) {
 }
 
 /** Fresh profile every run so no localStorage state leaks between runs. */
-const PROFILE = `/tmp/shot-profile-${Date.now()}`;
+// pid as well as time: two audits now run in parallel (zh / en) and were started in the same
+// millisecond often enough to share a profile, which is one way two Chromes fight (2026-09-08).
+const PROFILE = `/tmp/shot-profile-${process.pid}-${Date.now()}`;
 const chrome = spawn(CHROME, [
   '--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run',
   `--remote-debugging-port=${PORT}`, `--window-size=${W},${H}`,
@@ -409,8 +419,23 @@ await run(`location.hash=''; await new Promise(r=>setTimeout(r,500));`);
 }
 
 /** The corpus is read from disk and injected; the single-file server returns the same HTML for every path, so page fetches would fail. */
-const fixtureText = readFileSync(process.env.SHOT_FILE
-  || path.join(process.cwd(), 'fixtures', 'ceo-zh.jsonl'), 'utf8');
+/**
+ * The corpus to import. ceo-zh.jsonl is a local-only file (fixtures/ is not tracked, and its
+ * Markdown source is private), so a fresh clone and the CI runner never have it — the audit
+ * job failed on ENOENT the first time it ran on Linux (2026-09-08). Fall back to whatever
+ * `npm run fixtures` generated, which is synthetic and always there in CI.
+ */
+const fixturePath = (() => {
+  if (process.env.SHOT_FILE) return process.env.SHOT_FILE;
+  const preferred = path.join(process.cwd(), 'fixtures', 'ceo-zh.jsonl');
+  if (existsSync(preferred)) return preferred;
+  const dir = path.join(process.cwd(), 'fixtures');
+  const any = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.jsonl')).sort() : [];
+  if (!any.length) throw new Error('fixtures/ 里没有任何 .jsonl；先跑 npm run fixtures');
+  console.error(`语料：fixtures/ceo-zh.jsonl 不存在，改用 ${any[0]}`);
+  return path.join(dir, any[0]);
+})();
+const fixtureText = readFileSync(fixturePath, 'utf8');
 
 // Load the corpus
 await run(`
