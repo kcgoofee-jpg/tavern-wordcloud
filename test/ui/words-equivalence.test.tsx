@@ -70,6 +70,14 @@ describe('equivalence suggestion on the row', () => {
     expect(tips().map((b) => b.textContent).join(' ')).not.toContain('咖啡');
   });
 
+  it('does not volunteer two different English words that merely look alike', () => {
+    // letter/better score 0.6+ on spelling, which alone cleared the floor (0.6 × 6 = 3.6 > 3.5):
+    // every look-alike pair in an English log recommended each other (2026-09-08). Spelling may
+    // strengthen a suggestion that another signal started, never start one.
+    harness({}, [{ text: 'letter', count: 10 }, { text: 'better', count: 8 }, { text: 'station', count: 9 }, { text: 'nation', count: 7 }]);
+    expect(tips().map((b) => b.textContent).join(' '), 'no chip on any row').toBe('');
+  });
+
   it('says nothing about a word that is already merged somewhere', () => {
     harness({ sydney: { alias: '西德妮' } });
     expect(tips().length).toBe(0);

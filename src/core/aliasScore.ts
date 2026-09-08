@@ -320,9 +320,17 @@ export function suggestAlias(
   const targetKey = target.text.toLowerCase();
   let best: AliasWord | null = null;
   let bestScore = ALIAS_SUGGEST_MIN;
+  // Spelling may strengthen a suggestion but never start one. On its own it cleared the floor
+  // for any two look-alike Latin words (letter/better: 0.6 × 6 = 3.6 > 3.5), so an English log
+  // volunteered a wrong merge on nearly every row (2026-09-08). Similarity cannot tell "one word
+  // spelled twice" from "two words that look alike" — sydney/sydny 0.83, lantern/pattern 0.71 —
+  // so the gate is another signal (coreference, transliteration) having fired first.
+  const noSpelling: AliasScoreOptions = { ...scoped, signals: { ...SUGGEST_SIGNALS, spelling: false } };
   for (const w of words) {
     const k = w.text.toLowerCase();
     if (k === targetKey || opts.aliased?.has(k)) continue;
+    const base = scoreAliasCandidate(w, target, noSpelling);
+    if (base === null || base <= ALIAS_SUGGEST_MIN) continue;
     const s = scoreAliasCandidate(w, target, scoped);
     if (s !== null && s > bestScore) { best = w; bestScore = s; }
   }
