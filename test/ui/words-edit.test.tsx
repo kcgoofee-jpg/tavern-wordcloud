@@ -115,7 +115,7 @@ const KINDED: WordCount[] = [
   { text: '咖啡馆', count: 5, kind: 'place' },
 ];
 
-const equalsBtn = (i = 0) => screen.getAllByTitle(/把别的词并入/)[i];
+const equalsBtn = (i = 0) => screen.getAllByTitle(/^等价：/)[i];
 const aliasInput = () => screen.getByLabelText(/要并入/) as HTMLInputElement;
 
 describe('WordsPanel equivalence mode', () => {

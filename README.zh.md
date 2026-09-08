@@ -63,6 +63,8 @@ irm https://wordcloud.davidzhao.top/install.ps1 | iex
 
 **不装脚本。** 下载 <https://wordcloud.davidzhao.top/download/index.html>，双击打开。想校验文件：`curl -s https://wordcloud.davidzhao.top/download/index.html.sha256` 给出当前构建的 SHA-256，和 `shasum -a 256 index.html` 对比。
 
+**更新。** 本地版不会自己更新——下载下来是哪个版本就一直是哪个版本，而且它也无从知道有了新版（背后没有服务端，没地方问）。想换成当前构建，重跑上面那行安装命令即可：它会覆盖同一个文件并重新校验 SHA-256。手动下载的重新下一次；从源码构建的 `git pull` 后重新构建。
+
 **从源码构建。**
 
 ```bash

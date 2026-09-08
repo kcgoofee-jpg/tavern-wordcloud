@@ -1,0 +1,45 @@
+/* ---------- Word table: the word cell, and the equivalence suggestion in it ----------
+
+   The row is a four-track grid (rank | word | count | actions). Annotations used to
+   hang straight off the <li>, which made a fifth grid item and pushed the count and
+   the icon strip onto a second line. Everything that annotates the word now shares
+   one cell with it. */
+
+.wordlist.words-edit .word-cell {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+}
+/* Flex items do not shrink below their content unless told to. */
+.wordlist.words-edit .word-cell > .word { min-width: 0; flex: 0 1 auto; }
+.wordlist.words-edit .word-cell > .word-edit { flex: 1 1 auto; }
+/* The cell's gap replaces the chip's own left margin. */
+.wordlist.words-edit .word-cell > .coref-tag { margin-left: 0; }
+
+/* The suggestion: "there is a second spelling of this word in the table".
+   A question, not a state — it names the word it found and opens the picker.
+   Louder than the coreference chip next to it, which reports something already done. */
+.alias-tip {
+  flex: 0 1 auto; min-width: 0;
+  display: inline-flex; align-items: center; gap: 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--t-xs); line-height: 1.6;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  border-radius: 999px; padding: 0 8px;
+  transition: background .16s;
+}
+.alias-tip em { font-style: normal; opacity: .75; }
+.alias-tip:hover { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+
+/* The equivalence icon on a row that has a suggestion: lit, so the one row worth
+   looking at does not look like the fifty-nine that are not. */
+.wordlist.words-edit .btn-x.hot { opacity: .9; color: var(--accent); }
+.wordlist.words-edit .btn-x.hot:hover { color: var(--accent); }
+/* Equivalence mode is on for this row: filled, to tell it apart from merely lit. */
+.wordlist.words-edit .btn-x.set { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+
+/* ---------- Equivalence mode: name the mode above the candidates ---------- */
+.alias-cands .alias-title {
+  flex: 1 0 100%; margin: 0 0 2px;
+  font-size: var(--t-sm); color: var(--accent);
+}

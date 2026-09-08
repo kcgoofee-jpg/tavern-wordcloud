@@ -55,5 +55,6 @@
 @import './49-wrong-words.css';
 @import './50-focus.css';
 @import './50-coref.css';
+@import './51-alias-suggest.css';
 /* Mobile overrides must stay last: media queries do not add specificity. */
 @import './37-mobile-overrides.css';

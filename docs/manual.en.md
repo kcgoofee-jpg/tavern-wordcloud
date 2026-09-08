@@ -31,6 +31,8 @@ This downloads the same single-file `index.html` the site serves to `~/tavern-wo
 
 Everything in the local edition runs inside your browser and works offline. The interface is the same as the web edition, except the entry line reads “Everything is processed on this computer” and there is no community board.
 
+It does not update itself, and it cannot tell you that a newer build exists — offline means there is no server to ask. To move to the current build, run the install command again: it overwrites the same file and re-checks the SHA-256. Downloaded by hand? Download it again.
+
 ## Web edition
 
 Open https://wordcloud.davidzhao.top. You see a sample cloud first; click anywhere to reach the import page. Everything else is identical to the local edition.
@@ -49,6 +51,22 @@ Open https://wordcloud.davidzhao.top. You see a sample cloud first; click anywhe
 5. Top right: site notice (web only; the bell appears when the operator has published one, with a dot until you open it), community board (web only), language, light/dark.
 
 Word kinds in **Filters & tokenizing**, Compact view: Names / Places / Time / Docs & organizations / Other, plus *Common words* — words spread evenly across all messages, which belong to no particular story. Every kind is on by default; turn Names off if they crowd the cloud, and Common words off to leave only story words. Detailed view splits the same words into the full set of kinds. “See which words are in each kind” below the buttons lists what went into each one, with counts, so misclassifications are visible.
+
+The **word table** (third rail icon) puts six small icons at the right of every row; hover for what each does:
+
+| Icon | What it does |
+|---|---|
+| Pencil | Change the text drawn in the cloud for this word; the count is unaffected |
+| Equals `=` | **Equivalence**: count another word as this one and add the two frequencies together |
+| Double arrow | Force this word horizontal or vertical; click again to switch back |
+| Boxed bar | Split this word up, so it is not counted as one word |
+| Crossed-out eye | Hide this word |
+| Circled `!` | Report a word that should not be there (web edition only; you see the snippets before anything is sent) |
+
+**Equivalence** (the equals icon) folds two spellings of one thing into a single word: "西德妮" and "sydney", "Sydney" and "Sydny", a full name and its short form.
+Click the equals sign and the search box at the top becomes the equivalence box; candidates appear underneath (ranked by coreference, abbreviation, transliteration and context). Click one, or press Enter for the first: the counts are added together and only the word whose equals sign you clicked is drawn. To undo, click the **Merged** chip at the top of the word table.
+
+When the table can already see that a word has a second spelling — the same name in Chinese and Latin script, or two spellings of one Latin name — that row grows a small **Same word? &lt;word&gt;** chip; clicking it does exactly what the equals sign does. **Nothing is ever merged automatically**; every merge is a click of yours.
 
 Message counts: messages hidden with `/hide` still count under their speaker (SillyTavern marks them is_system, but they are your and the character’s lines); real system notices are not counted.
 
@@ -82,13 +100,13 @@ The cloud should not contain what plugins write into the text (status bars, vari
 3. Statistical rules: a line present in most messages, or a word at the start or end of most messages, is treated as a template.
 4. Blocklists: the operator’s manual and automatic lists; can be turned off in Advanced.
 
-When a word in the table should not be there, click the ⚠ next to it to send feedback; the operator reviews it and updates the rules.
+When a word in the table should not be there, click the circled `!` on its row to send feedback; the operator reviews it and updates the rules.
 
 ## Frequently asked questions
 
 **Why so few words?** Both sides are counted by default. If you narrowed Filters down to your own messages, a new chat may only have a few lines — the notice offers to add the character’s back.
 
-**Words like “that one”, “a wave of”, “extremely” show up.** Demonstrative + classifier combos, degree adverbs and relative-position words are now stop words; anything left can be hidden with × in the word table, and ⚠ sends feedback. Words spread evenly over every message are tagged *Common words* and hidden by default.
+**Words like “that one”, “a wave of”, “extremely” show up.** Demonstrative + classifier combos, degree adverbs and relative-position words are now stop words; anything left can be hidden with the crossed-out eye in the word table, and the circled `!` sends feedback. Words spread evenly over every message are tagged *Common words* and hidden by default.
 
 **Why is a name split into pieces?** Names are unknown words; the tool discovers them statistically. Drop the full `.zip` so world-info and card keywords act as a dictionary, or add it under Advanced → Custom words.
 

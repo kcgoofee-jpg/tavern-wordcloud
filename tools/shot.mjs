@@ -454,7 +454,10 @@ async function auditClicks(label, scope, skip = /清空|Clear|添加|Add|导出|
       }
       return true;
     };
-    const list = () => [...document.querySelectorAll(scope + ' button')].filter((b) => !b.disabled && vis(b) && inScrollView(b) && !skip.test(b.title || b.textContent || '') && !b.closest('.export-chips') && !(b.classList.contains('on') && b.closest('.seg, .cloudmode')));
+    const list = () => [...document.querySelectorAll(scope + ' button')].filter((b) => !b.disabled && vis(b) && inScrollView(b) && !skip.test(b.title || b.textContent || '') && !b.closest('.export-chips') && !(b.classList.contains('on') && b.closest('.seg, .cloudmode, .review-tabs')));
+    // A segmented control's selected item is inert by design — clicking the tab you are already
+    // on must not change anything. '.review-tabs' is one of those (its 「全部」 is selected when the
+    // panel opens), which is what the first audit of that panel reported as a dead button.
     // Preset chips change the preview canvas and the size line; the size line can keep its length, so their reaction is asserted in test/ui/export-panel.test.tsx instead.
     // Click the buttons that were there at the start, by reference: re-listing by index shifted
     // after a chip became selected (excluded) and reported a phantom gone button.
@@ -482,10 +485,12 @@ async function auditClicks(label, scope, skip = /清空|Clear|添加|Add|导出|
 }
 
 
-// Each panel (destructive buttons skipped)
+// Each panel (destructive buttons skipped). Titles are matched in both languages, so a panel
+// missing from this list is never audited at all — 检查分类 / Review kinds was absent from the
+// day it shipped (2026-09-06). Adding a panel means adding both of its titles here.
 const panels = await run(`
   return [...document.querySelectorAll('.rail .tool')]
-    .filter(b=>!b.disabled && /筛选|高级|词频表|优先词|密钥|导出|社区|Filters|Advanced|Word table|Priority|endpoint|Export|Community/.test(b.title))
+    .filter(b=>!b.disabled && /筛选|高级|词频表|优先词|密钥|导出|社区|检查分类|Filters|Advanced|Word table|Priority|endpoint|Export|Community|Review kinds/.test(b.title))
     .map(b=>b.title);
 `);
 for (const title of panels) {

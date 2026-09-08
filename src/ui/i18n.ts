@@ -893,6 +893,17 @@ const EN: Record<string, string> = {
   '本地版不用排队，下载后在自己电脑上算': 'The local edition never queues — download it and it runs on your own computer',
   '正在排队': 'Waiting in the queue',
   '服务器正在限流：上传上限暂时降到 {cap} MB，一次只跑一个分析，排队会更久。下载本地版不受影响。': 'The server is rate-limiting: the upload cap is temporarily {cap} MB, one analysis runs at a time, and the queue will be slower. The local edition is unaffected.',
+
+  // ── Word table: equivalence. One name for the feature everywhere — 等价 / Equivalence ──
+  '等价：把别的词算成「{w}」，两边的词频合并':
+    'Equivalence: count another word as “{w}” and add the two frequencies together',
+  '等价：「{c}」可能和「{w}」是同一个词，点一下把它并进来':
+    'Equivalence: “{c}” may be the same word as “{w}” — click to merge it in',
+  '「{c}」和「{w}」看起来是同一个词的两种写法。点一下打开等价，把「{c}」并进来':
+    '“{c}” and “{w}” look like two spellings of one word. Click to open Equivalence and merge “{c}” in',
+  '等价？': 'Same word?',
+  '等价：并进来的词，词频加到「{w}」上，云上只留「{w}」':
+    'Equivalence: a word merged in adds its count to “{w}”, and only “{w}” is drawn',
 };
 
 /** Chinese is returned as-is; the key is the text. */

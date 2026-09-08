@@ -63,6 +63,8 @@ Downloads the same file to `%USERPROFILE%\tavern-wordcloud\`, checks the SHA-256
 
 **No script.** Download <https://wordcloud.davidzhao.top/download/index.html> and open it. To verify the file: `curl -s https://wordcloud.davidzhao.top/download/index.html.sha256` prints the SHA-256 of the current build; compare with `shasum -a 256 index.html`.
 
+**Updating.** Nothing updates itself — the copy you downloaded stays on the version it was, and it cannot tell you a newer one exists (with no server behind it, there is nothing to ask). Re-run the install command above whenever you want the current build: it overwrites the same file and re-checks the SHA-256. If you downloaded by hand, download it again; from source, `git pull` and build again.
+
 **From source.**
 
 ```bash

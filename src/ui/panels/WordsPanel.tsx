@@ -3,7 +3,7 @@ import { useT } from '../i18n';
 import type { AnalyzeOptions } from '../../core/analyze';
 import type { WordCount, WordOverride } from '../../core/types';
 import { hasAliasCycle } from '../../core/overrides';
-import { rankAliasCandidates } from '../../core/aliasScore';
+import { buildCorefIndex, rankAliasCandidates, suggestAlias } from '../../core/aliasScore';
 import type { Cooccur } from '../../core/cooccur';
 import type { CorefGroup } from '../../core/entities';
 import Icon from '../Icons';
@@ -162,6 +162,37 @@ export function WordsPanel({
     setDraft(v || (overrides[key(target)]?.display ?? target));
   };
 
+  /** The rows actually on screen; both the render and the suggestion pass use it. */
+  const shown = useMemo(() => list.slice(0, limit), [list, limit]);
+
+  /**
+   * Rows where a second spelling of the same word is sitting elsewhere in the
+   * table (`core/aliasScore.ts suggestAlias`: coreference, transliteration,
+   * Latin spelling variants — never mere containment).
+   *
+   * This is the whole reason the equivalence button is now findable. Six 13px
+   * icons on every row carry no information: identical on the row where a merge
+   * is obvious and on the 59 rows where nothing can be merged, so there is
+   * nothing to notice. A suggestion appears on the handful of rows that have one
+   * and names the word it found, which is what makes it worth reading.
+   *
+   * Only the side that should absorb the other gets the chip — the higher count,
+   * ties broken by text — so one pair produces one suggestion, not two facing
+   * each other.
+   */
+  const suggested = useMemo(() => {
+    const idx = buildCorefIndex(coref);
+    const out = new Map<string, WordCount>();
+    for (const w of shown) {
+      if (aliased.has(key(w.text))) continue;
+      const s = suggestAlias(w, words, { aliased, corefIndex: idx }) as WordCount | null;
+      if (!s) continue;
+      if (s.count > w.count || (s.count === w.count && s.text < w.text)) continue;
+      out.set(w.text, s);
+    }
+    return out;
+  }, [shown, words, aliased, coref]);
+
   const priSet = useMemo(() => new Set(priority.map(key)), [priority]);
 
   /**
@@ -230,6 +261,8 @@ export function WordsPanel({
       </div>
       {aliasInto && (
         <div className="alias-cands">
+          {/* Names the mode. The placeholder says what to type; this says what typing does. */}
+          <p className="alias-title">{t('等价：并进来的词，词频加到「{w}」上，云上只留「{w}」', { w: aliasInto })}</p>
           <p className="note alias-exp">{t('候选按同指、缩写、音译和上下文排序；同义词还是要你自己认')}</p>
           {candidates.length === 0
             ? <p className="note">{t('没有匹配的词；回车会改成只修改「{w}」的显示名', { w: aliasInto })}</p>
@@ -245,10 +278,11 @@ export function WordsPanel({
       {hint && <p className="note alias-hint">{hint}</p>}
 
       <ol className="wordlist words-edit" onPointerLeave={() => onHover(null)}>
-        {list.slice(0, limit).map((w, i) => {
+        {shown.map((w, i) => {
           const ov = overrides[key(w.text)];
           const renamed = ov?.display !== undefined;
           const rot = ov?.rotate;
+          const sug = suggested.get(w.text);
           return (
             <li key={w.text} className={hovered === w.text ? 'on' : ''}
               onPointerEnter={() => onHover(w.text)}
@@ -289,13 +323,30 @@ export function WordsPanel({
                   {t('拆开')}{corefBy.get(w.text)!.join('、')}
                 </button>
               )}
+              {/* The equivalence suggestion. Not a label for the icon (the user vetoed those):
+                  it appears only where a second spelling exists and it names that spelling. */}
+              {sug && (
+                <button type="button" className="alias-tip"
+                  title={t('「{c}」和「{w}」看起来是同一个词的两种写法。点一下打开等价，把「{c}」并进来', { c: sug.text, w: w.text })}
+                  onClick={() => startAlias(w.text)}>
+                  <em>{t('等价？')}</em>{sug.text}
+                </button>
+              )}
               </span>
               <span className="count">{w.count}</span>
               <span className="row-acts">
                 <button type="button" className="btn-x" title={t('改「{w}」在云上显示的字', { w: w.text })}
                   onClick={() => startEdit(w)}><Icon name="pencil" size={13} /></button>
-                <button type="button" className={aliasInto === w.text ? 'btn-x set' : 'btn-x'}
-                  title={t('把别的词并入「{w}」', { w: w.text })}
+                {/* Three titles, one per state, the way the rotate button already does it:
+                    the idle one has to name the feature (等价), because a user who knows the
+                    feature by that name and reads only 「并入」 does not recognise it. */}
+                <button type="button"
+                  className={`btn-x${aliasInto === w.text ? ' set' : sug ? ' hot' : ''}`}
+                  title={aliasInto === w.text
+                    ? t('把别的词并入「{w}」', { w: w.text })
+                    : sug
+                      ? t('等价：「{c}」可能和「{w}」是同一个词，点一下把它并进来', { c: sug.text, w: w.text })
+                      : t('等价：把别的词算成「{w}」，两边的词频合并', { w: w.text })}
                   onClick={() => startAlias(w.text)}><Icon name="equals" size={13} /></button>
                 <button type="button" className={rot ? 'btn-x set' : 'btn-x'}
                   title={rot === 'h' ? t('「{w}」强制横排；再点一次改竖排', { w: w.text })

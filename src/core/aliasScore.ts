@@ -264,3 +264,67 @@ export function rankAliasCandidates(
   scored.sort((a, b) => b.score - a.score || b.w.count - a.w.count || a.w.text.localeCompare(b.w.text));
   return scored.slice(0, limit).map((s) => s.w);
 }
+
+/**
+ * The signals the word table may act on *without being asked*.
+ *
+ * Ranking and volunteering are different jobs. Once the picker is open the user
+ * has already said "this word has an equivalent, find it", so a weak guess costs
+ * a glance. A row-level suggestion interrupts instead, and a wrong one teaches
+ * the user to ignore the whole affordance — so it only fires on evidence that
+ * two strings are the *same name written twice*.
+ *
+ * Measured (`scratch sweep over the C.10 set`: 22 pairs, 8 look-alike negatives,
+ * 40 distractor words, plus the top 60 rows of the generated fixture corpus):
+ *
+ * | signals                       | pairs | negatives | distractors | fixture rows |
+ * |-------------------------------|-------|-----------|-------------|--------------|
+ * | coref+affix+translit+spelling | 16/22 | 0/8       | 1/40        | 10/60        |
+ * | coref+translit+spelling       |  9/22 | 0/8       | 0/40        |  0/60        |
+ *
+ * The first row looks better until you read the 10 fixture hits: 8 are
+ * containment junk (高飞 ← 高飞停住, 20% precision), because in Chinese one word
+ * sits inside another constantly and being a *part* is not being an *equivalent*
+ * (咖啡 / 咖啡厅). So `affix` is off here and stays on in the picker. What is left
+ * is 中英对照 (西德妮 ↔ sydney), Latin spelling variants (sydney / sydny) and a
+ * coreference group the user pulled apart — all unambiguous.
+ */
+export const SUGGEST_SIGNALS: AliasSignals = {
+  coref: true, translit: true, spelling: true,
+  affix: false, neighbor: false, kind: false, cooccur: false, length: false,
+};
+
+/**
+ * Score floor for volunteering. Each surviving signal is already gated
+ * (`TRANSLIT_MIN`, `SPELLING_MIN`, an actual coreference group), so the weakest
+ * possible emission is spelling at its own floor — 6 × 0.6 = 3.6. Below that
+ * nothing fired at all.
+ */
+export const ALIAS_SUGGEST_MIN = 3.5;
+
+/**
+ * The one word the table may offer on `target`'s row, or `null` for "say nothing".
+ * Words already aliased elsewhere are skipped: they have been merged once already.
+ */
+export function suggestAlias(
+  target: AliasWord,
+  words: readonly AliasWord[],
+  opts: AliasScoreOptions = {},
+): AliasWord | null {
+  const scoped: AliasScoreOptions = {
+    ...opts,
+    needle: '',
+    signals: SUGGEST_SIGNALS,
+    corefIndex: opts.corefIndex ?? buildCorefIndex(opts.coref),
+  };
+  const targetKey = target.text.toLowerCase();
+  let best: AliasWord | null = null;
+  let bestScore = ALIAS_SUGGEST_MIN;
+  for (const w of words) {
+    const k = w.text.toLowerCase();
+    if (k === targetKey || opts.aliased?.has(k)) continue;
+    const s = scoreAliasCandidate(w, target, scoped);
+    if (s !== null && s > bestScore) { best = w; bestScore = s; }
+  }
+  return best;
+}
