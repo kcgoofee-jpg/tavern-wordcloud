@@ -24,7 +24,8 @@ if (!process.env.SHOT_NO_BUILD) {
   if (b.status !== 0) process.exit(b.status ?? 1);
 }
 
-const VIEWPORTS = [['1440', '900'], ['390', '844']];
+// 1024×768 is the smallest desktop the layout plan targets (≥1024); the panel column eats most of it.
+const VIEWPORTS = [['1440', '900'], ['1024', '768'], ['390', '844']];
 const chains = ['zh', 'en'].map((lang) => new Promise((resolve) => {
   const out = [];
   const env = { ...process.env, SHOT_NO_BUILD: '1', SHOT_LANG: lang, SHOT_DIR: `/tmp/shot-${lang}` };

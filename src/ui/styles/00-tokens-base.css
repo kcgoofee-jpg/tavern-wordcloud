@@ -12,6 +12,10 @@
   --t-md: 13.5px;  /* body, controls */
   --t-lg: 15px;    /* emphasis */
 
+  /* Layout: where the top-centre mode switch ends (14px edge + its 44px pill), so anything
+     else that wants the top centre (the 「复位视图」 pill) starts below it, not on top of it. */
+  --quick-bottom: 58px;
+
   --surface: #ece5da;
   --surface2: #f2eee7;
   --line: #d8cfc0;

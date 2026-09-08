@@ -140,7 +140,8 @@ export function ReviewPanel({
             <li key={w.text} className={isStopped ? 'review-row off' : 'review-row'}>
               <b>{w.text}</b>
               <em className="review-n">{w.count}</em>
-              <span className="review-kinds">
+              {/* Ellipsis cell: the full list rides on title until the panel gets wider (plan A6) */}
+              <span className="review-kinds" title={isStopped ? t('已标为非词') : ks.map((k) => tx(ENTITY_LABEL[k])).join(' · ')}>
                 {isStopped ? t('已标为非词') : ks.map((k) => tx(ENTITY_LABEL[k])).join(' · ')}
               </span>
               <button type="button" className="review-act" title={t('改类别')}

@@ -181,6 +181,15 @@ await sleep(1200);
 const auditFailures = [];
 const auditLayout = async (label) => {
   const issues = await run(`
+    // Entrance animations are not layout: the word rows slide in from -8px, staggered per row, and
+    // on the CI runner the last rows were still on their way 600ms after the panel opened —
+    // reported as [越界左] 2…8px (2026-09-08). Jump every finite animation to its end state first;
+    // the infinite ones (idle float, spinners) are left alone.
+    for (const a of document.getAnimations()) {
+      const t = a.effect && a.effect.getTiming ? a.effect.getTiming() : null;
+      if (t && t.iterations !== Infinity) { try { a.finish(); } catch { /* not finishable */ } }
+    }
+    await new Promise((r) => requestAnimationFrame(() => r()));
     const out = [];
     const vw = innerWidth;
     const vis = (el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'; };
@@ -334,7 +343,7 @@ const auditLayout = async (label) => {
       if (body.scrollHeight > body.clientHeight + 2 && !/auto|scroll/.test(bcs.overflowY)) out.push('[面板不能滚] ' + nameOf(body) + ' 内容 ' + body.scrollHeight + ' > 可视 ' + body.clientHeight);
     }
     // 文字截断：省略号截掉了文字、又没有 title 给全文（英文卡片标签曾显示成 "Charact…"）
-    for (const el of document.querySelectorAll('dt, dd, label > span, .group-label, .field > span, th, td, button, .swatch-name, .src-name')) {
+    for (const el of document.querySelectorAll('dt, dd, label > span, .group-label, .field > span, th, td, button, .swatch-name, .src-name, .review-kinds')) {
       const cs = getComputedStyle(el);
       if (cs.textOverflow !== 'ellipsis' || !el.clientWidth) continue;
       if (el.scrollWidth > el.clientWidth + 1 && !el.getAttribute('title') && !el.closest('[title]')) out.push('[文字截断] ' + nameOf(el) + ' 「' + (el.textContent || '').trim().slice(0, 24) + '」');
@@ -342,12 +351,27 @@ const auditLayout = async (label) => {
     // 词云被挡：浮动控件压在词的外接框上（手机上圆按钮和角落数字曾经盖住词）
     const b = window.__cloudBounds;
     if (b && b.right > b.left) {
-      for (const el of document.querySelectorAll('.cloudmode, .mode-quick, .lang-quick, .community-quick, .dock, .dock-stats, .rail')) {
+      for (const el of document.querySelectorAll('.cloudmode, .zoom-reset, .mode-quick, .lang-quick, .community-quick, .notice-quick, .version-quick, .quick-cluster > *, .dock, .dock-stats, .rail, .ratio span')) {
         if (!vis(el)) continue;
         const r = el.getBoundingClientRect();
         const ox = Math.min(r.right, b.right) - Math.max(r.left, b.left);
         const oy = Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top);
         if (ox > 1 && oy > 1) out.push('[词云被挡] ' + nameOf(el) + ' 压住词云 ' + ox.toFixed(0) + '×' + oy.toFixed(0) + 'px');
+      }
+    }
+    // 控件重叠：两个浮动控件压在一起（缩放后的「复位视图」药丸曾和模式开关同槽，底部的占比
+    // 数字和 toast 同槽）。只看两两相交超过 1px 的；一个包着另一个的不算。铺满整页的层
+    // （导出视图、社区页、手机全屏）本来就盖在导轨和 dock 上面，那是层叠决定，不是挤压。
+    {
+      const page = (el) => el.matches('.export-view, .community-page, .fullscreen');
+      const ctrls = [...document.querySelectorAll('.cloudmode, .zoom-reset, .quick-cluster > *, .mode-quick, .lang-quick, .community-quick, .notice-quick, .version-quick, .rail, .dock, .ratio span, .toast, .sheet, .cardinfo-body')].filter(vis);
+      for (let i = 0; i < ctrls.length; i++) for (let j = i + 1; j < ctrls.length; j++) {
+        const a = ctrls[i], c = ctrls[j];
+        if (a.contains(c) || c.contains(a) || page(a) || page(c)) continue;
+        const ra = a.getBoundingClientRect(), rc = c.getBoundingClientRect();
+        const ox = Math.min(ra.right, rc.right) - Math.max(ra.left, rc.left);
+        const oy = Math.min(ra.bottom, rc.bottom) - Math.max(ra.top, rc.top);
+        if (ox > 1 && oy > 1) out.push('[控件重叠] ' + nameOf(a) + ' 与 ' + nameOf(c) + ' 相交 ' + ox.toFixed(0) + '×' + oy.toFixed(0) + 'px');
       }
     }
     return [...new Set(out)].slice(0, 30);
@@ -386,7 +410,14 @@ const shots = [];
 // First view: the sample cloud; a click leads to the landing (import page)
 shots.push(await shot('01-示例词云'));
 await auditLayout('示例词云');
-await run(`document.querySelector('.demo-hint')?.click(); await new Promise(r=>setTimeout(r,700));`);
+// `.demo-catch` is the invisible full-screen button over the sample cloud; `.demo-hint` (the old
+// selector) is the community-cloud banner, absent here, so this step audited the sample twice
+// and the desktop landing was never audited at all (2026-09-08).
+await run(`
+  const b=document.querySelector('.demo-catch'); if(!b) throw new Error('示例页上没有 .demo-catch');
+  b.click(); await new Promise(r=>setTimeout(r,700));
+  if(!document.querySelector('.landing')) throw new Error('点了 .demo-catch 没进导入页');
+`);
 shots.push(await shot('01-空状态'));
 await auditLayout('空状态');
 // Legal pages: long prose and a table; audited for overflow, then back to the main page
@@ -447,6 +478,23 @@ await run(`
   await new Promise(r=>setTimeout(r,6000));
 `);
 shots.push(await shot('02-词云'));
+await auditLayout('词云');
+// Zoomed state: ctrl+wheel is the trackpad pinch; the 「复位视图」 pill exists only now, so this is the
+// only place its position can be checked. Double-click puts the view back.
+await run(`
+  const cv=document.querySelector('.cloud-canvas'); if(!cv) throw new Error('没有 .cloud-canvas');
+  const r=cv.getBoundingClientRect();
+  cv.dispatchEvent(new WheelEvent('wheel',{deltaY:-400,ctrlKey:true,bubbles:true,cancelable:true,clientX:r.left+r.width/2,clientY:r.top+r.height/2}));
+  await new Promise(r=>setTimeout(r,500));
+  if(!document.querySelector('.zoom-reset')) throw new Error('ctrl+滚轮后没有出现 .zoom-reset');
+`);
+shots.push(await shot('02-词云-缩放后'));
+await auditLayout('词云（缩放后）');
+await run(`
+  document.querySelector('.cloud-canvas').dispatchEvent(new MouseEvent('dblclick',{bubbles:true}));
+  await new Promise(r=>setTimeout(r,400));
+  if(document.querySelector('.zoom-reset')) throw new Error('双击后 .zoom-reset 还在，视图没复位');
+`);
 
 /**
  * Click audit: every visible, enabled button in the given scope is clicked once.
@@ -457,7 +505,7 @@ shots.push(await shot('02-词云'));
  */
 const clickFailures = [];
 // 清洗规则按钮会调模型（付费）——和 测试连接 / 拉取 一样跳过；「立即删除」清密钥后自己变灰，也算副作用按钮
-async function auditClicks(label, scope, skip = /清空|Clear|添加|Add|导出|Export|存成|Save|复制|Copy|发送|Send|反馈|report|拉取|Fetch|测试连接|Test|清洗规则|cleaning rules|立即删除|Delete now|验证水印|Check a watermark|导入字体|Import font/i) {
+async function auditClicks(label, scope, skip = /清空|Clear|添加|Add|导出|Export|存成|Save|复制|Copy|发送|Send|反馈|report|拉取|Fetch|测试连接|Test|清洗规则|cleaning rules|立即删除|Delete now|验证水印|Check a watermark|导入字体|Import a font/i) {
   const bad = await run(`
     const scope = ${JSON.stringify(scope)};
     const skip = ${skip.toString()};
@@ -479,10 +527,12 @@ async function auditClicks(label, scope, skip = /清空|Clear|添加|Add|导出|
       }
       return true;
     };
-    const list = () => [...document.querySelectorAll(scope + ' button')].filter((b) => !b.disabled && vis(b) && inScrollView(b) && !skip.test(b.title || b.textContent || '') && !b.closest('.export-chips') && !(b.classList.contains('on') && b.closest('.seg, .cloudmode, .review-tabs')));
+    const list = () => [...document.querySelectorAll(scope + ' button')].filter((b) => !b.disabled && vis(b) && inScrollView(b) && !skip.test(b.title || b.textContent || '') && !b.closest('.export-chips') && !(b.classList.contains('on') && b.closest('.seg, .cloudmode, .review-tabs, .swatches, .fontlist')));
     // A segmented control's selected item is inert by design — clicking the tab you are already
     // on must not change anything. '.review-tabs' is one of those (its 「全部」 is selected when the
-    // panel opens), which is what the first audit of that panel reported as a dead button.
+    // panel opens), which is what the first audit of that panel reported as a dead button; the
+    // selected theme swatch ('.swatches .on') is the same thing, seen once the theme panel was
+    // actually opened (2026-09-08).
     // Preset chips change the preview canvas and the size line; the size line can keep its length, so their reaction is asserted in test/ui/export-panel.test.tsx instead.
     // Click the buttons that were there at the start, by reference: re-listing by index shifted
     // after a chip became selected (excluded) and reported a phantom gone button.
@@ -492,7 +542,9 @@ async function auditClicks(label, scope, skip = /清空|Clear|添加|Add|导出|
     const total = initial.length;
     for (let i = 0; i < total; i++) {
       const b = initial[i];
-      if (!b.isConnected || !vis(b)) continue; // hid itself after an earlier click: that is a reaction
+      // Hid itself, or got disabled, after an earlier click: that is a reaction, not a dead button
+      // (the colour-vision switch greys out the palettes it rules out, and it has no way back).
+      if (!b.isConnected || !vis(b) || b.disabled) continue;
       const name = (b.title || b.getAttribute('aria-label') || b.textContent || b.className).trim().slice(0, 40);
       const before = sig(); const dl = window.__downloads;
       b.click(); await new Promise((r) => setTimeout(r, 450));
@@ -510,14 +562,14 @@ async function auditClicks(label, scope, skip = /清空|Clear|添加|Add|导出|
 }
 
 
-// Each panel (destructive buttons skipped). Titles are matched in both languages, so a panel
-// missing from this list is never audited at all — 检查分类 / Review kinds was absent from the
-// day it shipped (2026-09-06). Adding a panel means adding both of its titles here.
+// Each panel (destructive buttons skipped). The list is every rail button that toggles a panel
+// (`aria-pressed`), read from the page: a title regex used to live here and 检查分类 / Review
+// kinds was missing from it from the day it shipped (2026-09-06). Action buttons (清空) have no
+// aria-pressed and stay out.
 const panels = await run(`
-  return [...document.querySelectorAll('.rail .tool')]
-    .filter(b=>!b.disabled && /筛选|高级|词频表|优先词|密钥|导出|社区|检查分类|Filters|Advanced|Word table|Priority|endpoint|Export|Community|Review kinds/.test(b.title))
-    .map(b=>b.title);
+  return [...document.querySelectorAll('.rail .tool[aria-pressed]')].filter(b=>!b.disabled).map(b=>b.title);
 `);
+if (panels.length < 5) throw new Error('导轨上只找到 ' + panels.length + ' 个面板按钮：' + panels.join(' / '));
 for (const title of panels) {
   if (PANEL_FILTER && !PANEL_FILTER.test(title)) continue;
   await run(`
@@ -548,14 +600,18 @@ await run(`document.querySelector('.community-page .sheet-close')?.click(); awai
 await auditClicks('主界面', '.app > :not(.sheet):not(.community-page)');
 await run(`[...document.querySelectorAll('.cloudmode button')].find(b=>/词频|Frequency/.test(b.innerText))?.click(); await new Promise(r=>setTimeout(r,400));`);
 
-// Bottom-left buttons
-for (const [sel, name] of [['风格与配色', '配色'], ['词云字体', '字体']]) {
+// Bottom-left buttons, found by data-panel rather than the Chinese title: under SHOT_LANG=en the
+// title match failed silently and both panels were reported clean without ever opening (2026-09-08).
+for (const [id, name] of [['theme', '配色'], ['font', '字体']]) {
+  if (PANEL_FILTER && !PANEL_FILTER.test(name)) continue;
   await run(`
-    const b=[...document.querySelectorAll('.dock button')].find(x=>x.title===${JSON.stringify(sel)});
-    if(b){b.click(); await new Promise(r=>setTimeout(r,600));}
+    const b=document.querySelector('.dock [data-panel=${JSON.stringify(id)}]'); if(!b) throw new Error('dock 上没有 data-panel=${id}');
+    b.click(); await new Promise(r=>setTimeout(r,600));
+    if(!document.querySelector('.sheet')) throw new Error('点了 ${id} 没打开面板');
   `);
   shots.push(await shot(`04-${name}`));
   await auditLayout(`面板 ${name}`);
+  await auditClicks(`面板 ${name}`, '.sheet-body');
   await run(`document.querySelector('.sheet-close')?.click(); await new Promise(r=>setTimeout(r,300));`);
 }
 

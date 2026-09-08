@@ -1254,6 +1254,7 @@ export default function App() {
         <button
           type="button"
           className={`dock-style${panel === 'theme' ? ' on' : ''}`}
+          data-panel="theme"
           title={t("风格与配色")}
           aria-pressed={panel === 'theme'}
           onClick={() => openPanel(panel === 'theme' ? null : 'theme')}
@@ -1268,6 +1269,7 @@ export default function App() {
         <button
           type="button"
           className={`dock-style icon-only${panel === 'font' ? ' on' : ''}`}
+          data-panel="font"
           title={t("词云字体")}
           aria-pressed={panel === 'font'}
           onClick={() => openPanel(panel === 'font' ? null : 'font')}
