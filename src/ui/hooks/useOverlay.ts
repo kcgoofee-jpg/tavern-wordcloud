@@ -36,11 +36,21 @@ export function useOverlay<P extends string>() {
    * necessary in the first place.
    */
   const [wordsTab, setWordsTab] = useState<'freq' | 'review'>('freq');
+  /**
+   * Panels opened at least once this session. `<Activity>` keeps a panel's subtree mounted
+   * after it closes (App does this for 词表, notes/docs/41 §2), but there is no reason to pay
+   * for that subtree before the visitor has ever opened it — measured on the sample screen,
+   * mounting the word table unconditionally took the first screen from 151 DOM nodes to 1525.
+   * Once a panel has been opened the flag never clears, so the keep-alive is permanent.
+   */
+  const [seen, setSeen] = useState<readonly P[]>([]);
+  const markSeen = useCallback((id: P) => setSeen((s) => (s.includes(id) ? s : [...s, id])), []);
+  const everOpened = useCallback((id: P) => seen.includes(id), [seen]);
 
   const openPanel = useCallback((id: P | null) => {
     setPanel(id);
-    if (id) { setCardOpen(false); setNoticeOpen(false); setVersionOpen(false); }
-  }, []);
+    if (id) { setCardOpen(false); setNoticeOpen(false); setVersionOpen(false); markSeen(id); }
+  }, [markSeen]);
   const openCard = useCallback((v: boolean) => {
     setCardOpen(v);
     if (v) { setPanel(null); setNoticeOpen(false); setVersionOpen(false); }
@@ -82,8 +92,8 @@ export function useOverlay<P extends string>() {
       setPanel(null); setCommunityCloud(true); return;
     }
     if (communityCloud) { setCommunityCloud(false); if (sampleBehindCommunity.current) setSampleOpen(true); return; }
-    setCardOpen(false); setCommunityCloud(false); setNoticeOpen(false); setVersionOpen(false); setPanel(id);
-  }, [panel, communityCloud, sampleOpen]);
+    setCardOpen(false); setCommunityCloud(false); setNoticeOpen(false); setVersionOpen(false); setPanel(id); markSeen(id);
+  }, [panel, communityCloud, sampleOpen, markSeen]);
   const askConfirm = useCallback((c: { word: string; snippets: string[] }) => setConfirm(c), []);
   const closeConfirm = useCallback(() => setConfirm(null), []);
   const openSample = useCallback(() => { setPanel(null); setCardOpen(false); setNoticeOpen(false); setVersionOpen(false); setSampleOpen(true); }, []);
@@ -147,5 +157,5 @@ export function useOverlay<P extends string>() {
     return () => document.removeEventListener('keydown', onKey);
   }, [panel, cardOpen, noticeOpen, versionOpen, communityCloud, closeOverlays]);
 
-  return { panel, cardOpen, openPanel, openCard, closeAll, confirm, askConfirm, closeConfirm, sampleOpen, openSample, closeSample, communityCloud, cycleCommunity, noticeOpen, toggleNotice, versionOpen, toggleVersion, wordsTab, setWordsTab };
+  return { panel, cardOpen, openPanel, openCard, closeAll, confirm, askConfirm, closeConfirm, sampleOpen, openSample, closeSample, communityCloud, cycleCommunity, noticeOpen, toggleNotice, versionOpen, toggleVersion, wordsTab, setWordsTab, everOpened };
 }

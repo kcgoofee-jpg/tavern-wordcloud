@@ -55,6 +55,23 @@ describe('useOverlay', () => {
     expect(result.current.noticeOpen).toBe(false);
   });
 
+  it('remembers which panels have been opened, so <Activity> only keeps alive what was used', () => {
+    const { result } = renderHook(() => useOverlay<'theme' | 'words' | 'community'>());
+    expect(result.current.everOpened('words')).toBe(false);
+    act(() => result.current.openPanel('theme'));
+    expect(result.current.everOpened('words')).toBe(false);
+    act(() => result.current.openPanel('words'));
+    expect(result.current.everOpened('words')).toBe(true);
+    // Closing does not forget it: that is the whole point of keeping the subtree mounted.
+    act(() => result.current.openPanel(null));
+    expect(result.current.everOpened('words')).toBe(true);
+    expect(result.current.everOpened('theme')).toBe(true);
+    // The community button reaches its panel without going through openPanel.
+    expect(result.current.everOpened('community')).toBe(false);
+    act(() => result.current.cycleCommunity());
+    expect(result.current.everOpened('community')).toBe(true);
+  });
+
   it('the community button cycles: stats page → aggregate cloud only → off', () => {
     const { result } = renderHook(() => useOverlay<'theme' | 'community'>());
     act(() => result.current.cycleCommunity());

@@ -1,13 +1,13 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lazyPanel, whenIdle } from './lazyPanel';
 import { copyText } from './clipboard';
 import { endpointKind } from './endpointKind';
 import { LangContext, tenK, tx, txv, type UserText } from './i18n';
-import { probeServer, analyzeOnServer, shouldAnalyzeOnServer, uploadBytes, type ServerHealth } from '../net/server';
+import { analyzeOnServer, shouldAnalyzeOnServer, uploadBytes } from '../net/server';
 import CardInfo from './CardInfo';
 import CloudCanvas, { type CloudApi } from './CloudCanvas';
 import Icon, { type IconName } from './Icons';
-import ImportPanel, { type ImportSummary } from './ImportPanel';
+import ImportPanel from './ImportPanel';
 import ConfirmDialog from './ConfirmDialog';
 import Landing from './Landing';
 import Note from './Note';
@@ -16,7 +16,7 @@ import type { CommunityStats } from './panels';
 import { FEATURES } from './flags';
 import type { SourceFile } from '../core/analyze';
 import { classifyError, notice, type AppError } from '../core/errors';
-import { buildShareUrl, decodeSharePayload, encodeSharePayload, readShareFromLocation, type BuiltShare } from '../share/share';
+import { buildShareUrl, decodeSharePayload, encodeSharePayload, readShareFromLocation } from '../share/share';
 import { PNG_KEYWORD, readText } from '../share/png';
 import { isRegexScriptFile, mergeRules, parseRegexScripts } from '../core/regexScripts';
 import { applyOverrides, applyPriority, parsePriority } from '../core/overrides';
@@ -26,6 +26,7 @@ import { resolveMode } from '../theme/themes';
 import { toTraditional } from '../theme/s2t';
 import { isDirty, resetSlice, type ResetScope, type Settings } from './settings';
 import { useSettings } from './hooks/useSettings';
+import { useAnalysis } from './hooks/useAnalysis';
 import { useAnalyzeWorker } from './hooks/useAnalyzeWorker';
 import { useOverlay } from './hooks/useOverlay';
 import { useNotice } from './hooks/useNotice';
@@ -35,13 +36,10 @@ import { useIsNarrow } from './hooks/useIsNarrow';
 import { downloadBlob, exportName, outputSize, svgBlob, watermarkLine, wordsToCsv, wordsToJson, wordsToTsv } from './export';
 import { watermarkPayload } from './watermark';
 import { hostOf } from './url';
-import { armErrorReporting, reportError } from '../net/report';
 import { demoWords } from './demo';
 import type { AnalysisResult, WordCount } from '../core/types';
-import type { CurateResult } from '../core/curate';
 import type { WorkerProgress } from '../worker/analyze.worker';
-import type { DataBundle } from '../core/bundle';
-import { applyCardRule, normalizeCardName, resolveCardRules, revertCardRule, saveCardRule, weakFingerprint, type CardMatchVia } from '../core/cardRules';
+import { applyCardRule, normalizeCardName, resolveCardRules, revertCardRule, saveCardRule, weakFingerprint } from '../core/cardRules';
 import './styles/index.css';
 
 /**
@@ -105,64 +103,48 @@ const tools = (t: (s: string) => string, keywordMode: boolean): { id: PanelId; i
 ];
 
 export default function App() {
-  const filesRef = useRef<SourceFile[]>([]);
   const cloudRef = useRef<CloudApi>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // All adjustable state lives in one object (settings); load/persist/theme are in the hook
   const { settings, setSettings, patch, setOptions, t, theme } = useSettings();
   const { themeId, custom, options, rotateRatio } = settings;
-  const [error, setError] = useState<AppError | null>(null);
-  const onWorkerError = useCallback((e: Error) => setError(classifyError(e)), []);
+  /**
+   * The analysis result, the file set behind it, the import flow and the server probe all live
+   * in `useAnalysis` (AGENTS hard rule 8's fourth home). App only orchestrates them.
+   */
+  const {
+    filesRef, cardFpsRef,
+    result, setResult, sharedWords, setSharedWords, curation, setCuration,
+    hasFiles, setHasFiles, loadSeq, setLoadSeq, bundle, setBundle,
+    importAsk, setImportAsk, pendingImport, setPendingImport,
+    cardFp, setCardFp, cardRuleApplied, setCardRuleApplied,
+    hovered, setHovered, share, setShare,
+    busy, setBusy, showProgress, error, setError,
+    health, onServer, served, apiBlocked,
+    clearData, showSharedWords,
+  } = useAnalysis();
+  const onWorkerError = useCallback((e: Error) => setError(classifyError(e)), [setError]);
   const workerDown = useCallback(() => t('worker 没起来'), [t]);
   const { send, progress, pct, setProgress, progressLog, setProgressLog, applyNetProgress } =
     useAnalyzeWorker(onWorkerError, workerDown);
   // Panel / card / confirm-dialog exclusivity, sample view and click-outside handling live in the hook
-  const { panel, cardOpen, openPanel, openCard, closeAll, confirm, askConfirm, closeConfirm, sampleOpen, openSample, closeSample, communityCloud, cycleCommunity, noticeOpen, toggleNotice, versionOpen, toggleVersion, wordsTab, setWordsTab } = useOverlay<PanelId>();
+  const { panel, cardOpen, openPanel, openCard, closeAll, confirm, askConfirm, closeConfirm, sampleOpen, openSample, closeSample, communityCloud, cycleCommunity, noticeOpen, toggleNotice, versionOpen, toggleVersion, wordsTab, setWordsTab, everOpened } = useOverlay<PanelId>();
   // Enter starts whatever primary action is on screen (import "开始", keyword-mode "hero" run) —
   // but never while the user is typing in a text control (textarea/input/select/contenteditable).
   /** Legal page route from `#/…` hashes; null on the main page and on `#c=…` share links. */
   const legalRoute = useHashRoute();
-  const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [sharedWords, setSharedWords] = useState<AnalysisResult['words'] | null>(null);
-  const [hasFiles, setHasFiles] = useState(false);
-  /** Import generation counter: incremented on every import so the analysis effect re-runs even when `hasFiles` stays true. */
-  const [loadSeq, setLoadSeq] = useState(0);
-  const [share, setShare] = useState<BuiltShare | null>(null);
   const [copied, flashCopied] = useFlash(1800);
   const [dragging, setDragging] = useState(false);
-  const [busy, setBusy] = useState(false);
   /** Site notice from the server. The single-file build has none, so the bell stays hidden. */
   const { notice: siteNotice, unread: noticeUnread, updateAvailable } = useNotice(noticeOpen, busy);
   // First open of a panel used to stall ~300 ms on the Suspense fallback; warm every panel module on idle instead.
   useEffect(() => whenIdle(() => { for (const p of PRELOAD) void p.preload(); }), []);
-  /** Progress overlay is delayed 300 ms so quick local recomputes do not flash it. */
-  const [showProgress, setShowProgress] = useState(false);
-  /** Whether a server exists behind this page. Static hosting has none. */
-  const [health, setHealth] = useState<ServerHealth | null>(null);
   /** Abort controller for server-side runs. */
   const netAbort = useRef<AbortController | null>(null);
-  const [bundle, setBundle] = useState<Omit<DataBundle, 'chats'> | null>(null);
-  const [hovered, setHovered] = useState<string | null>(null);
   const [copiedErr, flashCopiedErr] = useFlash(2000);
   /** "Copied" tick on the export panel's clipboard button. */
   const [copiedWords, flashCopiedWords] = useFlash(1800);
-  /** Confirmation panel for large imports: reports what was read and lets the user change re-run options first. */
-  const [importAsk, setImportAsk] = useState<ImportSummary | null>(null);
-  /**
-   * Card rule packs (notes/docs/23, local-only first step): the current import's card
-   * fingerprint, and what a saved rule pack contributed on top of the session's own
-   * overrides/stopwords (shown as a note in the import panel, with a one-click undo).
-   */
-  const [cardFp, setCardFp] = useState<string | null>(null);
-  const [cardRuleApplied, setCardRuleApplied] = useState<{ appliedOverrideKeys: string[]; appliedStopwords: string[]; via: CardMatchVia } | null>(null);
-  /**
-   * Strong fingerprints from the last `.zip`, normalized card name -> hash. The worker computes
-   * them from the cards' first_mes/description and drops the text; only these hashes arrive here.
-   */
-  const cardFpsRef = useRef<Record<string, string>>({});
-  /** Keyword-mode result. Kept alongside `result` so switching modes does not recompute or re-pay. */
-  const [curation, setCuration] = useState<{ words: WordCount[]; result: CurateResult } | null>(null);
 
   /** Whether keyword mode can run: locally the user must fill endpoint, model and key; on the server a configured server key suffices. */
   const localAiReady = !!options.ai.endpoint && !!options.ai.model && !!options.ai.apiKey;
@@ -240,35 +222,18 @@ export default function App() {
   const active = hovered ? words.find((w) => w.text === hovered) : undefined;
   const ratio = active && totalTokens > 0 ? active.count / totalTokens : 0;
 
-  // Probe the server once at startup; failures count as no server
-  useEffect(() => {
-    const ac = new AbortController();
-    void probeServer(ac.signal).then((h) => {
-      setHealth(h);
-      if (h?.ok) armErrorReporting();
-      // Served by the server but the API is unreachable: a browser extension or network filter is blocking it
-    });
-    return () => ac.abort();
-  }, []);
-
-  /** The hosted version always runs on the server; local computation only when no server is detected. */
-  const onServer = !!health?.ok;
-  /** Page served by the site's own server: analysis must go through the API, never local. */
-  const served = typeof document !== 'undefined' && !!document.querySelector('meta[name="wc-served"]');
   /** Model name used for curation: always the visitor's own endpoint. */
   const curateModel = options.ai.model;
 
   // Filter changes invalidate the curated words: the model saw a different text.
-  useEffect(() => { setCuration(null); }, [options.roles, options.onlyCharacter, options.source, options.clean]);
+  useEffect(() => { setCuration(null); }, [setCuration, options.roles, options.onlyCharacter, options.source, options.clean]);
 
   // Share links carry the cloud; hashchange covers pasting into an open page.
   useEffect(() => {
     const apply = () => {
       void readShareFromLocation(window.location.hash).then((p) => {
         if (!p || p.words.length === 0) return;
-        filesRef.current = [];
-        setHasFiles(false); setResult(null); setShare(null);
-        setSharedWords(p.words);
+        showSharedWords(p.words);
         // Apply the palette from the link as well
         if (p.themeConf) {
           patch({ themeId: p.themeConf.themeId, mode: p.themeConf.mode });
@@ -280,7 +245,7 @@ export default function App() {
     apply();
     window.addEventListener('hashchange', apply);
     return () => window.removeEventListener('hashchange', apply);
-  }, [patch]);
+  }, [patch, showSharedWords]);
 
   /**
    * Card rule packs (notes/docs/23): fingerprint the card being imported and, if this browser has
@@ -310,7 +275,7 @@ export default function App() {
       }));
     }
     setCardRuleApplied(applied ? { appliedOverrideKeys: result.appliedOverrideKeys, appliedStopwords: result.appliedStopwords, via: match.via } : null);
-  }, [settings.cardRules, settings.overrides, settings.options.tokenize.extraStopwords, setSettings]);
+  }, [settings.cardRules, settings.overrides, settings.options.tokenize.extraStopwords, setSettings, cardFpsRef, setCardFp, setCardRuleApplied]);
 
   /** One-click undo for the note above: removes exactly what the saved rule pack contributed, leaving any edit made since alone. */
   const undoCardRuleApply = useCallback(() => {
@@ -320,7 +285,7 @@ export default function App() {
       return { ...s, overrides, options: { ...s.options, tokenize: { ...s.options.tokenize, extraStopwords } } };
     });
     setCardRuleApplied(null);
-  }, [cardRuleApplied, setSettings]);
+  }, [cardRuleApplied, setSettings, setCardRuleApplied]);
 
   /**
    * Word-table / review-panel overrides also get remembered under the current card's
@@ -359,16 +324,12 @@ export default function App() {
       ? t('{first}（共 {n} 条）', { first, n: warnings.length })
       : first));
     setProgressLog((l) => [...l, ...warnings.map(txv)].slice(-8));
-  }, [t, setProgressLog]);
+  }, [t, setProgressLog, setError]);
 
-  /** A second import while a result is showing must be a deliberate replacement (user decision 2026-09-04). */
-  const [pendingImport, setPendingImport] = useState<File[] | null>(null);
   const ingest = useCallback(async (list: File[], replace = false) => {
     if (!replace && (filesRef.current.length > 0 || result || sharedWords)) { setPendingImport(list); return; }
     if (replace) {
-      filesRef.current = [];
-      setHasFiles(false); setResult(null); setSharedWords(null); setShare(null); setBundle(null);
-      setCardFp(null); setCardRuleApplied(null); cardFpsRef.current = {};
+      clearData();
       // Regex from the previous zip/script must not leak into the next chat.
       setOptions((o) => (o.clean.customRules?.length ? { ...o, clean: { ...o.clean, customRules: [] } } : o));
     }
@@ -381,8 +342,8 @@ export default function App() {
       else if (pngs.length > 1) setError(notice(t('一次只读一张词云图，已用第一张')));
       const p = await decodeSharePayload(readText(new Uint8Array(await pngs[0].arrayBuffer()), PNG_KEYWORD) ?? '');
       if (!p || p.words.length === 0) { setError(notice(t('这张图里没有词云数据（只有本站导出的 PNG 才带）'))); return; }
-      filesRef.current = []; setHasFiles(false); setResult(null); setShare(null); closeSample();
-      setSharedWords(p.words);
+      closeSample();
+      showSharedWords(p.words);
       if (p.themeConf) {
         const font = p.themeConf.font as Partial<typeof settings.font> | undefined;
         patch({ themeId: p.themeConf.themeId, mode: p.themeConf.mode, ...(p.themeConf.custom ? { custom: p.themeConf.custom } : {}), ...(font ? { font: { ...settings.font, ...font } } : {}) });
@@ -481,15 +442,14 @@ export default function App() {
       setBusy(false);
       setProgress(null);
     }
-  }, [send, setOptions, t, setProgress, setProgressLog, patch, settings.font, showWarnings, closeSample, result, sharedWords, applyCardRuleForCharacter]);
+  }, [send, setOptions, t, setProgress, setProgressLog, patch, settings.font, showWarnings, closeSample, result, sharedWords, applyCardRuleForCharacter,
+    filesRef, cardFpsRef, clearData, showSharedWords, setBusy, setError, setBundle, setHasFiles, setImportAsk, setLoadSeq, setPendingImport, setSharedWords]);
 
   const clearAll = useCallback(() => {
-    filesRef.current = [];
-    setHasFiles(false); setResult(null); setSharedWords(null);
-    setShare(null); closeAll(); setError(null); setBundle(null);
-    setCardFp(null); setCardRuleApplied(null); cardFpsRef.current = {};
+    clearData();
+    closeAll(); setError(null);
     void send({ kind: 'load', files: [] });
-  }, [send, closeAll]);
+  }, [send, closeAll, clearData, setError]);
 
   /** Recompute only for options that affect the result. */
   const analyzeKey = useMemo(() => JSON.stringify({
@@ -514,15 +474,7 @@ export default function App() {
     }
     else setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [options.roles, setOptions, t, showWarnings]);
-
-  // Served page without a reachable API: keep probing, and do not analyze locally.
-  useEffect(() => {
-    if (!served || health?.ok) return;
-    const timer = window.setInterval(() => { void probeServer().then((h) => { if (h?.ok) setHealth(h); }); }, 5000);
-    return () => window.clearInterval(timer);
-  }, [served, health?.ok]);
-  const apiBlocked = served && !health?.ok;
+  }, [options.roles, setOptions, t, showWarnings, setResult, setError]);
 
   useEffect(() => {
     if (!hasFiles) return;
@@ -570,27 +522,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analyzeKey, hasFiles, loadSeq, send, onServer, apiBlocked, bundle]);
 
-  /** Progress overlay: appears after 300 ms and stays at least 500 ms once shown. */
-  const shownAt = useRef(0);
-  useEffect(() => {
-    if (busy) {
-      const t = window.setTimeout(() => { shownAt.current = Date.now(); setShowProgress(true); }, 300);
-      return () => window.clearTimeout(t);
-    }
-    if (!showProgress) return;
-    const left = Math.max(0, 500 - (Date.now() - shownAt.current));
-    const t = window.setTimeout(() => setShowProgress(false), left);
-    return () => window.clearTimeout(t);
-  }, [busy, showProgress]);
-
-  // Unknown errors and toasts with an action stay up longer: they need reading or a click. The rest dismiss after 5 s.
-  useEffect(() => { if (error?.kind === 'unknown') reportError(error.title, error.detail); }, [error]);
-  useEffect(() => {
-    if (!error) return;
-    const timer = window.setTimeout(() => setError(null), error.kind === 'unknown' || error.action ? 15000 : 5000);
-    return () => window.clearTimeout(timer);
-  }, [error]);
-
   /** Run keyword mode. Manual trigger only; every run is a paid request. Always uses the visitor's own endpoint. */
   const runCurate = useCallback(async () => {
     setBusy(true); setError(null); setProgressLog([]);
@@ -607,7 +538,7 @@ export default function App() {
         hint: t('模型编出来的词（原文里没有）已剔除。换个模型通常好些。'),
       });
     }
-  }, [send, options, settings.keywordN, t, setProgress, setProgressLog, health?.ok]);
+  }, [send, options, settings.keywordN, t, setProgress, setProgressLog, health?.ok, setBusy, setCuration, setError, setResult]);
 
   /** Build a self-contained error report: app, action, environment. Excludes keys, chat text and file names. */
   const errorReport = useCallback((e: AppError) => {
@@ -645,7 +576,7 @@ export default function App() {
     L.push('');
     L.push(t('【反馈】把这段贴到 {url}', { url: 'https://github.com/kcgoofee-jpg/tavern-wordcloud/issues/new' }));
     return L.join('\n');
-  }, [settings.cloudMode, bundle, result, options.ai, t]);
+  }, [settings.cloudMode, bundle, result, options.ai, t, filesRef]);
 
   /** Progress labels are generated by phase; the worker label is only a fallback. */
   const phaseText = (phase: WorkerProgress['phase'] | 'upload' | 'queued' | undefined, fallback: string): string => {
@@ -677,7 +608,7 @@ export default function App() {
     setBusy(false); setProgress(null);
     if (!res.ok) setError(classifyError(new Error(res.error)));
     else if (res.kind === 'analyze') setResult(res.result);
-  }, [send, options, setOptions, setProgress, setProgressLog, health?.ok]);
+  }, [send, options, setOptions, setProgress, setProgressLog, health?.ok, setBusy, setError, setResult]);
 
   /** Abort the running LLM tokenization; finished chunks are kept, the rest falls back to local. */
   const cancelRun = useCallback(() => {
@@ -707,7 +638,7 @@ export default function App() {
       }, base));
       flashCopied(false);
     } catch (e) { setError(classifyError(e)); }
-  }, [share, words, themeId, settings.mode, settings.font, custom, flashCopied]);
+  }, [share, words, themeId, settings.mode, settings.font, custom, flashCopied, setShare, setError]);
 
   /** Save PNG: the QR view in share mode, the cloud otherwise; separate file names. */
   const savePng = useCallback(async () => {
@@ -788,7 +719,7 @@ export default function App() {
     } catch (e) {
       setError(classifyError(e));
     } finally { setProposing(false); }
-  }, [send, options.ai, health?.ok, setOptions, t]);
+  }, [send, options.ai, health?.ok, setOptions, t, setError]);
 
   /** CSV export uses the full counts (allWords), not the truncated cloud. BOM for Excel. */
   const saveCsv = useCallback(() => {
@@ -830,7 +761,7 @@ export default function App() {
     const res = await send({ kind: 'context', options, word });
     if (!res.ok || res.kind !== 'context' || res.snippets.length === 0) { setError(notice(t('没找到「{w}」的上下文', { w: word }))); return; }
     askConfirm({ word, snippets: res.snippets });
-  }, [send, options, t, askConfirm]);
+  }, [send, options, t, askConfirm, setError]);
 
   /** Send the reviewed feedback; cancel just closes the dialog. */
   const sendFeedback = useCallback(async () => {
@@ -841,7 +772,7 @@ export default function App() {
       await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ word, snippets, kind: 'leak' }) });
       setError(notice(t('已发送，谢谢')));
     } catch (e) { setError(classifyError(e)); }
-  }, [confirm, closeConfirm, t]);
+  }, [confirm, closeConfirm, t, setError]);
 
   // Fetch once when the panel opens; the server caches for 5 minutes
   useEffect(() => {
@@ -911,11 +842,39 @@ export default function App() {
       }
       flashCopied();
     } catch (e) { setError(classifyError(e)); }
-  }, [share, flashCopied, t]);
+  }, [share, flashCopied, t, setError]);
 
   const META = panelMeta(t);
   const panelTitle = panel ? META[panel].title : '';
-  const resetScope = panel ? META[panel].reset : undefined;
+  /**
+   * The bar every panel sheet wears: title, the panel's own reset, close. A plain helper rather
+   * than a component so 词表 (whose shell is kept mounted by `<Activity>`) and the shell the other
+   * panels share stay one definition instead of two that can drift.
+   */
+  const sheetBar = (id: PanelId) => {
+    const scope = META[id].reset;
+    return (
+      <div className="sheet-bar">
+        <span className="sheet-title">{META[id].title}</span>
+        <span className="sheet-acts">
+          {/* Reset button per panel */}
+          {scope && (
+            <button
+              type="button" className="sheet-close"
+              title={isDirty(settings, scope)
+                ? t('恢复默认：{what}', { what: META[id].resetHint ?? '' })
+                : t('还是默认值')}
+              disabled={!isDirty(settings, scope)}
+              onClick={() => setSettings((s) => resetSlice(s, scope))}
+            ><Icon name="reset" size={16} /></button>
+          )}
+          <button type="button" className="sheet-close" title={t("关闭")} onClick={() => openPanel(null)}>
+            <Icon name="close" size={17} />
+          </button>
+        </span>
+      </div>
+    );
+  };
   const empty = words.length === 0;
   /** The sample cloud cannot be exported or shared. */
   const exportable = !empty && !demoMode;
@@ -1143,30 +1102,14 @@ export default function App() {
       )}
 
       {/* The export panel has the most controls, so on a phone it takes the whole screen. */}
-      {panel && panel !== 'community' && (
+      {/* 词表 has its own shell below: <Activity> has to sit outside this conditional, because a
+          parent that unmounts takes its Activity children with it. */}
+      {panel && panel !== 'community' && panel !== 'words' && (
         <aside
-          className={`sheet${panel === 'words' ? ' wide' : ''}${panel === 'export' ? ' page export-view' : ''}${narrow && panel === 'export' ? ' fullscreen' : ''}`}
+          className={`sheet${panel === 'export' ? ' page export-view' : ''}${narrow && panel === 'export' ? ' fullscreen' : ''}`}
           role="dialog" tabIndex={-1} aria-label={panelTitle}
         >
-          <div className="sheet-bar">
-            <span className="sheet-title">{panelTitle}</span>
-            <span className="sheet-acts">
-              {/* Reset button per panel */}
-              {resetScope && (
-                <button
-                  type="button" className="sheet-close"
-                  title={isDirty(settings, resetScope)
-                    ? t('恢复默认：{what}', { what: META[panel].resetHint ?? '' })
-                    : t('还是默认值')}
-                  disabled={!isDirty(settings, resetScope)}
-                  onClick={() => setSettings((s) => resetSlice(s, resetScope))}
-                ><Icon name="reset" size={16} /></button>
-              )}
-              <button type="button" className="sheet-close" title={t("关闭")} onClick={() => openPanel(null)}>
-                <Icon name="close" size={17} />
-              </button>
-            </span>
-          </div>
+          {sheetBar(panel)}
           <div className="sheet-body">
             {/* One line, not a blank sheet: the chunk is a few kB off the same origin. */}
             <Suspense fallback={<p className="note">{t('正在载入…')}</p>}>
@@ -1187,28 +1130,6 @@ export default function App() {
                 setKindView={(v) => patch({ kindView: v })}
                 priority={settings.priority} setPriority={(v) => patch({ priority: v })}
                 rotateRatio={rotateRatio} setRotateRatio={(v) => patch({ rotateRatio: v })} />
-            )}
-            {panel === 'words' && (
-              <WordsPanel words={words} options={options} setOptions={setOptions}
-                overrides={settings.overrides}
-                setOverrides={setOverridesTracked}
-                priority={parsePriority(settings.priority)}
-                cooccur={result?.cooccur}
-                coref={result?.coref}
-                corefSplit={settings.corefSplit}
-                onSplitCoref={(full) => patch({
-                  corefSplit: settings.corefSplit.includes(full)
-                    ? settings.corefSplit : [...settings.corefSplit, full],
-                })}
-                onHover={setHovered} hovered={hovered} onReport={health?.ok ? (w) => void reportWord(w) : undefined}
-                tab={wordsTab} setTab={setWordsTab}
-                review={(
-                  <ReviewPanel words={result?.allWords ?? words}
-                    overrides={settings.overrides}
-                    setOverrides={setOverridesTracked}
-                    extraStopwords={options.tokenize.extraStopwords}
-                    setExtraStopwords={setExtraStopwordsTracked} />
-                )} />
             )}
             {panel === 'export' && (
               <ExportPanel opts={settings.exportOpts} setOpts={(o) => patch({ exportOpts: o })}
@@ -1244,6 +1165,63 @@ export default function App() {
             </Suspense>
           </div>
         </aside>
+      )}
+
+      {/*
+        词表 is the <Activity> pilot (notes/docs/41 §2, React 19.2). Closing the panel used to
+        unmount WordsPanel and throw away everything the visitor had set up inside it: the search
+        box, the `limit` (60, +100 a click — expanding to 460 rows and closing the panel put it
+        back to 60), and the row being edited. `mode="hidden"` keeps the subtree mounted and only
+        display:none's it, so that state survives; the tab already had to be hoisted into
+        `useOverlay` for exactly this reason, and this covers the rest of the panel at once.
+
+        Two things this shell does that the shared one above does not:
+        - It is rendered unconditionally. Activity cannot preserve a subtree whose parent
+          unmounts, so it must sit outside `{panel && …}` — hence a second `.sheet`, not a branch.
+        - While hidden it drops the `sheet` / `sheet-body` class names and leaves the bar out
+          entirely. `display: none` already keeps it out of layout and out of the audit's `vis()`
+          filter, but a class is enough on its own for `.app:has(.sheet)` (which dims the canvas
+          below 1024px) and for the audit driver's `querySelector('.sheet-body' | '.sheet-close')`,
+          which take the first match in document order. The bar carries no state, so re-creating
+          it on each open costs nothing.
+        The subtree is only mounted once the panel has been opened at least once
+        (`useOverlay.everOpened`): keeping it alive before that put 1374 hidden nodes on the
+        first screen for a panel the visitor may never open (measured, 151 -> 1525 nodes).
+      */}
+      {(panel === 'words' || everOpened('words')) && (
+      <Activity mode={panel === 'words' ? 'visible' : 'hidden'}>
+        <aside
+          data-panel="words"
+          className={panel === 'words' ? 'sheet wide' : ''}
+          {...(panel === 'words' ? { role: 'dialog', tabIndex: -1, 'aria-label': META.words.title } : {})}
+        >
+          {panel === 'words' && sheetBar('words')}
+          <div className={panel === 'words' ? 'sheet-body' : ''}>
+            <Suspense fallback={<p className="note">{t('正在载入…')}</p>}>
+              <WordsPanel words={words} options={options} setOptions={setOptions}
+                overrides={settings.overrides}
+                setOverrides={setOverridesTracked}
+                priority={parsePriority(settings.priority)}
+                cooccur={result?.cooccur}
+                coref={result?.coref}
+                corefSplit={settings.corefSplit}
+                onSplitCoref={(full) => patch({
+                  corefSplit: settings.corefSplit.includes(full)
+                    ? settings.corefSplit : [...settings.corefSplit, full],
+                })}
+                onHover={setHovered} hovered={hovered} onReport={health?.ok ? (w) => void reportWord(w) : undefined}
+                tab={wordsTab} setTab={setWordsTab}
+                review={(
+                  <ReviewPanel words={result?.allWords ?? words}
+                    overrides={settings.overrides}
+                    setOverrides={setOverridesTracked}
+                    extraStopwords={options.tokenize.extraStopwords}
+                    setExtraStopwords={setExtraStopwordsTracked} />
+                )} />
+            </Suspense>
+          </div>
+        </aside>
+      </Activity>
       )}
 
       {/* Bottom-left dock: design tools (palette, font), the card info and the figures; the landing replaces it */}

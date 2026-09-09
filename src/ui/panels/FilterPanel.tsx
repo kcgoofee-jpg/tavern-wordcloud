@@ -55,7 +55,8 @@ export function FilterPanel({
   };
   const setTok = <K extends keyof AnalyzeOptions['tokenize']>(k: K, v: AnalyzeOptions['tokenize'][K]) =>
     setOptions((o) => ({ ...o, tokenize: { ...o.tokenize, [k]: v } }));
-  const countOf = (k: EntityKind) => result?.entities.byKind.find((x) => x.kind === k)?.words ?? 0;
+  // `entities` can lag `result` by a render (the keep-alive word panel showed this on CI, 2026-09-09).
+  const countOf = (k: EntityKind) => result?.entities?.byKind?.find((x) => x.kind === k)?.words ?? 0;
 
   return (
     <>
