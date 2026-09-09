@@ -134,6 +134,19 @@ const shot = async (name) => {
   return name;
 };
 
+/**
+ * Close the currently open sheet. `.sheet-close` is not unique to the close button — the panel's
+ * reset button (`.sheet-acts` in src/ui/App.tsx) carries the same class and sits first in the DOM
+ * when the panel has one, so `document.querySelector('.sheet-close')` was clicking reset instead
+ * of closing. Select by title (`关闭` / `Close`) instead, which only the close button has.
+ * `scope` narrows to one sheet, e.g. the full-page community view which nests its own `.sheet`.
+ */
+const closeSheet = (scope = '') => run(`
+  const btns = [...document.querySelectorAll(${JSON.stringify(scope ? `${scope} .sheet-close` : '.sheet-close')})];
+  btns.find((b) => /关闭|Close/.test(b.title))?.click();
+  await new Promise((r) => setTimeout(r, 300));
+`);
+
 await send('Page.enable');
 await send('Runtime.enable');
 await send('Emulation.setDeviceMetricsOverride', {
@@ -626,7 +639,7 @@ for (const title of panels) {
     const b=[...document.querySelectorAll('.sheet .seg button')].find(x=>/^\\s*(词频|Frequency)$/.test((x.querySelector('.ell')||x).textContent.trim()));
     if (b && !b.classList.contains('on')) { b.click(); await new Promise(r=>setTimeout(r,600)); }
   `);
-  await run(`document.querySelector('.sheet-close')?.click(); await new Promise(r=>setTimeout(r,300));`);
+  await closeSheet();
 }
 
 // Community page (top button, full page)
@@ -634,13 +647,13 @@ await run(`document.querySelector('.community-quick')?.click(); await new Promis
 shots.push(await shot('03b-社区排行榜'));
 await auditLayout('社区排行榜');
 await auditClicks('社区排行榜', '.sheet.page.community .sheet-body');
-await run(`document.querySelector('.sheet.page.community .sheet-close')?.click(); await new Promise(r=>setTimeout(r,300));`);
+await closeSheet('.sheet.page.community');
 
 // Main screen last. The mode switch is no longer on it (it lives in the 大模型接口 panel), so
 // nothing here can change modes; any panel a click left open is closed before the dock buttons
 // are audited.
 await auditClicks('主界面', '.app > :not(.sheet)');
-await run(`document.querySelector('.sheet-close')?.click(); await new Promise(r=>setTimeout(r,300));`);
+await closeSheet();
 
 // Bottom-left buttons, found by data-panel rather than the Chinese title: under SHOT_LANG=en the
 // title match failed silently and both panels were reported clean without ever opening (2026-09-08).
@@ -654,7 +667,7 @@ for (const [id, name] of [['theme', '配色'], ['font', '字体']]) {
   shots.push(await shot(`04-${name}`));
   await auditLayout(`面板 ${name}`);
   await auditClicks(`面板 ${name}`, '.sheet-body');
-  await run(`document.querySelector('.sheet-close')?.click(); await new Promise(r=>setTimeout(r,300));`);
+  await closeSheet();
 }
 
 // Card info
