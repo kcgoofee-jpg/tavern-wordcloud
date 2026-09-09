@@ -5,12 +5,22 @@ import { DEFAULT_STOPWORDS } from './stopwords';
 import { zh, type UserText } from './zh';
 
 /**
- * Full data export (.zip) from SillyTavern:
+ * Full data export (.zip) from SillyTavern. Only these paths are inflated:
  *   chats/<card>/*.jsonl        all chats
+ *   group chats/*.jsonl         group chats
+ *   backups/*.jsonl             SillyTavern's rolling chat backups — fallback only, see BACKUP_NAME
  *   worlds/*.json               world info; `entries[].key` is a curated proper-noun list
- *   settings.json               global settings, including the current preset name
- *   OpenAI Settings/*.json      preset files
+ *   settings.json               global settings (exact name — the settings.json.bak* copies are not)
  *   characters/*.png            character cards (not parsed)
+ *
+ * Everything else is skipped before it is decompressed. The filter used to keep any
+ * `.json`/`.jsonl` anywhere in the archive and cap the running total at 256 MB in
+ * *archive order*; a real 119 MB export (2026-09-09) holds 345 MB of JSON, and the
+ * irrelevant part — `baibaoku/` caches, dozens of `settings.json.bak*`, `instruct/`,
+ * `context/`, `NovelAI Settings/`, `themes/`, `user/` — spent the whole budget at
+ * archive entry 374 of 665, before `characters/` (430), `chats/` (466) and `worlds/`
+ * (658) were reached. The import then reported 0 chats, 0 cards, 0 world-info files
+ * and pushed one over-budget warning per skipped file (218 of them).
  */
 
 export interface BundleChat {
@@ -39,6 +49,14 @@ export interface DataBundle {
   characterCards: number;
   /** Regex scripts from settings.json and character cards, as cleaning rules. */
   regexScripts: CleanRule[];
+  /**
+   * Where `chats` came from. `backups` means `chats/` held no .jsonl at all and the
+   * rolling snapshots under `backups/` were used instead — the UI says so, because
+   * a snapshot can be older than the live chat.
+   */
+  source: 'chats' | 'backups';
+  /** Only meaningful for `source: 'backups'`: snapshots kept (one per chat) and older ones dropped. */
+  backupsDeduped: { kept: number; dropped: number };
   warnings: UserText[];
 }
 
@@ -71,6 +89,48 @@ export interface BundleProgress {
   label: UserText;
 }
 
+const norm = (p: string) => p.replace(/\\/g, '/');
+
+/** A chat where SillyTavern normally writes it. Same shape the reading loop below matches. */
+const CHAT_RE = /(?:^|\/)chats\/[^/]+\/[^/]+\.jsonl$/i;
+const GROUP_CHAT_RE = /(?:^|\/)group chats\/[^/]+\.jsonl$/i;
+const BACKUP_RE = /(?:^|\/)backups\/(?:[^/]+\/)*[^/]+\.jsonl$/i;
+const WORLD_RE = /(?:^|\/)worlds\/[^/]+\.json$/i;
+/** Exact file name: `settings.json.bak3` and `backups/settings_default-user_…json` are not settings. */
+const SETTINGS_RE = /(?:^|\/)settings\.json$/i;
+const CARD_RE = /(?:^|\/)characters\/[^/]+\.png$/i;
+
+/** Everything the importer can actually use. Anything else is never decompressed. */
+function relevant(name: string): boolean {
+  const n = norm(name);
+  return CHAT_RE.test(n) || GROUP_CHAT_RE.test(n) || BACKUP_RE.test(n)
+    || WORLD_RE.test(n) || SETTINGS_RE.test(n) || CARD_RE.test(n);
+}
+
+/** Zip-bomb limits, applied to the selected files only. */
+const MAX_FILE_BYTES = 64 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 512 * 1024 * 1024;
+
+/**
+ * SillyTavern's rolling chat backups. `backupChat()` writes
+ *   backups/chat_<sanitized chat folder>_<YYYYMMDD>-<HHMMSS>.jsonl
+ * where the sanitizer lowercases and replaces every character outside [a-z0-9] with
+ * `_`, one for one: `AMERICA v2.0` → `america_v2_0`, a five-hanzi folder → `_____`.
+ *
+ * Measured on the real export (2026-09-09): 246 backup .jsonl in 7 groups of at most 50
+ * (a rolling cap), 6 of the 7 group keys equal `sanitizeCardName()` of a `chats/` folder
+ * or a `characters/*.png` file name — the seventh belongs to a card that is no longer in
+ * the export — and 1 of the 247 files (`wiped-empty-chat-21h20.bak.jsonl`) does not follow
+ * the scheme at all, so a non-matching name becomes its own group with no timestamp.
+ * The name carries no chat id, so a group is one character, not one chat: keeping the
+ * newest timestamp per group keeps that character's newest snapshot, which is what the
+ * fallback promises.
+ */
+const BACKUP_NAME = /^chat_(.+)_(\d{8}-\d{6})\.jsonl$/i;
+
+/** The transform SillyTavern applies to a folder name before putting it in a backup file name. */
+const sanitizeCardName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
 /** World-info keys contain prompt fragments; keep only plausible proper nouns. */
 function usableKeyword(k: string): boolean {
   const t = k.trim();
@@ -101,7 +161,8 @@ export function readDataBundle(
   onCard?: (card: CardIdentity) => void,
 ): DataBundle {
   const out: DataBundle = {
-    chats: [], worldKeywords: [], worlds: [], characterCards: 0, regexScripts: [], warnings: [],
+    chats: [], worldKeywords: [], worlds: [], characterCards: 0, regexScripts: [],
+    source: 'chats', backupsDeduped: { kept: 0, dropped: 0 }, warnings: [],
   };
 
   /** `total: 0` means indeterminate: the UI shows a spinner instead of 0%. Unzipping reports no progress. */
@@ -113,18 +174,48 @@ export function readDataBundle(
     note: { key: zh('开始解压 {mb} MB'), params: { mb: (data.length / 1048576).toFixed(1) } },
   });
   let files: Record<string, Uint8Array>;
+  /** True when the archive holds real chats, so `backups/` is not needed. Decided before inflating. */
+  let hasLiveChats = false;
   try {
-    // Only extract what is needed. Zip-bomb limits: 64 MB per file, 256 MB total.
-    let total = 0;
-    files = unzipSync(data, {
+    /*
+     * Pass 1 lists the archive without decompressing anything (the filter always says no):
+     * only then is it known whether `chats/` has content, and only then can the budget be
+     * spent on files that will actually be read. Deciding while inflating — what this used
+     * to do — let 250 MB of unrelated JSON eat the budget before the chats were reached.
+     */
+    const entries: { name: string; size: number }[] = [];
+    unzipSync(data, {
       filter: (f) => {
-        if (!(/\.(jsonl|json)$/i.test(f.name) || /characters\/.*\.png$/i.test(f.name))) return false;
-        if (f.originalSize > 64 * 1024 * 1024) { out.warnings.push({ src: f.name, key: zh('单个文件超过 64 MB，跳过') }); return false; }
-        total += f.originalSize;
-        if (total > 256 * 1024 * 1024) { out.warnings.push({ key: zh('包里的文件加起来超过 256 MB，后面的跳过') }); return false; }
-        return true;
+        if (relevant(f.name)) entries.push({ name: f.name, size: f.originalSize });
+        return false;
       },
     });
+    hasLiveChats = entries.some((e) => CHAT_RE.test(norm(e.name)) || GROUP_CHAT_RE.test(norm(e.name)));
+
+    let total = 0;
+    let oversized = 0;
+    let skipped = 0;
+    let skippedBytes = 0;
+    const pick = new Set<string>();
+    for (const e of entries) {
+      // The rolling snapshots are only read when there is nothing live to read; skipping
+      // them here keeps 250 MB out of memory in the common case.
+      if (hasLiveChats && BACKUP_RE.test(norm(e.name))) continue;
+      if (e.size > MAX_FILE_BYTES) { oversized++; continue; }
+      if (total + e.size > MAX_TOTAL_BYTES) { skipped++; skippedBytes += e.size; continue; }
+      total += e.size;
+      pick.add(e.name);
+    }
+    // One warning each, with the counts: the old code pushed one per skipped file.
+    if (oversized) out.warnings.push({ key: zh('有 {n} 个文件单个超过 64 MB，跳过'), params: { n: oversized } });
+    if (skipped) {
+      out.warnings.push({
+        key: zh('要读的文件加起来超过 512 MB：跳过了 {n} 个文件、共 {mb} MB'),
+        params: { n: skipped, mb: (skippedBytes / 1048576).toFixed(0) },
+      });
+    }
+
+    files = unzipSync(data, { filter: (f) => pick.has(f.name) });
   } catch (e) {
     out.warnings.push({ key: zh('解压失败：{msg}'), params: { msg: e instanceof Error ? e.message : String(e) } });
     return out;
@@ -136,6 +227,11 @@ export function readDataBundle(
     detail: el(), note: { key: zh('解压出 {n} 个文件'), params: { n: names.length } },
   });
 
+  /** Rolling snapshots, read only after the loop: the newest per chat, and only if `chats/` was empty. */
+  const backups: { path: string; base: string; key: string; ts: string }[] = [];
+  /** PNG file names (no extension), so a backup's sanitized key can be turned back into a card name. */
+  const cardFileNames: string[] = [];
+
   let i = 0;
   for (const path of names) {
     i++;
@@ -143,11 +239,12 @@ export function readDataBundle(
       onProgress?.({ phase: 'read', done: i, total: names.length, label: zh('正在读取'), detail: el() });
     }
 
-    const norm = path.replace(/\\/g, '/');
-    const base = norm.split('/').pop() ?? norm;
+    const n = norm(path);
+    const base = n.split('/').pop() ?? n;
 
-    if (/characters\/[^/]+\.png$/i.test(norm)) {
+    if (CARD_RE.test(n)) {
       out.characterCards++;
+      cardFileNames.push(base.replace(/\.png$/i, ''));
       // Card JSON lives in the `chara` tEXt chunk (base64). Its world info keys and regex scripts are used too.
       try {
         const b64 = readText(files[path], 'chara');
@@ -177,7 +274,7 @@ export function readDataBundle(
     }
 
     // Chats: chats/<card>/<file>.jsonl
-    const chatMatch = /(?:^|\/)chats\/([^/]+)\/([^/]+\.jsonl)$/i.exec(norm);
+    const chatMatch = /(?:^|\/)chats\/([^/]+)\/([^/]+\.jsonl)$/i.exec(n);
     if (chatMatch) {
       out.chats.push({
         name: chatMatch[2],
@@ -187,13 +284,21 @@ export function readDataBundle(
       continue;
     }
     // Group chats
-    if (/(?:^|\/)group chats\/[^/]+\.jsonl$/i.test(norm)) {
+    if (GROUP_CHAT_RE.test(n)) {
       out.chats.push({ name: base, content: strFromU8(files[path]) });
       continue;
     }
 
+    // Rolling snapshots: only read after the loop, and only if nothing live was found.
+    if (BACKUP_RE.test(n)) {
+      const m = BACKUP_NAME.exec(base);
+      // A file that does not follow the naming scheme is its own group and has no timestamp.
+      backups.push({ path, base, key: m ? m[1].toLowerCase() : base, ts: m ? m[2] : '' });
+      continue;
+    }
+
     // World info
-    if (/(?:^|\/)worlds\/[^/]+\.json$/i.test(norm)) {
+    if (WORLD_RE.test(n)) {
       try {
         const w = JSON.parse(strFromU8(files[path])) as { entries?: Record<string, { key?: string[] }> };
         const keys: string[] = [];
@@ -209,7 +314,7 @@ export function readDataBundle(
     }
 
     // Global settings: preset name
-    if (/(?:^|\/)settings\.json$/i.test(norm)) {
+    if (SETTINGS_RE.test(n)) {
       try {
         const s = JSON.parse(strFromU8(files[path])) as {
           extension_settings?: { regex?: unknown };
@@ -225,6 +330,30 @@ export function readDataBundle(
         out.regexScripts = mergeRules(parseRegexScripts(s.extension_settings?.regex), out.regexScripts);
       } catch { out.warnings.push({ key: zh('settings.json 解析失败，拿不到预设名') }); }
     }
+  }
+
+  /*
+   * Fallback: an export whose `chats/` holds only folders (the site owner's, 2026-09-09)
+   * still has every conversation under `backups/`. One group is one chat folder, so keep
+   * the newest timestamp per group and drop the older snapshots of the same chat.
+   */
+  if (out.chats.length === 0 && backups.length) {
+    const newest = new Map<string, typeof backups[number]>();
+    for (const b of backups) {
+      const prev = newest.get(b.key);
+      if (!prev || b.ts > prev.ts) newest.set(b.key, b);
+    }
+    // A backup name only carries the sanitized folder name; map it back to a real card name when one matches.
+    const bySanitized = new Map(cardFileNames.map((f) => [sanitizeCardName(f), f]));
+    for (const b of newest.values()) {
+      out.chats.push({ name: b.base, character: bySanitized.get(b.key) ?? b.key, content: strFromU8(files[b.path]) });
+    }
+    out.source = 'backups';
+    out.backupsDeduped = { kept: newest.size, dropped: backups.length - newest.size };
+    out.warnings.push({
+      key: zh('chats/ 里没有聊天记录，改用 backups/ 里最新的 {kept} 份快照（去掉了 {dropped} 份旧快照）'),
+      params: out.backupsDeduped,
+    });
   }
 
   out.worldKeywords = [...new Set(out.worldKeywords)];

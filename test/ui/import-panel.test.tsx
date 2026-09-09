@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
 import ImportPanel, { type ImportSummary } from '../../src/ui/ImportPanel';
 import { DEFAULT_ANALYZE_OPTIONS } from '../../src/core/analyze';
+import type { DataBundle } from '../../src/core/bundle';
 import { MAX_UPLOAD_BYTES } from '../../src/net/server';
 
 afterEach(cleanup);
@@ -77,8 +78,13 @@ describe('ImportPanel kind buckets', () => {
     for (const name of ['Names', 'Places', 'Time', 'Docs & organizations', 'Other', 'Common words']) {
       expect(screen.getByRole('button', { name: new RegExp(`^${name}`) }), name).toBeTruthy();
     }
-    expect(screen.queryByRole('button', { name: /^Titles/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /^Clothing/ })).toBeNull();
+    // The fine kinds are not in the bucket row; they live inside the collapsed 「更多类别」.
+    const buckets = screen.getByRole('button', { name: /^Names/ }).parentElement as HTMLElement;
+    expect(buckets.querySelector('.import-more-kinds')).toBeNull();
+    for (const name of ['Titles', 'Clothing']) {
+      const btn = screen.getByRole('button', { name: new RegExp(`^${name}`) });
+      expect(btn.closest('.import-more-kinds'), name).toBeTruthy();
+    }
   });
 
   it('turning Names off drops person and title together', async () => {
@@ -137,5 +143,83 @@ describe('ImportPanel: the disclaimer names the path this import actually takes'
     expect(screen.getByText(localBuild)).toBeTruthy();
     expect(screen.queryByText(uploaded)).toBeNull();
     expect(screen.queryByText(stays)).toBeNull();
+  });
+});
+
+
+/**
+ * A zip's warnings used to reach the user only through a toast that faded after a few
+ * seconds: the site owner's 119 MB export showed «0 chats, 0 cards, 0 characters», a
+ * 「开始」 button that did nothing, and no reason anywhere (2026-09-09).
+ */
+const bundleOf = (over: Partial<Omit<DataBundle, 'chats'>> = {}): Omit<DataBundle, 'chats'> => ({
+  worldKeywords: [], worlds: [], characterCards: 0, regexScripts: [],
+  source: 'chats', backupsDeduped: { kept: 0, dropped: 0 }, warnings: [], ...over,
+});
+
+describe('ImportPanel: the archive reader\u2019s warnings are in the dialog, not only in a toast', () => {
+  const zipSummary = (bundle: Omit<DataBundle, 'chats'>, fileCount = 1): ImportSummary =>
+    ({ ...summary, fileCount, characters: [], bundle, fromZip: true });
+
+  it('lists the warnings under what was found', () => {
+    panel({ summary: zipSummary(bundleOf({ warnings: [{ key: '\u8981\u8bfb\u7684\u6587\u4ef6\u52a0\u8d77\u6765\u8d85\u8fc7 512 MB\uff1a\u8df3\u8fc7\u4e86 {n} \u4e2a\u6587\u4ef6\u3001\u5171 {mb} MB', params: { n: 3, mb: '250' } }] })) });
+    expect(screen.getByText(/512 MB/)).toBeTruthy();
+    expect(screen.getByText(/250 MB/)).toBeTruthy();
+  });
+
+  it('lists at most five and counts the rest', () => {
+    const warnings = Array.from({ length: 8 }, (_, i) => `\u7b2c ${i} \u6761\u8b66\u544a`);
+    const { container } = panel({ summary: zipSummary(bundleOf({ warnings })) });
+    expect(container.querySelectorAll('.import-warnings > .note')).toHaveLength(6); // 5 + the counter
+    expect(screen.getByText('第 4 条警告')).toBeTruthy();
+    expect(screen.queryByText('第 5 条警告')).toBeNull();
+    expect(screen.getByText('还有 3 条')).toBeTruthy();
+  });
+
+  it('nothing read: 「开始」 is disabled and the first warning says why', () => {
+    const why = '\u8fd9\u4e2a\u538b\u7f29\u5305\u91cc\u6ca1\u627e\u5230\u804a\u5929\u8bb0\u5f55\uff08\u5e94\u8be5\u5728 chats/<\u89d2\u8272\u5361\u540d>/ \u4e0b\uff09';
+    panel({ summary: zipSummary(bundleOf({ warnings: [why] }), 0) });
+    const go = screen.getByRole('button', { name: '开始' }) as HTMLButtonElement;
+    expect(go.disabled).toBe(true);
+    expect(screen.getByText(/没读到聊天记录，不能开始：No chat logs found in this archive/)).toBeTruthy();
+    // …and the same warning is also listed above, in the 「读到了这些」 block.
+    expect(screen.getAllByText(/No chat logs found in this archive/)).toHaveLength(2);
+  });
+
+  it('something read: 「开始」 stays enabled even when there are warnings', () => {
+    panel({ summary: zipSummary(bundleOf({ warnings: ['\u4e00\u6761\u8b66\u544a'] }), 2) });
+    expect((screen.getByRole('button', { name: '开始' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByText(/没读到聊天记录/)).toBeNull();
+  });
+
+  it('marks the count as coming from backups only when it did', () => {
+    panel({ summary: zipSummary(bundleOf({ source: 'backups', backupsDeduped: { kept: 4, dropped: 12 } }), 4) });
+    expect(screen.getByText('（来自备份）')).toBeTruthy();
+    cleanup();
+    panel({ summary: zipSummary(bundleOf(), 4) });
+    expect(screen.queryByText('（来自备份）')).toBeNull();
+  });
+});
+
+/** The site owner read the six bucket buttons as «too few categories» (2026-09-09). */
+describe('ImportPanel: the other kind groups fold out of 「更多类别」', () => {
+  it('has a collapsed section that holds the fine kinds the buckets hide', () => {
+    const { container } = panel();
+    const more = container.querySelector('.import-more-kinds') as HTMLDetailsElement;
+    expect(more).toBeTruthy();
+    expect(more.open).toBe(false);
+    // Rendered, just folded: the group headings and their buttons are in the DOM.
+    expect(screen.getByText(/^People & identity/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Titles/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Clothing/ })).toBeTruthy();
+  });
+
+  it('a fine kind toggles like the bucket buttons do', async () => {
+    const user = userEvent.setup();
+    let current = DEFAULT_ANALYZE_OPTIONS;
+    const setOptions = vi.fn((fn: (o: typeof current) => typeof current) => { current = fn(current); });
+    panel({ options: current, setOptions });
+    await user.click(screen.getByRole('button', { name: /^Titles/ }));
+    expect(current.kinds).not.toContain('title');
   });
 });

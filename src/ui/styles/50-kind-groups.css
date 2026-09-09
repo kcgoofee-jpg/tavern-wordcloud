@@ -56,3 +56,8 @@
   color: var(--fg-dim);
   align-self: center;
 }
+
+/* Import panel: the non-common groups fold away behind one more <details>, which borrows
+   .kind-group for its frame. Its body is a .kind-groups, not a .kinds, so it needs the
+   same inset the plain sections get. */
+.import-more-kinds > .kind-groups { padding: 0 8px 8px; }

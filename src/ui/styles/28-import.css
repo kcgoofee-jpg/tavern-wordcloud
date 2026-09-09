@@ -55,3 +55,11 @@
 
 /* Shown above the start button when the server reports load === 'full' */
 .import-busy { margin: 0 0 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+/* Nothing was read: the button would do nothing, so it says so instead of pretending. */
+.import-go:disabled { opacity: .45; box-shadow: none; cursor: not-allowed; }
+.import-go:disabled:hover { transform: none; box-shadow: none; }
+
+/* What the archive reader had to say. One line per warning, stacked under 「读到了这些」. */
+.import-warnings { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.import-warnings > .note { margin: 0; }

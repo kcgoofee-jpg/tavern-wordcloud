@@ -1,7 +1,8 @@
 import type { AnalyzeOptions } from '../core/analyze';
-import { tenK, useT } from './i18n';
+import { tenK, txv, useT } from './i18n';
 import type { DataBundle } from '../core/bundle';
-import { KindBucketToggles } from './KindGroups';
+import { KIND_GROUPS, type EntityKind, type KindGroupId } from '../core/entities';
+import { KindBucketToggles, KindGroups } from './KindGroups';
 import type { Role } from '../core/types';
 import Icon from './Icons';
 import Note from './Note';
@@ -34,6 +35,18 @@ export interface ImportSummary {
   bundle: Omit<DataBundle, 'chats'> | null;
   fromZip: boolean;
 }
+
+/**
+ * Import shows the ops buckets; every other group folds away behind 「更多类别」.
+ * The site owner read the six buttons as "the categories are missing" (2026-09-09),
+ * so the rest is one click away here instead of only in the filter panel.
+ */
+const MORE_GROUPS = KIND_GROUPS.filter((g) => g.id !== 'common');
+const MORE_KIND_GROUPS: readonly KindGroupId[] = MORE_GROUPS.map((g) => g.id);
+const MORE_KINDS: readonly EntityKind[] = MORE_GROUPS.flatMap((g) => [...g.kinds]);
+
+/** At most this many import warnings are listed; the rest are counted. */
+const MAX_SHOWN_WARNINGS = 5;
 
 /** A function of `t` so labels are literal `t('…')` calls. */
 const roleLabel = (t: (s: string) => string): Record<Role, string> =>
@@ -100,6 +113,12 @@ export default function ImportPanel({
     fromZip: summary.fromZip,
   });
   const cap = maxBytes ?? MAX_UPLOAD_BYTES;
+  /**
+   * A zip's warnings used to reach the user only as a toast that faded in a few seconds,
+   * which is how «0 chats, no reason given» happened. They belong in the dialog.
+   */
+  const warnings = summary.bundle?.warnings ?? [];
+  const nothingRead = summary.fileCount === 0;
   const mb = (b: number) => String(Math.round(b / (1024 * 1024)));
   const aiOn = options.ai.enabled && !!options.ai.endpoint && !!options.ai.model;
 
@@ -116,7 +135,10 @@ export default function ImportPanel({
         <div className="import-body">
           {/* What was read */}
           <ul className="found">
-            <li><Icon name="files" size={15} /><b>{summary.fileCount}</b> {t('份聊天记录')}</li>
+            <li>
+              <Icon name="files" size={15} /><b>{summary.fileCount}</b> {t('份聊天记录')}
+              {summary.bundle?.source === 'backups' ? <em>{t('（来自备份）')}</em> : null}
+            </li>
             <li>
               <Icon name="card" size={15} />
               <b>{summary.characters.length}</b> {t('张角色卡')}
@@ -137,6 +159,17 @@ export default function ImportPanel({
               <li className="dim"><Icon name="alert" size={15} />{t('这个包里没有世界书')}</li>
             ) : null}
           </ul>
+
+          {warnings.length > 0 && (
+            <div className="import-warnings">
+              {warnings.slice(0, MAX_SHOWN_WARNINGS).map((w, i) => (
+                <p key={i} className="note warn-note">{txv(w)}</p>
+              ))}
+              {warnings.length > MAX_SHOWN_WARNINGS && (
+                <p className="note dim">{t('还有 {n} 条', { n: warnings.length - MAX_SHOWN_WARNINGS })}</p>
+              )}
+            </div>
+          )}
 
           {!!cardRuleApplied && (
             <p className="note">
@@ -169,6 +202,17 @@ export default function ImportPanel({
             value={options.kinds}
             onChange={(kinds) => setOptions((o) => ({ ...o, kinds }))}
           />
+          <details className="kind-group import-more-kinds">
+            {/* Same head shape as the groups inside it: label left, «on / total» right. */}
+            <summary>{t('更多类别')}<em>{MORE_KINDS.filter((k) => options.kinds.includes(k)).length}/{MORE_KINDS.length}</em></summary>
+            <KindGroups
+              value={options.kinds}
+              groups={MORE_KIND_GROUPS}
+              onToggle={(k) => setOptions((o) => ({
+                ...o, kinds: o.kinds.includes(k) ? o.kinds.filter((x) => x !== k) : [...o.kinds, k],
+              }))}
+            />
+          </details>
 
           <div className="seg vertical">
             <button type="button" className={!aiOn ? 'on' : ''}
@@ -241,12 +285,20 @@ export default function ImportPanel({
               <a className="field-act" href={LOCAL_BUILD} download>{t('下载本地版')}</a>
             </p>
           )}
+          {/* Nothing to analyze: say why here rather than letting 「开始」 do nothing. */}
+          {!busy && nothingRead && (
+            <p className="note warn-note import-busy">
+              {warnings.length
+                ? t('没读到聊天记录，不能开始：{why}', { why: txv(warnings[0]) })
+                : t('没读到聊天记录，不能开始。')}
+            </p>
+          )}
           {busy ? (
             <div className="import-progress">
               <Progress done={progress?.done} total={progress?.total} label={progress?.label ?? t('处理中')} inline />
             </div>
           ) : (
-            <button type="button" className="import-go" onClick={onStart}>
+            <button type="button" className="import-go" onClick={onStart} disabled={nothingRead}>
               {t('开始')}
             </button>
           )}
