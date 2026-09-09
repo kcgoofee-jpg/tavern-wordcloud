@@ -28,6 +28,14 @@ export function useOverlay<P extends string>() {
   const [noticeOpen, setNoticeOpen] = useState(false);
   /** Deploy-update popover behind the refresh dot. */
   const [versionOpen, setVersionOpen] = useState(false);
+  /**
+   * Which tab the 词表 panel shows (frequency table / kind review). Overlay state, not a
+   * setting: it is not persisted. Closing and reopening the panel keeps the tab on purpose —
+   * a correction pass through 检查分类 is interrupted by every other panel, and coming back to
+   * the frequency table each time was the thing that made the two separate rail buttons feel
+   * necessary in the first place.
+   */
+  const [wordsTab, setWordsTab] = useState<'freq' | 'review'>('freq');
 
   const openPanel = useCallback((id: P | null) => {
     setPanel(id);
@@ -139,5 +147,5 @@ export function useOverlay<P extends string>() {
     return () => document.removeEventListener('keydown', onKey);
   }, [panel, cardOpen, noticeOpen, versionOpen, communityCloud, closeOverlays]);
 
-  return { panel, cardOpen, openPanel, openCard, closeAll, confirm, askConfirm, closeConfirm, sampleOpen, openSample, closeSample, communityCloud, cycleCommunity, noticeOpen, toggleNotice, versionOpen, toggleVersion };
+  return { panel, cardOpen, openPanel, openCard, closeAll, confirm, askConfirm, closeConfirm, sampleOpen, openSample, closeSample, communityCloud, cycleCommunity, noticeOpen, toggleNotice, versionOpen, toggleVersion, wordsTab, setWordsTab };
 }

@@ -9,6 +9,7 @@ import Icon, { type IconName } from '../Icons';
 import Note from '../Note';
 import Slider from './Slider';
 import { relayFetch } from '../../net/relay';
+import type { CloudMode } from '../settings';
 
 /** Preset id -> icon. Icon only: the brand mark is the label, the name is the tooltip. */
 const PRESET_ICON: Record<string, IconName> = {
@@ -17,10 +18,33 @@ const PRESET_ICON: Record<string, IconName> = {
   dashscope: 'dashscope', lmstudio: 'lmstudio',
 };
 
+/**
+ * Endpoint panel. Since 2026-09-09 it also owns the cloud-mode switch: the rail was nine
+ * buttons wide and the mode had a panel of its own that held one segmented control and one
+ * run button. Both belong to the same decision — 关键词 mode is the only thing the endpoint
+ * is required for — so the switch is the first group in here and the rail button's tooltip
+ * and badge say which mode you are in (App's `tools()`).
+ *
+ * Picking 关键词 without a usable endpoint no longer opens a panel (this *is* that panel):
+ * it puts the cursor on the field that is still empty.
+ */
 export function AiPanel({
   ai, setAi, canRun, busy, onRun, relay, onProposeRules, proposing, focus,
   labelWords, onLabeled,
+  keywordMode, aiReady, aiMissing, curateModel, canCurate, onMode, onCurate,
 }: {
+  /** Cloud mode, moved in from the deleted ModePanel. */
+  keywordMode: boolean;
+  /** Endpoint, model and key all filled in: keyword mode can be selected. */
+  aiReady: boolean;
+  /** Which endpoint field is still empty; named in the mode tooltip, never printed beside the label. */
+  aiMissing: 'endpoint' | 'model' | 'key' | null;
+  /** Model name used for the keyword run, printed on its button. */
+  curateModel: string;
+  /** A curation can only run once there is a local analysis to hang the counts on. */
+  canCurate: boolean;
+  onMode: (m: CloudMode) => void;
+  onCurate: () => void;
   /** Words the user can ask the model to file into kinds. Only these are ever sent. */
   labelWords?: string[];
   /** Receives word -> kind; the caller writes it into settings.overrides. */
@@ -45,8 +69,19 @@ export function AiPanel({
   const modelRef = useRef<HTMLInputElement>(null);
   const keyRef = useRef<HTMLInputElement>(null);
   const testRef = useRef<HTMLButtonElement>(null);
+  /**
+   * Same jump as `focus`, but raised from inside this panel: picking 关键词 with a field still
+   * empty used to open this panel from the mode panel. The counter makes a second click on the
+   * same option nudge the cursor again — the field name alone would not change.
+   */
+  const [nudge, setNudge] = useState<{ field: 'endpoint' | 'model' | 'key'; n: number } | null>(null);
+  /** Says why 关键词 did not take. Separate from `nudge`, which the focus effect reads. */
+  const [modeHint, setModeHint] = useState(false);
+  const focusField = nudge?.field ?? focus;
+  const nudgeN = nudge?.n ?? 0;
   useEffect(() => {
-    if (!focus) return undefined;
+    const want = focusField;
+    if (!want) return undefined;
     /**
      * The target can be missing or still disabled on the first pass: this panel arrives through
      * React.lazy, and the test button stays disabled until the saved endpoint is read back.
@@ -56,16 +91,16 @@ export function AiPanel({
     let timer: ReturnType<typeof setTimeout> | undefined;
     let tries = 0;
     const put = (): void => {
-      const el = focus === 'endpoint' ? endpointRef.current
+      const el = want === 'endpoint' ? endpointRef.current
         // No model box until the list is fetched: the missing-model shortcut lands on the test button.
-        : focus === 'model' ? (modelRef.current ?? testRef.current)
-          : focus === 'key' ? keyRef.current : null;
+        : want === 'model' ? (modelRef.current ?? testRef.current)
+          : want === 'key' ? keyRef.current : null;
       if (el && !el.disabled) { el.focus(); return; }
       if (++tries < 6) timer = setTimeout(put, 16);
     };
     put();
     return () => { if (timer !== undefined) clearTimeout(timer); };
-  }, [focus]);
+  }, [focusField, nudgeN]);
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; hint?: string } | null>(null);
   /** Model list, filled by a successful connection test; manual entry stays available. */
@@ -149,8 +184,51 @@ export function AiPanel({
   const ready = ai.endpoint.trim().length > 0 && ai.model.trim().length > 0;
   const preset = PROVIDER_PRESETS.find((p) => p.endpoint === ai.endpoint && p.model === ai.model);
 
+  /* The full explanation is the title: a segmented control never wraps (05-controls.css). */
+  const freqNote = t('统计出现最多的词。免费、半秒出结果');
+  const keywordNote = aiReady
+    ? t('让大模型读完整份聊天，挑出这个故事独有的词。整份正文会发给你配的接口')
+    : aiMissing === 'endpoint' ? t('还没填接口地址——点一下去配')
+      : aiMissing === 'model' ? t('还没选模型——点一下去配')
+        : aiMissing === 'key' ? t('还没填密钥——点一下去配') : t('还没配接口——点一下去配');
+  /** Switching modes never sends a request; keyword mode's run action is the button under the switch. */
+  const pickMode = (m: CloudMode) => {
+    // We are already in the endpoint panel, so the answer to "not configured" is the cursor plus a
+    // line saying why — a focus ring three rows down is easy to miss, and used to be a whole panel
+    // opening on top of you.
+    if (m === 'keyword' && !aiReady) {
+      setModeHint(true);
+      setNudge((v) => ({ field: aiMissing ?? 'endpoint', n: (v?.n ?? 0) + 1 }));
+      return;
+    }
+    setModeHint(false);
+    onMode(m);
+  };
+
   return (
     <>
+      <div className="group-label">{t('词云模式')}</div>
+      <div className="seg vertical" role="group" aria-label={t('词云模式')}>
+        <button type="button" className={!keywordMode ? 'on' : ''} aria-pressed={!keywordMode}
+          title={freqNote} onClick={() => pickMode('freq')}>
+          <span className="ell">{t('词频')}</span>
+          <em>{freqNote}</em>
+        </button>
+        <button type="button" className={keywordMode ? 'on' : ''} aria-pressed={keywordMode}
+          title={keywordNote} onClick={() => pickMode('keyword')}>
+          <span className="ell">{t('关键词')}</span>
+          <em>{keywordNote}</em>
+        </button>
+      </div>
+      {modeHint && !aiReady && <p className="ai-err">{t('关键词模式要先把下面的接口配好')}</p>}
+      {/* Keyword mode's run action: one request over the whole log, so it is never automatic. */}
+      {keywordMode && (
+        <button type="button" className="more" disabled={!canCurate || busy} onClick={onCurate}>
+          {busy ? t('正在跑…') : t('让 {model} 读完整份聊天挑词', { model: curateModel })}
+        </button>
+      )}
+
+      <div className="group-label">{t('接口与密钥')}</div>
       {/* Address line: the address takes the whole row; the provider shortcuts sit at the bottom. */}
       <div className="ai-line ai-line-url">
         <input className="ai-url" type="url" ref={endpointRef} placeholder="https://…/v1" aria-label={t('地址')}

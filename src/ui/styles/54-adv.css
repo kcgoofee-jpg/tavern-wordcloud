@@ -1,0 +1,14 @@
+/* ---------- Advanced settings, collapsed inside the filter panel (2026-09-09) ----------
+   It used to be a rail button of its own. Everything in it decides which words survive, just
+   like the controls above it, so it is the last section of 「筛选与分词」 — folded away, because
+   a daily visitor never opens it. The disclosure looks like the 「看看各类都有哪些词」 one
+   (40-kind-list.css); only the body needs rules of its own. */
+.adv { margin-top: var(--sp-4); }
+.adv > summary {
+  cursor: pointer; list-style: none;
+  font-size: var(--t-xs); letter-spacing: .09em; color: var(--accent);
+}
+.adv > summary::-webkit-details-marker { display: none; }
+.adv > summary:hover { text-decoration: underline; }
+/* The section's own rhythm starts here, so its first heading does not hug the summary. */
+.adv-body { margin-top: var(--sp-2); }

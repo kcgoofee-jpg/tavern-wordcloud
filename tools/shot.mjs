@@ -448,7 +448,13 @@ await run(`location.hash=''; await new Promise(r=>setTimeout(r,500));`);
     shots.push(await shot('01b-导入确认'));
     await auditLayout('导入确认面板');
     await run(`document.querySelector('.import-go')?.click(); await new Promise(r=>setTimeout(r,4000));`);
-    await run(`document.querySelector('.rail .tool[title*="清空"], .rail .tool[title*="Clear"]')?.click(); await new Promise(r=>setTimeout(r,600));`);
+    // Clear before importing the real corpus, or the second import raises the 「已有一份分析」
+    // dialog. Since 2026-09-09 that button lives in the card popover, not on the rail.
+    await run(`
+      document.querySelector('.cardinfo-head')?.click(); await new Promise(r=>setTimeout(r,400));
+      const b=document.querySelector('.card-clear'); if(!b) throw new Error('角色卡弹层里没有 .card-clear');
+      b.click(); await new Promise(r=>setTimeout(r,600));
+    `);
   }
 }
 
@@ -567,12 +573,12 @@ async function auditClicks(label, scope, skip = /清空|Clear|添加|Add|导出|
 
 // Each panel (destructive buttons skipped). The list is every rail button that toggles a panel
 // (`aria-pressed`), read from the page: a title regex used to live here and 检查分类 / Review
-// kinds was missing from it from the day it shipped (2026-09-06). Action buttons (清空) have no
-// aria-pressed and stay out.
+// kinds was missing from it from the day it shipped (2026-09-06). 添加 has no aria-pressed and
+// stays out; since 2026-09-09 the rail is 添加 + four panel buttons, so the floor is 4.
 const panels = await run(`
   return [...document.querySelectorAll('.rail .tool[aria-pressed]')].filter(b=>!b.disabled).map(b=>b.title);
 `);
-if (panels.length < 5) throw new Error('导轨上只找到 ' + panels.length + ' 个面板按钮：' + panels.join(' / '));
+if (panels.length < 4) throw new Error('导轨上只找到 ' + panels.length + ' 个面板按钮：' + panels.join(' / '));
 for (const title of panels) {
   if (PANEL_FILTER && !PANEL_FILTER.test(title)) continue;
   await run(`
@@ -589,11 +595,35 @@ for (const title of panels) {
     b.scrollTop=b.scrollHeight; await new Promise(r=>setTimeout(r,250)); return true;
   `);
   if (scrolls) { shots.push(await shot(`03-面板-${slug}-底`)); await auditLayout(`面板 ${title}（底部）`); }
-  // The 词云模式 panel's own click audit selects 关键词 and cannot put it back (clicking the option
-  // you are already on is inert by design), which would audit every later panel in keyword mode —
-  // an empty cloud. Restore frequency mode here; a no-op in every other panel.
+  // The word panel's second tab (检查分类, its own rail button until 2026-09-09) has to be turned
+  // over too. By index, not by "the one that is not selected": the click audit above leaves the
+  // tabs wherever its last click put them, and it is the second tab that has never been audited.
+  const tab = await run(`
+    const body=document.querySelector('.sheet-body'); if (body) body.scrollTop=0;
+    const seg=document.querySelector('.sheet-body .seg[aria-label="词表"], .sheet-body .seg[aria-label="Words"]');
+    if (!seg) return null;
+    const b=seg.querySelectorAll('button')[1];
+    if (!b) return null;
+    if (!b.classList.contains('on')) { b.click(); await new Promise(r=>setTimeout(r,700)); }
+    return (b.textContent||'').trim();
+  `);
+  if (tab) {
+    shots.push(await shot(`03-面板-${slug}-${tab.replace(/[^\w一-鿿]+/g, '')}`));
+    await auditLayout(`面板 ${title} · ${tab}`);
+    await auditClicks(`面板 ${title} · ${tab}`, '.sheet-body');
+    // Back to the first tab: the tab is remembered across openings (useOverlay.wordsTab).
+    await run(`
+      const seg=document.querySelector('.sheet-body .seg[aria-label="词表"], .sheet-body .seg[aria-label="Words"]');
+      const b=seg && seg.querySelectorAll('button')[0];
+      if (b && !b.classList.contains('on')) { b.click(); await new Promise(r=>setTimeout(r,500)); }
+    `);
+  }
+  // The 词云模式 switch (in the endpoint panel since 2026-09-09) gets selected to 关键词 by the
+  // click audit and cannot be put back by it — clicking the option you are already on is inert by
+  // design — which would audit every later panel in keyword mode, on an empty cloud. Restore
+  // frequency mode here; a no-op in every other panel.
   await run(`
-    const b=[...document.querySelectorAll('.sheet .seg button')].find(x=>/^\\s*(词频|Frequency)/.test(x.textContent||''));
+    const b=[...document.querySelectorAll('.sheet .seg button')].find(x=>/^\\s*(词频|Frequency)$/.test((x.querySelector('.ell')||x).textContent.trim()));
     if (b && !b.classList.contains('on')) { b.click(); await new Promise(r=>setTimeout(r,600)); }
   `);
   await run(`document.querySelector('.sheet-close')?.click(); await new Promise(r=>setTimeout(r,300));`);
@@ -606,8 +636,9 @@ await auditLayout('社区排行榜');
 await auditClicks('社区排行榜', '.sheet.page.community .sheet-body');
 await run(`document.querySelector('.sheet.page.community .sheet-close')?.click(); await new Promise(r=>setTimeout(r,300));`);
 
-// Main screen last. The mode switch is no longer on it (it is the 词云模式 panel), so nothing here
-// can change modes; any panel a click left open is closed before the dock buttons are audited.
+// Main screen last. The mode switch is no longer on it (it lives in the 大模型接口 panel), so
+// nothing here can change modes; any panel a click left open is closed before the dock buttons
+// are audited.
 await auditClicks('主界面', '.app > :not(.sheet)');
 await run(`document.querySelector('.sheet-close')?.click(); await new Promise(r=>setTimeout(r,300));`);
 
@@ -635,7 +666,7 @@ await run(`document.querySelector('.cardinfo-head')?.click(); await new Promise(
 // Keyword mode running: stop button, log, speed
 if (process.env.SHOT_CURATE) {
   await run(`
-    // The mode switch and its run button both live in the 词云模式 panel now (2026-09-08)
+    // The mode switch and its run button both live in the 大模型接口 panel now (2026-09-09)
     document.querySelector('.rail .tool[data-mode]')?.click();
     await new Promise(r=>setTimeout(r,600));
     [...document.querySelectorAll('.sheet .seg button')].find(b=>/关键词|Keywords/.test(b.textContent||''))?.click();

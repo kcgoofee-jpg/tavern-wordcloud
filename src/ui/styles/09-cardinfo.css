@@ -32,3 +32,14 @@
 .card-stats { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 10px; color: var(--fg-dim); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
 .card-stats span { display: inline-flex; align-items: center; gap: 5px; }
 
+
+/* Throw away every loaded file. It sits at the bottom of the popover, under the file list it
+   clears (2026-09-09: it used to be the ninth button on the rail). Destructive, so it is a quiet
+   line rather than a filled button, and it turns red only under the pointer. */
+.card-clear {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  margin-top: var(--sp-4); padding: 6px 8px;
+  border-radius: var(--r-sm); color: var(--fg-dim); font-size: var(--t-sm);
+  transition: color .18s, background .18s;
+}
+.card-clear:hover { color: #e2483d; background: color-mix(in srgb, #e2483d 10%, transparent); }

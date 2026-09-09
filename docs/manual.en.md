@@ -46,13 +46,13 @@ Open https://wordcloud.davidzhao.top. You see a sample cloud first; click anywhe
    - `regex-*.json` exported by the Regex extension, together with the chat files
    - a cloud `.png` exported here: drop it back to reproduce the cloud
 2. By default **both** your messages and the character’s are counted. To see only your own, switch off “The character’s” on the import confirmation or in the Filters panel. SillyTavern’s own system messages are never counted.
-3. Left rail, top to bottom: add files, Filters & tokenizing, Word table, Review kinds, Advanced, API endpoint & key, Export, clear.
+3. Left rail, top to bottom: add files, Words, Filters & tokenizing, API endpoint, Export. “Review kinds” is the second tab of the Words panel, “Advanced” is folded into the bottom of the filter panel, and “Clear all data” is in the chat-info card at the bottom left.
 4. Bottom left: palette, font, and the chat’s card info (character, model, size, dates).
 5. Top right: site notice (web only; the bell appears when the operator has published one, with a dot until you open it), community board (web only), language, light/dark.
 
 Word kinds in **Filters & tokenizing**, Compact view: Names / Places / Time / Docs & organizations / Other, plus *Common words* — words spread evenly across all messages, which belong to no particular story. Every kind is on by default; turn Names off if they crowd the cloud, and Common words off to leave only story words. Detailed view splits the same words into the full set of kinds. “See which words are in each kind” below the buttons lists what went into each one, with counts, so misclassifications are visible.
 
-The **word table** (third rail icon) puts six small icons at the right of every row; hover for what each does:
+The **Words** panel (second rail icon) puts six small icons at the right of every row of its “Word table” tab; hover for what each does:
 
 | Icon | What it does |
 |---|---|
@@ -78,14 +78,14 @@ Message counts: messages hidden with `/hide` still count under their speaker (Si
 
 **Community board** (chart icon, top right, web only): first click shows the board with aggregate statistics, second click shows only the community cloud, third click returns to your own cloud. The board aggregates the merged cloud only (frequent words with counts, message and character counts); card names are neither collected nor shown. Take part only if you are entitled to share statistics of the log.
 
-**Keyword mode** (switch at the top): a model reads the whole chat once and picks the words that are specific to this story. One request, one to five minutes. On both the web and local editions, fill in an endpoint, model and key in the Model endpoint panel first; the web edition just relays the request through the server when needed.
+**Keyword mode** (switch at the top of the API endpoint panel): a model reads the whole chat once and picks the words that are specific to this story. One request, one to five minutes. On both the web and local editions, fill in an endpoint, model and key in the Model endpoint panel first; the web edition just relays the request through the server when needed.
 
 ### What happens when you configure your own endpoint
 
 | Feature | Trigger | Sent | Returned |
 |---|---|---|---|
 | Load the model list | “Test connection” | `GET /models` with the key only | list of model names |
-| Keyword mode | switch the mode at the top to “Keywords”, then press Start | one prompt plus the whole cleaned chat | one word per line; words absent from the text are dropped |
+| Keyword mode | switch the mode to “Keywords” at the top of the API endpoint panel, then press Start | one prompt plus the whole cleaned chat | one word per line; words absent from the text are dropped |
 | Model tokenization | “Re-tokenize with the model” | tokenizing rules plus the text in chunks of ≤1200 characters | a JSON array per chunk; chunks that do not join back fall back to local tokenizing |
 | Cleaning rules | “Have the model write cleaning rules for this log” | a prompt plus at most 5 raw messages (≤2500 characters each) | regexes, each tested on the samples before use |
 
@@ -98,7 +98,7 @@ The cloud should not contain what plugins write into the text (status bars, vari
 1. Structural rules: non-standard tags are removed whole, along with HTML, bare JSON, key-value status blocks and collapsed summaries.
 2. Your own regex scripts: drop `regex-*.json` or a full `.zip`; those scripts describe exactly the format your preset makes the model emit.
 3. Statistical rules: a line present in most messages, or a word at the start or end of most messages, is treated as a template.
-4. Blocklists: the operator’s manual and automatic lists; can be turned off in Advanced.
+4. Blocklists: the operator’s manual and automatic lists; can be turned off under Advanced at the bottom of the filter panel.
 
 When a word in the table should not be there, click the circled `!` on its row to send feedback; the operator reviews it and updates the rules.
 
@@ -108,7 +108,7 @@ When a word in the table should not be there, click the circled `!` on its row t
 
 **Words like “that one”, “a wave of”, “extremely” show up.** Demonstrative + classifier combos, degree adverbs and relative-position words are now stop words; anything left can be hidden with the crossed-out eye in the word table, and the circled `!` sends feedback. Words spread evenly over every message are tagged *Common words* and hidden by default.
 
-**Why is a name split into pieces?** Names are unknown words; the tool discovers them statistically. Drop the full `.zip` so world-info and card keywords act as a dictionary, or add it under Advanced → Custom words.
+**Why is a name split into pieces?** Names are unknown words; the tool discovers them statistically. Drop the full `.zip` so world-info and card keywords act as a dictionary, or add it under the filter panel’s Advanced → Custom words.
 
 **Cannot load the model list / Failed to fetch.** Web edition: a base URL is fine (`/chat/completions` is appended), pick the model from the list. Local edition: providers without CORS fail on a direct browser call; use the web edition or another provider.
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useT } from '../i18n';
 import type { AnalyzeOptions } from '../../core/analyze';
 import type { WordCount, WordOverride } from '../../core/types';
@@ -14,9 +14,23 @@ import { toTraditional } from '../../theme/s2t';
 /** Overrides are keyed by the lowercased original word (core/overrides.ts). */
 const key = (w: string) => w.toLowerCase();
 
+/** The two tabs of the 词表 panel: the frequency table and the kind review. */
+export type WordsTab = 'freq' | 'review';
+
+/**
+ * The word table. Since 2026-09-09 it is the 「词表」 panel and carries the review page as its
+ * second tab (`review`), which used to be a rail button of its own — both are the same list of
+ * words seen two ways, and the rail was nine buttons wide.
+ */
 export function WordsPanel({
   words, options, setOptions, onHover, hovered, onReport, overrides, setOverrides, priority = [], cooccur, coref, corefSplit, onSplitCoref,
+  tab = 'freq', setTab, review,
 }: {
+  /** Which tab is showing; the state lives in useOverlay so it survives closing the panel. */
+  tab?: WordsTab;
+  setTab?: (v: WordsTab) => void;
+  /** The review tab's content (panels/ReviewPanel), rendered by the caller so this file stays one panel. */
+  review?: ReactNode;
   /** Report a word as noise: sends the word and a few context snippets. Hidden without a server. */
   onReport?: (word: string) => void;
   words: WordCount[];
@@ -228,6 +242,14 @@ export function WordsPanel({
 
   return (
     <>
+      <div className="seg" role="group" aria-label={t('词表')}>
+        <button type="button" className={tab === 'freq' ? 'on' : ''} aria-pressed={tab === 'freq'}
+          onClick={() => setTab?.('freq')}>{t('词频表')}</button>
+        <button type="button" className={tab === 'review' ? 'on' : ''} aria-pressed={tab === 'review'}
+          onClick={() => setTab?.('review')}>{t('检查分类')}</button>
+      </div>
+      {tab === 'review' ? review : (
+    <>
       {edits.length > 0 && (
         <div className="edits">
           {edits.map((e) => (
@@ -375,6 +397,8 @@ export function WordsPanel({
         <button type="button" className="more" onClick={() => setLimit((n) => n + 100)}>
           {t('还有 {n} 个', { n: list.length - limit })}
         </button>
+      )}
+    </>
       )}
     </>
   );

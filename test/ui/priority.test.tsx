@@ -69,15 +69,17 @@ describe('PriorityPanel', () => {
 });
 
 describe('priority words and the rest of the app', () => {
-  it('priority words live inside the advanced panel, not as a rail entry', async () => {
+  it('priority words live inside the filter panel\'s advanced section, not as a rail entry', async () => {
     render(<App />);
     const input = document.querySelector('input[type=file]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [new File(['{"messages":[]}'], 'a.jsonl')] } });
     await vi.waitFor(() => expect(document.querySelector('.rail')).toBeTruthy());
-    // No rail entry any more; the textarea itself is covered by the PriorityPanel tests above,
-    // and App renders it inside the advanced sheet (rail buttons stay disabled without a result).
+    // No rail entry any more, and since 2026-09-09 not even an 「高级设置」 button: the textarea is
+    // covered by the PriorityPanel tests above, and App renders it inside the filter sheet's
+    // collapsed advanced section (rail buttons stay disabled without a result).
     expect(screen.queryByTitle('优先词')).toBeNull();
-    expect(screen.getByTitle('高级设置')).toBeTruthy();
+    expect(screen.queryByTitle('高级设置')).toBeNull();
+    expect(screen.getByTitle('筛选与分词')).toBeTruthy();
   });
 
   it('the sample cloud does not apply priority words', async () => {

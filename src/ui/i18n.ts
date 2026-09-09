@@ -100,7 +100,9 @@ const EN: Record<string, string> = {
   '标为非词': 'Mark as not a word',
   '这些修改只存在你的浏览器里，同一张卡下次导入自动套用':
     'These edits live only in your browser, and are re-applied the next time you import the same card',
-  '大模型接口 · 密钥': 'API endpoint & key',
+  // The endpoint panel is also where the cloud mode lives (2026-09-09), so its rail button says which mode you are in
+  '大模型接口 · 词频模式': 'API endpoint · Frequency mode',
+  '大模型接口 · 关键词模式': 'API endpoint · Keyword mode',
   '大模型接口': 'API endpoint',
   '导出 · 分享': 'Export & share',
   '回到词云': 'Back to the cloud',
@@ -185,7 +187,8 @@ const EN: Record<string, string> = {
   '验证水印': 'Check a watermark',
   '这张图里没有隐藏水印': 'No hidden watermark in that image',
   '存成图片': 'Save image',
-  '词表': 'Word table',
+  // Names the word panel (its 词频表 tab is the table itself) and the export section listing it
+  '词表': 'Words',
   'CSV 带 BOM，Excel 直接打开不乱码；列：词、次数、词类': 'CSV with a BOM so Excel opens it correctly; columns: word, count, kind',
   '存成词表（CSV）': 'Save word table (CSV)',
   '存成全量数据（JSON）': 'Save everything (JSON)',
@@ -335,8 +338,8 @@ const EN: Record<string, string> = {
   '主题、配色和深浅模式': 'theme, colors and dark/light mode',
   '字体设置': 'the font',
   /* Captions under the icon buttons: two characters in Chinese, one short word in English */
-  '统计范围、词类、NSFW、清洗开关和竖排比例；不动接口和密钥': 'scope, word kinds, NSFW, cleaning switches and rotation — the endpoint and key are left alone',
-  '新词发现、自定义词、禁词表和清洗细项': 'new-word discovery, custom words, blocklists and cleaning details',
+  '统计范围、词类、NSFW、清洗开关、竖排比例，以及高级设置里的新词发现、自定义词和禁词表；不动接口和密钥':
+    'scope, word kinds, NSFW, cleaning switches, rotation, and the advanced section’s new-word discovery, custom words and blocklists — the endpoint and key are left alone',
   '拆开的词': 'words you split apart, display names and forced rotations',
   '接口地址、模型、密钥和关键词个数': 'endpoint, model, key and keyword count',
   '提交反馈': 'Send feedback',
@@ -519,9 +522,8 @@ const EN: Record<string, string> = {
   '{w} 万字 · 一次请求 · 大约要等 1~5 分钟': '{w} characters · one request · roughly 1–5 minutes',
   '词云二维码.png': 'wordcloud-qr.png',
   '词云模式': 'Cloud mode',
-  // The rail button says which mode you are in; its icon changes with it
-  '词云模式：词频': 'Cloud mode: Frequency',
-  '词云模式：关键词': 'Cloud mode: Keywords',
+  '接口与密钥': 'Endpoint & key',
+  '关键词模式要先把下面的接口配好': 'Keyword mode needs the endpoint below set up first',
   '工具': 'Tools',
   '关键词模式：让大模型读完整份聊天挑词': 'Keyword mode: a model reads the whole log and picks the words',
   '词频模式：本地统计词频': 'Frequency mode: counted locally',

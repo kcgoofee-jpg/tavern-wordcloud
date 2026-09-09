@@ -16,7 +16,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { ExportPanel, FilterPanel, FontPanel, ModePanel, ThemePanel } from '../../src/ui/panels';
+import { AiPanel, ExportPanel, FilterPanel, FontPanel, ThemePanel, WordsPanel } from '../../src/ui/panels';
+import { DEFAULT_AI_CONFIG } from '../../src/core/aiTokenizer';
 import ImportPanel, { type ImportSummary } from '../../src/ui/ImportPanel';
 import CardInfo from '../../src/ui/CardInfo';
 import type { ChatMeta, CharacterGroup } from '../../src/core/meta';
@@ -95,11 +96,22 @@ const PANELS: { name: string; file: string; node: () => React.ReactElement }[] =
     ),
   },
   {
-    name: 'ModePanel',
-    file: 'src/ui/panels/ModePanel.tsx',
+    // The cloud-mode switch moved in here on 2026-09-09; the panel's first group is that .seg.
+    name: 'AiPanel',
+    file: 'src/ui/panels/AiPanel.tsx',
     node: () => (
-      <ModePanel keywordMode={false} aiReady={false} aiMissing="endpoint" model="" busy={false}
-        canRun={false} onMode={vi.fn()} onRun={vi.fn()} />
+      <AiPanel ai={DEFAULT_AI_CONFIG} setAi={vi.fn()} canRun={false} busy={false} onRun={vi.fn()}
+        relay={false} keywordMode={false} aiReady={false} aiMissing="endpoint" curateModel=""
+        canCurate={false} onMode={vi.fn()} onCurate={vi.fn()} />
+    ),
+  },
+  {
+    // The 词频表 / 检查分类 tabs are a .seg at the top of the word panel (2026-09-09).
+    name: 'WordsPanel',
+    file: 'src/ui/panels/WordsPanel.tsx',
+    node: () => (
+      <WordsPanel words={[{ text: '沈砚秋', count: 12 }]} options={DEFAULT_ANALYZE_OPTIONS}
+        setOptions={vi.fn()} onHover={vi.fn()} hovered={null} overrides={{}} setOverrides={vi.fn()} />
     ),
   },
   {

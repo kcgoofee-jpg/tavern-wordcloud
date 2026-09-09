@@ -19,8 +19,14 @@ const fmtDate = (s: string | null) => {
  * move and works as the close control.
  */
 export default function CardInfo({
-  meta, bundle, groups, perSource, accent, onlyCharacter, setOnlyCharacter, open, setOpen, stats,
+  meta, bundle, groups, perSource, accent, onlyCharacter, setOnlyCharacter, open, setOpen, stats, onClear,
 }: {
+  /**
+   * Throw away every loaded file and go back to the import page. It sits here, under the list
+   * of files it clears, rather than on the rail (2026-09-09): it was the ninth rail button and
+   * the only destructive one among eight panel toggles.
+   */
+  onClear?: () => void;
   meta: ChatMeta;
   /** Per-file totals; the bar shows cleaned / raw characters. */
   perSource: AnalysisResult['perSource'];
@@ -139,6 +145,11 @@ export default function CardInfo({
           </>
         )}
 
+        {onClear && (
+          <button type="button" className="card-clear" title={t('清空全部数据')} onClick={onClear}>
+            <Icon name="trash" size={14} />{t('清空全部数据')}
+          </button>
+        )}
       </div>
 
       <button type="button" className="cardinfo-head" onClick={() => setOpen(!open)}

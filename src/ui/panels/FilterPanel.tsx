@@ -8,6 +8,8 @@ import { NSFW_KINDS, NSFW_EXPLICIT_KINDS } from '../../core/nsfw';
 import { nsfwLabel } from '../nsfwLabels';
 import type { AnalysisResult, Role } from '../../core/types';
 import Slider from './Slider';
+import { AdvancedPanel } from './AdvancedPanel';
+import { PriorityPanel } from './PriorityPanel';
 
 /** A function of `t` so labels are literal `t('…')` calls. */
 const roleLabel = (t: (s: string) => string): Record<Role, string> =>
@@ -17,10 +19,18 @@ const LISTED_KINDS: EntityKind[] = ALL_KINDS.filter((k) => k !== 'plain');
 const nsfwModeLabel = (t: (s: string) => string): Record<AnalyzeOptions['nsfwMode'], string> =>
   ({ show: t('全部显示'), hide: t('隐藏 NSFW'), only: t('只看 NSFW') });
 
+/**
+ * Filters and tokenizing. Since 2026-09-09 the old 「高级设置」 panel is the collapsed
+ * `<details class="adv">` at the bottom of this one: both sets of controls decide which words
+ * survive, and the rail was nine buttons wide. One reset button covers both (RESET_SCOPE.filter).
+ */
 export function FilterPanel({
   options, setOptions, rotateRatio, setRotateRatio, result, kindOverrides, setKindOverrides,
-  kindView = 'coarse', setKindView,
+  kindView = 'coarse', setKindView, priority, setPriority,
 }: {
+  /** Priority words, shown inside the advanced section; omitted when the caller has no settings. */
+  priority?: string;
+  setPriority?: (v: string) => void;
   /** Words the user re-filed by hand, text -> kind. */
   kindOverrides: Record<string, EntityKind>;
   setKindOverrides: (o: Record<string, EntityKind>) => void;
@@ -228,6 +238,16 @@ export function FilterPanel({
           onChange={(e) => setOptions((o) => ({ ...o, includeAllSwipes: e.target.checked }))} />
         <span>{t('把重生过的其他版本也算进去')}</span>
       </label>
+
+      {/* Tuning values, collapsed: a daily visitor never opens this, and it used to cost a rail button. */}
+      <details className="adv">
+        <summary>{t('高级设置')}</summary>
+        <div className="adv-body">
+          {/* Priority words are a tuning tool, not a daily control — they lived under the old advanced panel too. */}
+          {setPriority && <PriorityPanel value={priority ?? ''} setValue={setPriority} />}
+          <AdvancedPanel options={options} setOptions={setOptions} />
+        </div>
+      </details>
     </>
   );
 }

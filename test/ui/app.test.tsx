@@ -162,8 +162,8 @@ describe('feedback confirmation', () => {
       // Load one chat file; the server path analyzes it
       const input = document.querySelector('input[type=file]') as HTMLInputElement;
       fireEvent.change(input, { target: { files: [new File(['{"messages":[]}'], 'a.jsonl')] } });
-      await vi.waitFor(() => expect((screen.getByTitle('词频表') as HTMLButtonElement).disabled).toBe(false));
-      await user.click(screen.getByTitle('词频表'));
+      await vi.waitFor(() => expect((screen.getByTitle('词表') as HTMLButtonElement).disabled).toBe(false));
+      await user.click(screen.getByTitle('词表'));
 
       const reportTitle = '认为『沈砚秋』不该出现？提交反馈——会先给你看要发送的片段，确认后才上传';
       // The words panel is a lazy chunk; wait for it instead of the Suspense placeholder.
@@ -215,7 +215,8 @@ describe('keyword mode without a key', () => {
       });
       expect(railMode.getAttribute('data-mode')).toBe('freq');
       railMode.click();
-      const keywordBtn = await vi.waitFor(() => within(document.querySelector('.sheet') as HTMLElement)
+      // Scoped to the body: the endpoint panel's reset button names 关键词个数 in its tooltip.
+      const keywordBtn = await vi.waitFor(() => within(document.querySelector('.sheet-body') as HTMLElement)
         .getByRole('button', { name: /关键词/ }));
       // Nothing configured at all: the label names the first missing field
       // The missing field is named in the tooltip now, not printed beside the label.
@@ -267,13 +268,15 @@ describe('keyword switch: which endpoint field is missing', () => {
     await vi.waitFor(() => expect(document.querySelector('.rail .tool[data-mode]')).toBeTruthy());
     await user.click(document.querySelector('.rail .tool[data-mode]') as HTMLElement);
 
-    const keyword = await vi.waitFor(() => within(document.querySelector('.sheet') as HTMLElement)
+    // Scoped to the body: the panel's reset button names 关键词个数 in its tooltip.
+    const keyword = await vi.waitFor(() => within(document.querySelector('.sheet-body') as HTMLElement)
       .getByRole('button', { name: /关键词/ }));
     expect(keyword.getAttribute('title')).toContain('还没选模型');
     expect(keyword.textContent).not.toContain('缺');
 
-    // Clicking opens the endpoint panel. There is no model box before the list is fetched
-    // (the box is a disabled select), so the cursor lands on the test-connection button.
+    // The switch lives in the endpoint panel now (2026-09-09), so clicking it with a field still
+    // empty moves the cursor instead of opening a panel. There is no model box before the list is
+    // fetched (the box is a disabled select), so the cursor lands on the test-connection button.
     await user.click(keyword);
     const test = await vi.waitFor(() => {
       const el = screen.getByRole('button', { name: '测试连接' });

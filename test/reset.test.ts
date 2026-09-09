@@ -36,7 +36,7 @@ describe('per-panel reset', () => {
     expect(after.options.tokenize.splitWords).toEqual([]);
     expect(isDirty(after, 'words')).toBe(false);
 
-    // Untouched: merges and hides belong to the advanced panel's scope
+    // Untouched: merges and hides belong to the filter panel's advanced section
     expect(after.options.tokenize.extraStopwords).toEqual(['许婉如', '本轮用户']);
     expect(after.options.tokenize.forceWords).toEqual(['东阳砚山']);
     expect(after.options.ai.apiKey).toBe('sk-keep-me');
@@ -68,8 +68,9 @@ describe('per-panel reset', () => {
     expect(resetSlice(before, 'filter').kindView).toBe('coarse');
   });
 
-  it('advanced reset clears custom word lists', () => {
-    const after = resetSlice(dirty(), 'advanced');
+  /** The advanced panel became the filter panel's collapsed section (2026-09-09); one reset covers both. */
+  it('filter reset also clears the advanced section\'s custom word lists', () => {
+    const after = resetSlice(dirty(), 'filter');
     expect(after.options.tokenize.extraStopwords).toEqual([]);
     expect(after.options.tokenize.forceWords).toEqual([]);
     expect(after.options.ai.apiKey).toBe('sk-keep-me');

@@ -26,3 +26,14 @@
 .tool.ok { color: var(--accent); }
 .tool:disabled { opacity: .26; cursor: default; }
 .tool:active:not(:disabled) { transform: scale(.88); }
+
+/* Keyword mode badge on the endpoint button (2026-09-09): the cloud mode moved into that panel,
+   so the rail has to keep saying which mode you are in. Same mark as the notice bell's unread
+   dot (45-notice.css) — one small dot, no count. */
+.tool .dot {
+  position: absolute; top: 9px; right: 9px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface2) 84%, transparent);
+}
+.tool.on .dot { background: var(--surface); }

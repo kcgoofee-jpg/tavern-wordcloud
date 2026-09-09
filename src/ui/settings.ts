@@ -161,7 +161,11 @@ export const DEFAULT_SETTINGS: Settings = {
 export const RESET_SCOPE = {
   theme: ['themeId', 'custom', 'mode', 'colorVision'],
   font: ['font', 'traditional'],
-  /** Only what the filter panel manages; the endpoint and key (options.ai) are NOT part of it. */
+  /**
+   * Everything the filter panel manages, including its collapsed 「高级设置」 section (the old
+   * `advanced` scope, folded in 2026-09-09 when that panel moved in here): one reset button,
+   * both halves. The endpoint and key (options.ai) are still NOT part of it.
+   */
   filter: [
     'kindOverrides',
     'kindView',
@@ -169,19 +173,16 @@ export const RESET_SCOPE = {
     'options.clean.stripCustomTags', 'options.clean.stripStructuredLines',
     'options.includeAllSwipes', 'options.onlyCharacter', 'options.source',
     'rotateRatio',
+    // …the advanced section:
+    'priority',
+    'options.tokenize.discoverMinCount', 'options.tokenize.extraStopwords', 'options.tokenize.forceWords',
+    'options.ignoreOwnerBlocklist', 'options.clean.stripCodeBlocks', 'options.clean.stripOOC',
   ],
   // The endpoint and key live in options.ai; resetting turns the network feature off, which is intended.
   ai: ['options.ai', 'keywordN'],
   /** The word table's own edits: words the user forced apart. */
   words: ['options.tokenize.splitWords', 'overrides'],
-  /** Priority-words input. */
-  /** The advanced panel resets only its own fields. */
   export: ['exportOpts'],
-  advanced: [
-    'priority',
-    'options.tokenize.discoverMinCount', 'options.tokenize.extraStopwords', 'options.tokenize.forceWords',
-    'options.ignoreOwnerBlocklist', 'options.clean.stripCodeBlocks', 'options.clean.stripOOC',
-  ],
 } as const;
 
 export type ResetScope = keyof typeof RESET_SCOPE;

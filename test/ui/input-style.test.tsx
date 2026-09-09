@@ -84,7 +84,9 @@ function Panels() {
   return (
     <div className="app">
       <div className="sheet"><div className="sheet-body">
-        <AiPanel ai={DEFAULT_AI_CONFIG} setAi={noop} canRun={false} busy={false} onRun={noop} relay={false} />
+        <AiPanel ai={DEFAULT_AI_CONFIG} setAi={noop} canRun={false} busy={false} onRun={noop} relay={false}
+          keywordMode={false} aiReady={false} aiMissing={null} curateModel="" canCurate={false}
+          onMode={noop} onCurate={noop} />
       </div></div>
       <div className="sheet"><div className="sheet-body">
         <FilterPanel options={DEFAULT_ANALYZE_OPTIONS} setOptions={noop} kindOverrides={{}}

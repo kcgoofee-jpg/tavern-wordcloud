@@ -52,35 +52,35 @@ import './styles/index.css';
 // Preloadable (ui/lazyPanel.ts): warmed on idle after the first paint so the first open of
 // any panel renders in one go instead of fallback → 300 ms throttle → content.
 const LegalPage = lazyPanel(() => import('./LegalPage'));
-const ModePanel = lazyPanel(() => import('./panels/ModePanel').then((m) => ({ default: m.ModePanel })));
 const ThemePanel = lazyPanel(() => import('./panels/ThemePanel').then((m) => ({ default: m.ThemePanel })));
 const FontPanel = lazyPanel(() => import('./panels/FontPanel').then((m) => ({ default: m.FontPanel })));
 const FilterPanel = lazyPanel(() => import('./panels/FilterPanel').then((m) => ({ default: m.FilterPanel })));
-const AdvancedPanel = lazyPanel(() => import('./panels/AdvancedPanel').then((m) => ({ default: m.AdvancedPanel })));
-const PriorityPanel = lazyPanel(() => import('./panels/PriorityPanel').then((m) => ({ default: m.PriorityPanel })));
 const WordsPanel = lazyPanel(() => import('./panels/WordsPanel').then((m) => ({ default: m.WordsPanel })));
+/** The word panel's second tab, not a panel of its own since 2026-09-09; still its own chunk. */
 const ReviewPanel = lazyPanel(() => import('./panels/ReviewPanel').then((m) => ({ default: m.ReviewPanel })));
 const ExportPanel = lazyPanel(() => import('./panels/ExportPanel').then((m) => ({ default: m.ExportPanel })));
 /** The AI panel drags in the model-endpoint code (aiTokenizer, labelKinds) — the biggest of the lot. */
 const AiPanel = lazyPanel(() => import('./panels/AiPanel').then((m) => ({ default: m.AiPanel })));
 const CommunityPanel = lazyPanel(() => import('./panels/CommunityPanel').then((m) => ({ default: m.CommunityPanel })));
 /** Everything behind a Suspense boundary; App warms these once the browser is idle. */
-const PRELOAD = [ModePanel, ThemePanel, FontPanel, FilterPanel, AdvancedPanel, PriorityPanel, WordsPanel, ReviewPanel, ExportPanel, AiPanel, CommunityPanel, LegalPage] as const;
+const PRELOAD = [ThemePanel, FontPanel, FilterPanel, WordsPanel, ReviewPanel, ExportPanel, AiPanel, CommunityPanel, LegalPage] as const;
 
 /** Hand-edited word count as a coarse bucket: a number would be far more identifying. */
 export const overrideBucket = (n: number): '0' | '1-10' | '11+' => (n === 0 ? '0' : n <= 10 ? '1-10' : '11+');
 
-type PanelId = 'mode' | 'theme' | 'font' | 'filter' | 'advanced' | 'words' | 'review' | 'ai' | 'export' | 'community';
+/**
+ * Five rail buttons, not nine (2026-09-09, operator): 词云模式 moved into 大模型接口, 高级设置
+ * into 筛选与分词, 检查分类 into 词表 (as its second tab), and 清空全部数据 down to the card
+ * popover next to the file list it clears.
+ */
+type PanelId = 'theme' | 'font' | 'filter' | 'words' | 'ai' | 'export' | 'community';
 
 /** Panel -> title + reset scope. Panels without a scope have no reset button. A function of `t` so titles are literal `t('…')` calls. */
 const panelMeta = (t: (s: string) => string): Record<PanelId, { title: string; reset?: ResetScope; resetHint?: string }> => ({
-  mode: { title: t('词云模式') },
   theme: { title: t('风格与配色'), reset: 'theme', resetHint: t('主题、配色和深浅模式') },
   font: { title: t('词云字体'), reset: 'font', resetHint: t('字体设置') },
-  filter: { title: t('筛选与分词'), reset: 'filter', resetHint: t('统计范围、词类、NSFW、清洗开关和竖排比例；不动接口和密钥') },
-  advanced: { title: t('高级设置'), reset: 'advanced', resetHint: t('新词发现、自定义词、禁词表和清洗细项') },
-  words: { title: t('词频表'), reset: 'words', resetHint: t('拆开的词') },
-  review: { title: t('检查分类') },
+  filter: { title: t('筛选与分词'), reset: 'filter', resetHint: t('统计范围、词类、NSFW、清洗开关、竖排比例，以及高级设置里的新词发现、自定义词和禁词表；不动接口和密钥') },
+  words: { title: t('词表'), reset: 'words', resetHint: t('拆开的词') },
   ai: { title: t('大模型接口'), reset: 'ai', resetHint: t('接口地址、模型、密钥和关键词个数') },
   export: { title: t('导出'), reset: 'export', resetHint: t('导出选项') },
   community: { title: t('社区排行榜') },
@@ -90,21 +90,18 @@ const panelMeta = (t: (s: string) => string): Record<PanelId, { title: string; r
 /** The rail holds functional tools; design tools (palette, font) live in the bottom-left dock. */
 /** Icon-only rail: the label is the tooltip and the accessible name, never printed under the icon. */
 /**
- * The cloud-mode entry is first and is the only one whose icon and label depend on state: it
- * shows the mode you are in (chart = 词频, chip = 关键词), which is what the top-centre switch
- * used to say out loud before it moved in here (2026-09-08). `mode` is set on the button as
+ * Three panel buttons plus 添加 and 导出, which the rail draws itself. The endpoint entry is the
+ * only one whose label depends on state: the cloud mode lives in that panel now (2026-09-09), so
+ * the button says which mode you are in and wears a dot in keyword mode. `mode` is set on it as
  * `data-mode` so tests and the layout audit can read the current mode off the rail.
  */
 const tools = (t: (s: string) => string, keywordMode: boolean): { id: PanelId; icon: IconName; label: string; mode?: 'freq' | 'keyword' }[] => [
-  {
-    id: 'mode', icon: keywordMode ? 'chip' : 'chart', mode: keywordMode ? 'keyword' : 'freq',
-    label: keywordMode ? t('词云模式：关键词') : t('词云模式：词频'),
-  },
+  { id: 'words', icon: 'list', label: t('词表') },
   { id: 'filter', icon: 'sliders', label: t('筛选与分词') },
-  { id: 'words', icon: 'list', label: t('词频表') },
-  { id: 'review', icon: 'check', label: t('检查分类') },
-  { id: 'advanced', icon: 'gear', label: t('高级设置') },
-  { id: 'ai', icon: 'plug', label: t('大模型接口 · 密钥') },
+  {
+    id: 'ai', icon: 'plug', mode: keywordMode ? 'keyword' : 'freq',
+    label: keywordMode ? t('大模型接口 · 关键词模式') : t('大模型接口 · 词频模式'),
+  },
 ];
 
 export default function App() {
@@ -121,7 +118,7 @@ export default function App() {
   const { send, progress, pct, setProgress, progressLog, setProgressLog, applyNetProgress } =
     useAnalyzeWorker(onWorkerError, workerDown);
   // Panel / card / confirm-dialog exclusivity, sample view and click-outside handling live in the hook
-  const { panel, cardOpen, openPanel, openCard, closeAll, confirm, askConfirm, closeConfirm, sampleOpen, openSample, closeSample, communityCloud, cycleCommunity, noticeOpen, toggleNotice, versionOpen, toggleVersion } = useOverlay<PanelId>();
+  const { panel, cardOpen, openPanel, openCard, closeAll, confirm, askConfirm, closeConfirm, sampleOpen, openSample, closeSample, communityCloud, cycleCommunity, noticeOpen, toggleNotice, versionOpen, toggleVersion, wordsTab, setWordsTab } = useOverlay<PanelId>();
   // Enter starts whatever primary action is on screen (import "开始", keyword-mode "hero" run) —
   // but never while the user is typing in a text control (textarea/input/select/contenteditable).
   /** Legal page route from `#/…` hashes; null on the main page and on `#c=…` share links. */
@@ -945,7 +942,7 @@ export default function App() {
         onWordClick={(w) => (demoMode ? closeSample() : setHovered(w))}
         onWordHover={demoMode ? undefined : setHovered}
         layoutKey={panel && panel !== 'community' && panel !== 'export'
-          ? (panel === 'words' || panel === 'review' ? 'column-wide' : 'column')
+          ? (panel === 'words' ? 'column-wide' : 'column')
           : demoMode ? 'sample' : 'free'}
       />
 
@@ -1115,14 +1112,15 @@ export default function App() {
         <button type="button" className="tool" title={t("添加聊天记录")}
           onClick={() => fileInputRef.current?.click()}><Icon name="plus" /></button>
         {/* Loop variable is `tool`, not `t` (the translation function) */}
-        {/* The mode entry appears once there are files, exactly when the old top-centre switch did */}
-        {tools(t, keywordMode).filter((tool) => tool.id !== 'mode' || hasFiles).map((tool, i) => (
+        {tools(t, keywordMode).map((tool, i) => (
           <button key={tool.id} type="button" className={`tool${panel === tool.id ? ' on' : ''}`}
             title={tool.label} aria-pressed={panel === tool.id} data-mode={tool.mode}
             style={{ animationDelay: `${60 + i * 45}ms` }}
-            disabled={tool.id !== 'theme' && tool.id !== 'ai' && tool.id !== 'mode' && !result}
+            disabled={tool.id !== 'theme' && tool.id !== 'ai' && !result}
             onClick={() => openPanel(panel === tool.id ? null : tool.id)}>
             <Icon name={tool.icon} />
+            {/* Keyword mode is the state a visitor must not lose track of: the endpoint button wears a dot for it */}
+            {tool.mode === 'keyword' && <span className="dot" />}
           </button>
         ))}
         {/* Export: one QR entry; the options appear after it. */}
@@ -1141,14 +1139,13 @@ export default function App() {
         {/* Export opens a panel (resolution, background, embedded table, CSV scope) */}
         <button type="button" className={`tool${panel === 'export' ? ' on' : ''}`} title={t("导出")} disabled={!exportable}
           aria-pressed={panel === 'export'} onClick={() => openPanel(panel === 'export' ? null : 'export')}><Icon name="upload" /></button>
-        {hasFiles && <button type="button" className="tool" title={t("清空全部数据")} onClick={clearAll}><Icon name="trash" /></button>}
       </nav>
       )}
 
       {/* The export panel has the most controls, so on a phone it takes the whole screen. */}
       {panel && panel !== 'community' && (
         <aside
-          className={`sheet${panel === 'words' || panel === 'review' ? ' wide' : ''}${panel === 'export' ? ' page export-view' : ''}${narrow && panel === 'export' ? ' fullscreen' : ''}`}
+          className={`sheet${panel === 'words' ? ' wide' : ''}${panel === 'export' ? ' page export-view' : ''}${narrow && panel === 'export' ? ' fullscreen' : ''}`}
           role="dialog" tabIndex={-1} aria-label={panelTitle}
         >
           <div className="sheet-bar">
@@ -1173,18 +1170,6 @@ export default function App() {
           <div className="sheet-body">
             {/* One line, not a blank sheet: the chunk is a few kB off the same origin. */}
             <Suspense fallback={<p className="note">{t('正在载入…')}</p>}>
-            {panel === 'mode' && (
-              <ModePanel
-                keywordMode={keywordMode} aiReady={localAiReady} aiMissing={aiMissing}
-                model={curateModel} busy={busy} canRun={localAiReady && !!result}
-                onMode={(m) => {
-                  // Same rule as the old switch: no endpoint, no keyword mode — go configure one.
-                  if (m === 'keyword' && !localAiReady) { openPanel('ai'); return; }
-                  patch({ cloudMode: m });
-                }}
-                onRun={() => void runCurate()}
-              />
-            )}
             {panel === 'theme' && <ThemePanel settings={settings} patch={patch} />}
             {panel === 'font' && (
               <FontPanel
@@ -1200,14 +1185,8 @@ export default function App() {
                 setKindOverrides={(o) => patch({ kindOverrides: o })}
                 kindView={settings.kindView}
                 setKindView={(v) => patch({ kindView: v })}
+                priority={settings.priority} setPriority={(v) => patch({ priority: v })}
                 rotateRatio={rotateRatio} setRotateRatio={(v) => patch({ rotateRatio: v })} />
-            )}
-            {panel === 'advanced' && (
-              <>
-                {/* Priority words live under advanced settings: they are a tuning tool, not a daily control. */}
-                <PriorityPanel value={settings.priority} setValue={(v) => patch({ priority: v })} />
-                <AdvancedPanel options={options} setOptions={setOptions} />
-              </>
             )}
             {panel === 'words' && (
               <WordsPanel words={words} options={options} setOptions={setOptions}
@@ -1221,14 +1200,15 @@ export default function App() {
                   corefSplit: settings.corefSplit.includes(full)
                     ? settings.corefSplit : [...settings.corefSplit, full],
                 })}
-                onHover={setHovered} hovered={hovered} onReport={health?.ok ? (w) => void reportWord(w) : undefined} />
-            )}
-            {panel === 'review' && (
-              <ReviewPanel words={result?.allWords ?? words}
-                overrides={settings.overrides}
-                setOverrides={setOverridesTracked}
-                extraStopwords={options.tokenize.extraStopwords}
-                setExtraStopwords={setExtraStopwordsTracked} />
+                onHover={setHovered} hovered={hovered} onReport={health?.ok ? (w) => void reportWord(w) : undefined}
+                tab={wordsTab} setTab={setWordsTab}
+                review={(
+                  <ReviewPanel words={result?.allWords ?? words}
+                    overrides={settings.overrides}
+                    setOverrides={setOverridesTracked}
+                    extraStopwords={options.tokenize.extraStopwords}
+                    setExtraStopwords={setExtraStopwordsTracked} />
+                )} />
             )}
             {panel === 'export' && (
               <ExportPanel opts={settings.exportOpts} setOpts={(o) => patch({ exportOpts: o })}
@@ -1242,6 +1222,10 @@ export default function App() {
             )}
             {panel === 'ai' && (
               <AiPanel ai={options.ai} setAi={(c) => setOptions((o) => ({ ...o, ai: c }))}
+                keywordMode={keywordMode} aiReady={localAiReady} aiMissing={aiMissing}
+                curateModel={curateModel} canCurate={localAiReady && !!result}
+                onMode={(m) => patch({ cloudMode: m })}
+                onCurate={() => void runCurate()}
                 canRun={!!result && options.ai.enabled && !!options.ai.endpoint && !!options.ai.model}
                 busy={busy} onRun={() => void runAiTokenize()} relay={!!health?.ok}
                 onProposeRules={hasFiles ? () => void proposeRules() : undefined} proposing={proposing}
@@ -1299,6 +1283,7 @@ export default function App() {
           setOnlyCharacter={(c) => setOptions((o) => ({ ...o, onlyCharacter: c }))}
           open={cardOpen} setOpen={openCard}
           stats={{ messages: result.messageCount, total: result.totalMessages, noise, unique: result.uniqueTokens }}
+          onClear={hasFiles ? clearAll : undefined}
         />
       )}
         {/* No card metadata (rare: bare text input): the figures fall back to the dock. */}
@@ -1308,6 +1293,12 @@ export default function App() {
             <span title={t('清洗掉的插件内容占原文的比例')}><Icon name="trash" size={14} />{t('清洗 {p}%', { p: Math.round(noise) })}</span>
             <span title={t('{n} 个不重复词', { n: result.uniqueTokens })}><Icon name="list" size={14} />{t('{u} 词', { u: result.uniqueTokens })}</span>
           </div>
+        )}
+        {/* No card popover in this fallback, so the clear button (which lives in the card) needs a home here. */}
+        {result && !result.meta && !share && hasFiles && (
+          <button type="button" className="dock-style icon-only" title={t("清空全部数据")} onClick={clearAll}>
+            <Icon name="trash" size={17} />
+          </button>
         )}
         {/* Keyword mode: why the model picked these words (the figures moved into the card popover). */}
         {result && !share && keywordMode && curation?.result.rationale && (

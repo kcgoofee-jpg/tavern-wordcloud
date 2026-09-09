@@ -3,15 +3,16 @@
    height follows its content. The list keeps a floor height and the box sticks to the top. */
 
 .words-search {
-  /* -14px cancels .sheet-body's top padding, so no row shows above the box while scrolling. */
+  /* Sticky under the panel's own padding, so no row shows above the box while scrolling. */
   position: sticky; top: -14px; z-index: 2;
-  margin: -14px 0 0;
+  margin: 0;
   /* The sheet body has no background of its own; borrow the panel's so rows scroll under. */
   background: var(--surface2);
   padding: 14px 0 6px;
 }
-/* With the edit chips above it, the negative margin would pull the box over the chips' last row. */
-.edits + .words-search { margin-top: 0; }
+/* The negative margin the box used to carry (-14px, cancelling .sheet-body's top padding) is
+   gone: since 2026-09-09 the panel opens with its 词频表 / 检查分类 tabs, so the box is never
+   the first row and that offset only pulled it over whatever sat above it. */
 .words-search .search { margin: 0; }
 
 .wordlist.words-edit {
