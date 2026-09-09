@@ -20,7 +20,7 @@ import { GROUND_TRUTH } from './groundtruth';
 import { detectEntities } from '../../src/core/entities';
 import { detectEnglishNames, ENGLISH_SINGLE_MIN } from '../../src/core/english';
 import { tokenizeCorpus } from '../../src/core/tokenize';
-import { localCorpusRoots } from '../../tools/localCorpus';
+import { localCorpusRoots, requireCorpusOrExit } from '../../tools/localCorpus';
 
 /* ---------- Positives ---------- */
 
@@ -106,8 +106,12 @@ function fixtureTexts(): string[] {
 /* ---------- Run ---------- */
 
 const logs = corpusSentences();
+// The gated positives are real proper nouns (groundtruth.ts) that never occur in the
+// synthetic fixtures, so without a real corpus every gated check fails and the script would
+// exit 1 with "N 个门禁正例丢了" — reading exactly like a detection regression when it is
+// actually a missing corpus. Bail loudly and distinctly instead (AGENTS hard rule 3).
+requireCorpusOrExit('eval:persons', logs.length);
 const fixtures = fixtureTexts();
-if (!logs.length) console.log('（本机酒馆语料没找到，只用 fixtures）');
 
 const detected = new Set<string>();
 for (const texts of [logs, fixtures]) {

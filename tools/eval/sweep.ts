@@ -24,7 +24,7 @@ import { detectEntities } from '../../src/core/entities';
 import { detectEnglishNames, ENGLISH_SINGLE_MIN } from '../../src/core/english';
 import { DISCOVER_COHESION, segmentToChunks, tokenizeCorpus } from '../../src/core/tokenize';
 import type { WordCount } from '../../src/core/types';
-import { localCorpusRoots } from '../localCorpus';
+import { describeCorpusMissing, localCorpusRoots } from '../localCorpus';
 import { JUNK } from './junk';
 import { GROUND_TRUTH } from './groundtruth';
 import { buildEvalSet, corpusSentences, score } from './run';
@@ -273,10 +273,10 @@ function sweepEnglish(): void {
 const logs = realLogs();
 if (which === 'all' || which === 'generic') {
   if (logs.length) sweepGeneric(logs);
-  else console.log('\n# T2 generic 阈值扫描：本机语料（WC_LOCAL_CORPUS）没找到，跳过');
+  else console.log(`\n# T2 generic 阈值扫描：${describeCorpusMissing()}，跳过`);
 }
 if (which === 'all' || which === 'cohesion') {
   if (logs.length) sweepCohesion(logs);
-  else console.log('\n# T4 凝固度阈值扫描：本机语料（WC_LOCAL_CORPUS）没找到，跳过');
+  else console.log(`\n# T4 凝固度阈值扫描：${describeCorpusMissing()}，跳过`);
 }
 if (which === 'all' || which === 'english') sweepEnglish();

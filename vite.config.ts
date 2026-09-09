@@ -8,9 +8,10 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
  *   npm run build         static site (dist/), code-split: the legal texts, the QR
  *                         encoder and the panels are fetched on demand
  *   npm run build:single  one index.html (dist-single/), no worker thread.
- *                         `inlineDynamicImports` folds every dynamic chunk back into the single
- *                         script vite-plugin-singlefile needs; the `import()` calls stay in the
- *                         source, so the web build keeps splitting.
+ *                         `viteSingleFile()` sets Rolldown's `codeSplitting: false`, which is
+ *                         what actually folds every dynamic chunk back into the single script;
+ *                         the `import()` calls stay in the source, so the web build (no
+ *                         `codeSplitting: false`) keeps splitting on the same source.
  */
 
 const sameThreadWorker = fileURLToPath(new URL('./src/worker/sameThread.ts', import.meta.url));
@@ -53,7 +54,11 @@ export default defineConfig(({ mode }) => ({
           chunkSizeWarningLimit: 100_000,
           // Not `cssMinify: 'lightningcss'`: measured against the esbuild output it saves
           // 67 B gzip, which does not pay for a second CSS engine in the release path.
-          rollupOptions: { output: { inlineDynamicImports: true } },
+          //
+          // No `rollupOptions.output.inlineDynamicImports` here: under Vite 8's Rolldown
+          // bundler it is ignored (`codeSplitting: false`, set below by `viteSingleFile()`,
+          // already does the folding) and Rolldown warns about it on every single-file build.
+          // Verified 2026-09-09: removing it does not change dist-single/index.html's SHA-256.
         }
       : {}),
   },

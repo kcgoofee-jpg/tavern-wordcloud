@@ -13,9 +13,14 @@
 import { buildEvalSet, corpusSentences, report, score, type RunResult } from './run';
 import { detectEntities } from '../../src/core/entities';
 import { segmentToChunks, tokenizeCorpus } from '../../src/core/tokenize';
+import { requireCorpusOrExit } from '../localCorpus';
 
 const n = Number(process.argv[2]) || 108;
 const corpus = corpusSentences();
+// A 0/108 table with exit 0 reads as a clean pass to anything that only checks the exit
+// code — it is actually "no corpus to learn a dictionary from", not "no proper noun survived
+// tokenization". Bail loudly instead (AGENTS hard rule 3).
+requireCorpusOrExit('eval', corpus.length);
 const items = buildEvalSet(n);
 console.log(`语料句子 ${corpus.length}，评测 ${items.length} 题`);
 

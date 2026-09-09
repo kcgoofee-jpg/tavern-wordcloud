@@ -17,6 +17,7 @@
 import { detectEntities } from '../../src/core/entities';
 import { segmentToChunks, tokenizeCorpus } from '../../src/core/tokenize';
 import { corpusSentences } from './run';
+import { requireCorpusOrExit } from '../localCorpus';
 
 /** Same maximal-matching harness `tools/eval/cli.ts` scores with. */
 function tokenize(sentence: string, lex: Set<string>): string[] {
@@ -102,7 +103,10 @@ check(
   !atoms.includes('单是'),
   atoms.join('|'),
 );
-// 通告单 is discovered from the rest of the corpus, where the atoms are 通告 | 单.
+// 通告单 is discovered from the rest of the corpus, where the atoms are 通告 | 单 — this half
+// of the file has no synthetic fallback, so without a real corpus it always fails and the
+// script would exit 1 looking exactly like a real boundary regression. Bail loudly instead.
+requireCorpusOrExit('eval:boundary', corpus.length);
 const discovered = new Set(tokenizeCorpus(corpus, { discoverFreedom: false }).discovered);
 check(
   '新词发现产出 通告单',

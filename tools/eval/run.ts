@@ -22,8 +22,11 @@ import { mcnemar, wilson } from './stats';
 import { localCorpusRoots } from '../../tools/localCorpus';
 
 /* ---------- Providers ---------- */
+// `.env.local` is optional: CI and fresh worktrees have none, and the corpus guard has to get its
+// turn to say "no corpus" instead of this line dying with ENOENT first (CI red, 2026-09-09).
+const readEnvLocal = (): string => { try { return fs.readFileSync(new URL('../../.env.local', import.meta.url), 'utf8'); } catch { return ''; } };
 const env = Object.fromEntries(
-  fs.readFileSync(new URL('../../.env.local', import.meta.url), 'utf8')
+  readEnvLocal()
     .split('\n').filter((l) => l.includes('=') && !l.trim().startsWith('#'))
     .map((l) => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; }),
 );

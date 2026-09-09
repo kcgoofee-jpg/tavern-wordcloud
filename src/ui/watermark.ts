@@ -14,6 +14,7 @@
  * rewrite the colour of an alpha-0 pixel, so a bit hidden there is not there
  * after a round trip.
  */
+import { readText } from '../share/png';
 
 /** PNG tEXt keyword for the hidden line. Distinct from `PNG_KEYWORD`, which carries the word table. */
 export const WATERMARK_KEYWORD = 'tavern-wordcloud:watermark';
@@ -124,7 +125,6 @@ export function decodeChunkText(raw: string): string | null {
 export async function readHiddenWatermark(blob: Blob): Promise<string | null> {
   try {
     const bytes = new Uint8Array(await blob.arrayBuffer());
-    const { readText } = await import('../share/png');
     const chunk = readText(bytes, WATERMARK_KEYWORD);
     if (chunk) return decodeChunkText(chunk) ?? chunk;
   } catch { /* not a PNG, or no chunk: fall through to the pixels */ }

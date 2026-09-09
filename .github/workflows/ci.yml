@@ -33,9 +33,25 @@ jobs:
   # workflow to succeed, so a layout regression now blocks the deploy instead of relying on
   # whoever pushed having run `npm run audit` by hand (2026-09-08). Screenshots are kept
   # only when it fails — that is when someone needs to look at them.
+  #
+  # One job per viewport (2026-09-09). Inside a job the two languages already ran side by side,
+  # but the viewports ran one after another, so a single job's wall clock was the sum of all
+  # three (~9 min). Fanning them out costs three checkouts, three `npm ci` and three builds and
+  # buys back the serial part. deploy.yml and mirror.yml key on `workflow_run` with
+  # `conclusion == 'success'`, which is the conclusion of the WHOLE workflow — every matrix job
+  # included — so all three still have to be green before anything ships; neither file changes.
+  #
+  # `fail-fast: false`: one viewport failing must not cancel the other two, or their screenshots
+  # never get uploaded and the report says nothing about the viewports nobody looked at.
+  # The artifact name carries the viewport, or the three jobs would fight over one name.
+  # The viewport list is pinned against tools/audit.mjs by test/ci-audit-matrix.test.ts.
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        viewport: ['1440x900', '1024x768', '390x844']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,10 +59,10 @@ jobs:
       - run: npm ci
       - run: npm run fixtures
       - run: npm run build:single
-      - run: SHOT_NO_BUILD=1 SHOT_CHROME=google-chrome node tools/audit.mjs
+      - run: AUDIT_VIEWPORTS=${{ matrix.viewport }} SHOT_NO_BUILD=1 SHOT_CHROME=google-chrome node tools/audit.mjs
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: audit-screenshots
+          name: audit-screenshots-${{ matrix.viewport }}
           path: /tmp/shot-*
           retention-days: 7

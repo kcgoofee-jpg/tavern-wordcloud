@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { analyze, DEFAULT_ANALYZE_OPTIONS } from '../src/core/analyze';
 import { buildStopwords } from '../src/core/stopwords';
 import { JUNK, NOT_JUNK, junkRate } from '../tools/eval/junk';
-import { localCorpusRoots } from '../tools/localCorpus';
+import { describeCorpusMissing, localCorpusRoots } from '../tools/localCorpus';
 
 const stop = buildStopwords([], true, true);
 
@@ -87,6 +87,10 @@ for (const r of ROOTS) {
     for (const f of fs.readdirSync(cd)) if (f.endsWith('.jsonl') && fs.statSync(path.join(cd, f)).size > 200_000) real.push(path.join(cd, f));
   }
 }
+// A skipped test shows up in vitest's own summary, so this doesn't need an exit-code guard
+// like the standalone eval CLIs do — but it was silent about *why*, which reads the same as
+// "nothing to test here" instead of "the real corpus is gone" (AGENTS hard rule 3). Say why.
+if (real.length === 0) console.log(`junk.test.ts: real logs 分支跳过：${describeCorpusMissing()}`);
 describe.skipIf(real.length === 0)('junk rate on real logs', () => {
   it('at most 2 of the TOP 40 are junk, on every large local log', () => {
     for (const f of real.slice(0, 6)) {
