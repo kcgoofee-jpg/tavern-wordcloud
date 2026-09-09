@@ -35,6 +35,20 @@ function harness(init: Record<string, WordOverride> = {}, stop: string[] = []) {
 const rowNames = () => screen.getAllByRole('listitem').map((li) => li.querySelector('b')?.textContent);
 
 describe('ReviewPanel', () => {
+  it('labels a character\'s own name «角色名», not «系统» (ENTITY_LABEL.system)', () => {
+    const state = { ov: {}, stop: [] as string[] };
+    render(
+      <ReviewPanel
+        words={[{ text: '陆时衍', count: 437, kind: 'system', kinds: [{ kind: 'system', conf: 1 }] }]}
+        overrides={state.ov}
+        setOverrides={() => {}}
+        extraStopwords={state.stop}
+        setExtraStopwords={() => {}} />,
+    );
+    expect(screen.getByText('角色名')).toBeTruthy();
+    expect(screen.queryByText('系统')).toBeNull();
+  });
+
   it('lists every word by count, and the kind tabs filter it', async () => {
     const user = userEvent.setup();
     harness();

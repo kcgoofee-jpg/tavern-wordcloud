@@ -19,12 +19,17 @@
   --rail-gap: 6px;
   --inset-left: 76px;      /* edge + rail + gap: where a panel or the export page begins */
   --inset-top: 72px;       /* edge + round button + gap: below the top-right buttons */
-  --quick-bottom: 58px;    /* where the top-centre mode switch ends; the 「复位视图」 pill starts here */
+  --quick-bottom: 58px;    /* edge + round button: where the top-right cluster ends, and where the cloud may start */
   --panel-bottom: 60px;    /* panels rise from just above the dock */
   --panel-w: 340px;
   --panel-w-wide: 520px;   /* word table, review: six controls per row */
+  /* 1024–1279: 520px plus the rail leaves the cloud a 428px band on a 1280 screen, which is
+     narrower than the panel it stepped aside for. The wide panels give 80px back in that
+     one range (plan B3, 2026-09-08); 03-sheet.css sizes the panel and 52-cloud-column.css
+     moves the canvas inset with it. */
+  --panel-w-wide-mid: 440px;
   --panel-gap: 8px;
-  --cloud-top: 96px;       /* canvas inset: mode switch + room for the reset pill */
+  --cloud-top: 58px;       /* canvas inset: the 「复位视图」 pill at the edge (14 + 27 + gap), clear of the top-right cluster */
   --cloud-bottom: 62px;    /* dock buttons + corner figures */
   --cloud-right: 8px;
   /* Stacking ladder. Every z-index in src/ui/styles must be one of these (test/ui/tokens.test.ts),

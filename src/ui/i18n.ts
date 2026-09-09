@@ -519,6 +519,9 @@ const EN: Record<string, string> = {
   '{w} 万字 · 一次请求 · 大约要等 1~5 分钟': '{w} characters · one request · roughly 1–5 minutes',
   '词云二维码.png': 'wordcloud-qr.png',
   '词云模式': 'Cloud mode',
+  // The rail button says which mode you are in; its icon changes with it
+  '词云模式：词频': 'Cloud mode: Frequency',
+  '词云模式：关键词': 'Cloud mode: Keywords',
   '工具': 'Tools',
   '关键词模式：让大模型读完整份聊天挑词': 'Keyword mode: a model reads the whole log and picks the words',
   '词频模式：本地统计词频': 'Frequency mode: counted locally',
@@ -662,7 +665,7 @@ const EN: Record<string, string> = {
   '人物': 'Names',
   '时间': 'Time',
   '地点': 'Places',
-  '系统': 'System',
+  '角色名': 'Character name',
   '其他': 'Other',
   '常见词': 'Common words',
   '品牌': 'Brands',

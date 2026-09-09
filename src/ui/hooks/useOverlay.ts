@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** Clicks inside these areas do not count as outside clicks. */
-const KEEP = '.sheet, .community-page, .quick-cluster, .community-quick, .cardinfo, .rail, .dock, .note-pop, .notice-pop, .notice-quick, .version-pop, .version-quick, .toast, .import-veil, .confirm-veil, .mode-quick, .lang-quick, .cloudmode, .land-top';
+const KEEP = '.sheet, .quick-cluster, .community-quick, .cardinfo, .rail, .dock, .note-pop, .notice-pop, .notice-quick, .version-pop, .version-quick, .toast, .import-veil, .confirm-veil, .mode-quick, .lang-quick, .land-top';
 
 /**
  * Shell that takes keyboard focus for each overlay state. Chosen by state rather than by a
@@ -10,11 +10,10 @@ const KEEP = '.sheet, .community-page, .quick-cluster, .community-quick, .cardin
  * grouped querySelector would return it instead of the panel that just opened.
  */
 const shellFor = (o: { panel: string | null; cardOpen: boolean; noticeOpen: boolean; versionOpen: boolean }) =>
-  o.panel === 'community' ? '.community-page'
-    : o.panel ? '.sheet'
-      : o.cardOpen ? '.cardinfo-body'
-        : o.noticeOpen ? '.notice-pop'
-          : o.versionOpen ? '.version-pop' : null;
+  o.panel ? '.sheet'
+    : o.cardOpen ? '.cardinfo-body'
+      : o.noticeOpen ? '.notice-pop'
+        : o.versionOpen ? '.version-pop' : null;
 
 export function useOverlay<P extends string>() {
   const [panel, setPanel] = useState<P | null>(null);

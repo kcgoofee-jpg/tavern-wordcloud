@@ -19,8 +19,10 @@ declare global {
   }
 }
 
-/** Narrow screens: mode switch (10 + 44) + gap 8 + round buttons 44 + gap 8. Mirrors 37-mobile-overrides.css. */
-const NARROW_TOP = 10 + 44 + 8 + 44 + 8;
+/** Narrow screens: the round buttons' single row (10 + 44) + gap 8. Mirrors 37-mobile-overrides.css.
+    The top-centre mode switch is gone (2026-09-08: it moved into the rail's 词云模式 panel), so the
+    cluster and the 「复位视图」 pill share the first row and the cloud starts right under it. */
+const NARROW_TOP = 10 + 44 + 8;
 /** Fallback for --m-l5, computed from the same numbers as 37-mobile-overrides.css (safe-area 0). */
 const MOBILE_STACK = 12 + (44 + 12) + 8 + 44 + 8 + 22 + 8 + 30 + 8;
 
@@ -38,7 +40,7 @@ const prefersReducedMotion = (): boolean =>
  * the chrome share one number per edge (2026-09-08, plan A1). The literal fallback is for
  * tests and for a stylesheet that failed to load.
  */
-export const DESKTOP_INSET = { top: 96, right: 8, bottom: 62, left: 76 } as const;
+export const DESKTOP_INSET = { top: 58, right: 8, bottom: 62, left: 76 } as const;
 /** A token's value in CSS px, measured through a probe so calc() and media queries resolve (getPropertyValue would hand back the raw `calc(…)`). */
 const cssPx = (name: string, fallback: number): number => {
   if (typeof document === 'undefined' || !document.body) return fallback;
@@ -49,9 +51,17 @@ const cssPx = (name: string, fallback: number): number => {
   probe.remove();
   return Number.isFinite(v) && v > 0 ? v : fallback;
 };
-const LEFT_TOKEN = { free: '--inset-left', column: '--cloud-left-column', 'column-wide': '--cloud-left-column-wide' } as const;
+/** `sample` is the first screen (no rail, no panel): the cloud runs to the viewport edge. */
+const LEFT_TOKEN = {
+  free: '--inset-left', column: '--cloud-left-column', 'column-wide': '--cloud-left-column-wide',
+  sample: '--cloud-left-sample',
+} as const;
+const TOP_TOKEN = {
+  free: '--cloud-top', column: '--cloud-top', 'column-wide': '--cloud-top',
+  sample: '--cloud-top-sample',
+} as const;
 export const desktopInset = (layout: keyof typeof LEFT_TOKEN = 'free') => ({
-  top: cssPx('--cloud-top', DESKTOP_INSET.top), right: cssPx('--cloud-right', DESKTOP_INSET.right),
+  top: cssPx(TOP_TOKEN[layout], DESKTOP_INSET.top), right: cssPx('--cloud-right', DESKTOP_INSET.right),
   bottom: cssPx('--cloud-bottom', DESKTOP_INSET.bottom), left: cssPx(LEFT_TOKEN[layout], DESKTOP_INSET.left),
 });
 
@@ -101,9 +111,11 @@ interface Props {
    * Desktop layout state (plan B1): `column` while a side panel is open, `column-wide` for the
    * wide ones (word table, review), `free` otherwise. The canvas inset follows so the words
    * step aside for the panel instead of being dimmed under it; below 1024px the tokens keep
-   * the free-state value and nothing moves.
+   * the free-state value and nothing moves. `sample` is the first screen, which has no rail
+   * (2026-09-08): the cloud fills out to the viewport edge instead of clearing a rail that
+   * is not drawn.
    */
-  layoutKey?: 'free' | 'column' | 'column-wide';
+  layoutKey?: 'free' | 'column' | 'column-wide' | 'sample';
 }
 
 const CloudCanvas = forwardRef<CloudApi, Props>(function CloudCanvas(

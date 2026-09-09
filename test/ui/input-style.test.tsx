@@ -115,9 +115,9 @@ function Panels() {
       <div className="sheet"><div className="sheet-body">
         <ReviewPanel words={WORDS} overrides={{}} setOverrides={noop} extraStopwords={[]} setExtraStopwords={noop} />
       </div></div>
-      <div className="community-page">
+      <div className="sheet page community"><div className="sheet-body">
         <CommunityPanel stats={STATS} contribute={false} setContribute={noop} loading={false} offline={false} />
-      </div>
+      </div></div>
     </div>
   );
 }

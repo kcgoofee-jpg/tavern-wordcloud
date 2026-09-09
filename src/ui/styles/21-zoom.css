@@ -1,8 +1,9 @@
 /* ---------- Zoom reset ---------- */
-/* Shown only after the view was zoomed or panned. Sits under the mode switch, which owns the
-   top-centre slot (both used to say top: 14px and the switch, z 5, covered this, z 3). */
+/* Shown only after the view was zoomed or panned. It owns the top-centre slot outright since the
+   mode switch moved into the rail's 词云模式 panel (2026-09-08); it used to sit one row lower to
+   clear that switch. */
 .zoom-reset {
-  position: absolute; left: 50%; top: var(--quick-bottom); transform: translateX(-50%);
+  position: absolute; left: 50%; top: var(--edge); transform: translateX(-50%);
   padding: 6px 13px; border-radius: 999px; font-size: var(--t-sm);
   color: var(--fg-dim); z-index: var(--z-canvas-ui);
   background: color-mix(in srgb, var(--surface2) 84%, transparent);

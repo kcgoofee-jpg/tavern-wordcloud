@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { ExportPanel, FilterPanel, FontPanel, ThemePanel } from '../../src/ui/panels';
+import { ExportPanel, FilterPanel, FontPanel, ModePanel, ThemePanel } from '../../src/ui/panels';
 import ImportPanel, { type ImportSummary } from '../../src/ui/ImportPanel';
 import CardInfo from '../../src/ui/CardInfo';
 import type { ChatMeta, CharacterGroup } from '../../src/core/meta';
@@ -92,6 +92,14 @@ const PANELS: { name: string; file: string; node: () => React.ReactElement }[] =
     node: () => (
       <ExportPanel opts={{ ...DEFAULT_SETTINGS.exportOpts, watermark: true }} setOpts={vi.fn()}
         size={{ w: 1000, h: 500 }} all={1176} onPng={vi.fn()} onCsv={vi.fn()} onJson={vi.fn()} onCopy={vi.fn()} />
+    ),
+  },
+  {
+    name: 'ModePanel',
+    file: 'src/ui/panels/ModePanel.tsx',
+    node: () => (
+      <ModePanel keywordMode={false} aiReady={false} aiMissing="endpoint" model="" busy={false}
+        canRun={false} onMode={vi.fn()} onRun={vi.fn()} />
     ),
   },
   {

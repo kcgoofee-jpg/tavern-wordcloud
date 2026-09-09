@@ -44,14 +44,16 @@ describe('CloudCanvas layoutKey', () => {
 });
 
 describe('App tells the canvas which column it is in', () => {
-  it('theme panel → column; closed → free', async () => {
+  // The first screen is the sample cloud, which has no rail since 2026-09-08: its resting key is
+  // `sample` (the words run out to the edge), not `free`.
+  it('theme panel → column; closed → back to the sample key', async () => {
     const user = userEvent.setup();
     const { default: App } = await import('../../src/ui/App');
     const { container } = render(<App />);
-    await waitFor(() => expect(layout(container)).toBe('free'));
+    await waitFor(() => expect(layout(container)).toBe('sample'));
     await user.click(screen.getByRole('button', { name: '风格与配色' }));
     await waitFor(() => expect(layout(container)).toBe('column'));
     await user.click(screen.getByRole('button', { name: '关闭' }));
-    await waitFor(() => expect(layout(container)).toBe('free'));
+    await waitFor(() => expect(layout(container)).toBe('sample'));
   });
 });

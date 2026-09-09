@@ -16,6 +16,11 @@
 }
 /* The word table shows six controls per row; 340px truncated long words and hid the counts. */
 .sheet.wide { width: min(var(--panel-w-wide), calc(100vw - var(--inset-left) - 20px)); }
+/* Between 1024 (where the cloud starts stepping aside, 52-cloud-column.css) and 1280 the
+   520px table left the words less room than the panel took. It gives 80px back there only. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .sheet.wide { width: min(var(--panel-w-wide-mid), calc(100vw - var(--inset-left) - 20px)); }
+}
 @keyframes sheet-in { from { opacity: 0; transform: translateY(10px) scale(.97); } }
 
 .sheet-bar {

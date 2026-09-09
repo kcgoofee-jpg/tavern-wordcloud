@@ -28,7 +28,6 @@
 @import './25-dock-panel.css';
 @import './27-mode-quick.css';
 @import './28-import.css';
-@import './29-cloudmode.css';
 @import './30-note.css';
 @import './31-color-picker.css';
 @import './32-dialog.css';
@@ -56,5 +55,6 @@
 @import './50-coref.css';
 @import './51-alias-suggest.css';
 @import './52-cloud-column.css';
+@import './53-sheet-page.css';
 /* Mobile overrides must stay last: media queries do not add specificity. */
 @import './37-mobile-overrides.css';

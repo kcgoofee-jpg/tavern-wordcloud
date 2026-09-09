@@ -5,7 +5,7 @@
   --exp-rail: 76px;      /* wide band: left inset, clears the rail */
   --exp-inset: 14px;     /* wide band: right / bottom inset */
   --exp-top: 72px;       /* wide band: top inset, clears the round buttons */
-  --exp-mid-inset: 8px;  /* 640–720: same box as .community-page */
+  --exp-mid-inset: 8px;  /* 640–720 band of .sheet.page (53-sheet-page.css) */
   --exp-mid-top: 120px;
   --exp-bar-h: 54px;     /* .sheet-bar, pinned so the stage height is computable */
   --exp-stage-pad: 12px;
@@ -91,15 +91,22 @@
 }
 .export-controls > .group-label:first-child { margin-top: 0; }
 
-/* Wide: the controls move beside the picture and the stage takes everything else. */
+/* Wide: the controls move beside the picture and the stage takes everything else.
+   The controls are on the LEFT (plan B2, 2026-09-08): every other panel is a column that
+   starts at --inset-left, so the export view reads as the same column with a stage grown off
+   its right edge rather than as a different window with its controls on the far side. The
+   arithmetic in exportLayout.ts is unchanged — the stage is still the panel minus a
+   --exp-controls-w column, only on the other side of it. */
 @media (min-width: 900px) {
   .export-panel {
-    grid-template-columns: minmax(0, 1fr) var(--exp-controls-w);
+    grid-template-columns: var(--exp-controls-w) minmax(0, 1fr);
     grid-template-rows: minmax(var(--exp-stage-min), 1fr) var(--exp-foot-h);
   }
+  .export-stage { grid-area: 1 / 2; }
+  .export-foot { grid-area: 2 / 2; }
   .export-controls {
-    grid-area: 1 / 2 / span 2 / auto;
-    border-top: none; border-left: 1px solid var(--line); padding-top: var(--sp-3);
+    grid-area: 1 / 1 / span 2 / auto;
+    border-top: none; border-right: 1px solid var(--line); padding-top: var(--sp-3);
   }
 }
 
@@ -144,27 +151,12 @@
    stays a `.sheet`: Escape, focus return, outside-click, the per-panel reset button and the
    layout audit all key off `.sheet` / `.sheet-body` / `.sheet-close`.
 
-   Both bands give it four insets, so its height is definite at every width — which is what
-   lets the grid above use `fr` units at all. */
-@media (min-width: 721px) {
-  .sheet.export-view {
-    left: var(--exp-rail); right: var(--exp-inset); top: var(--exp-top); bottom: var(--exp-inset);
-    width: auto; max-width: none; max-height: none; z-index: var(--z-page);
-  }
-}
-/* 640–720: the rail has moved to the bottom and the round buttons have moved down, so the box
-   matches .community-page's mobile inset. Written here rather than in 37-mobile-overrides.css
-   because that file loads last and `.sheet.export-view` there would also beat
-   `.sheet.fullscreen` below 640. */
-@media (min-width: 640px) and (max-width: 720px) {
-  .sheet.export-view {
-    left: var(--exp-mid-inset); right: var(--exp-mid-inset);
-    top: var(--exp-mid-top); bottom: var(--exp-mid-inset);
-    width: auto; max-width: none; max-height: none; z-index: var(--z-page);
-  }
-}
+   Its box is `.sheet.page` in 53-sheet-page.css, shared with the community board (plan B3):
+   four insets in both bands, so its height is definite at every width — which is what lets
+   the grid above use `fr` units at all. The `--exp-*` literals above are the same numbers,
+   kept here because test/ui/export-layout.test.ts pins them to src/ui/exportLayout.ts.
 
-/* ---------- Full-screen export page (phone) ----------
+   ---------- Full-screen export page (phone) ----------
    Same colours and same title bar as the sheet; only the box becomes the viewport. */
 .sheet.fullscreen {
   left: 0; right: 0; top: 0; bottom: auto;

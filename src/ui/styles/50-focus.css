@@ -29,8 +29,6 @@
    next Tab lands inside the panel. They are not controls, so they get no ring. */
 .sheet:focus,
 .sheet:focus-visible,
-.community-page:focus,
-.community-page:focus-visible,
 .cardinfo-body:focus,
 .cardinfo-body:focus-visible,
 .notice-pop:focus,

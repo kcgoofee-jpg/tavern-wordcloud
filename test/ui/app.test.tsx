@@ -207,8 +207,16 @@ describe('keyword mode without a key', () => {
       render(<App />);
       const input = document.querySelector('input[type=file]') as HTMLInputElement;
       fireEvent.change(input, { target: { files: [new File(['{"messages":[]}'], 'a.jsonl')] } });
-      await vi.waitFor(() => expect(document.querySelector('.cloudmode')).toBeTruthy());
-      const keywordBtn = within(document.querySelector('.cloudmode') as HTMLElement).getByText('关键词').closest('button')!;
+      // The switch is the rail's 词云模式 panel now (2026-09-08), not a bar over the canvas.
+      const railMode = await vi.waitFor(() => {
+        const el = document.querySelector('.rail .tool[data-mode]') as HTMLButtonElement | null;
+        expect(el).toBeTruthy();
+        return el!;
+      });
+      expect(railMode.getAttribute('data-mode')).toBe('freq');
+      railMode.click();
+      const keywordBtn = await vi.waitFor(() => within(document.querySelector('.sheet') as HTMLElement)
+        .getByRole('button', { name: /关键词/ }));
       // Nothing configured at all: the label names the first missing field
       // The missing field is named in the tooltip now, not printed beside the label.
       expect(keywordBtn.getAttribute('title')).toContain('还没填接口地址');
@@ -222,9 +230,15 @@ describe('rail icons carry no captions', () => {
   it('每个按钮只有图标，说明只在 title / aria-label 里', async () => {
     const user = userEvent.setup();
     render(<App />);
+    // The sample screen has no rail (2026-09-08); a loaded log is what brings it out.
     await user.click(screen.getByRole('button', { name: '开始' }));
-    await user.click(screen.getByRole('button', { name: '先看示例' }));
-    const rail = document.querySelector('.rail') as HTMLElement;
+    const input = document.querySelector('input[type=file]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['{"messages":[]}'], 'a.jsonl')] } });
+    const rail = await vi.waitFor(() => {
+      const el = document.querySelector('.rail') as HTMLElement | null;
+      expect(el).toBeTruthy();
+      return el!;
+    });
     expect(rail.classList.contains('caps')).toBe(false);
     expect(rail.querySelector('.cap')).toBeNull();
     expect(rail.textContent?.trim()).toBe('');
@@ -250,10 +264,11 @@ describe('keyword switch: which endpoint field is missing', () => {
     await user.click(screen.getByRole('button', { name: '开始' }));
     const input = document.querySelector('input[type=file]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [new File(['{"messages":[]}'], 'a.jsonl')] } });
-    await vi.waitFor(() => expect(document.querySelector('.cloudmode')).toBeTruthy());
+    await vi.waitFor(() => expect(document.querySelector('.rail .tool[data-mode]')).toBeTruthy());
+    await user.click(document.querySelector('.rail .tool[data-mode]') as HTMLElement);
 
-    const keyword = within(document.querySelector('.cloudmode') as HTMLElement)
-      .getByRole('button', { name: /关键词/ });
+    const keyword = await vi.waitFor(() => within(document.querySelector('.sheet') as HTMLElement)
+      .getByRole('button', { name: /关键词/ }));
     expect(keyword.getAttribute('title')).toContain('还没选模型');
     expect(keyword.textContent).not.toContain('缺');
 

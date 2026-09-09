@@ -64,16 +64,20 @@
   @keyframes sheet-in { from { opacity: 0; transform: translateY(16px) scale(.98); } }
   .swatches { grid-template-columns: repeat(3, 1fr); }
 
-  /* Round buttons move down to avoid the mode switch */
-  .cloudmode { top: 10px; }
-  .quick-cluster { top: calc(10px + var(--tap) + 8px); }
-  /* The 「复位视图」 pill: the round buttons' row reaches the centre at 390px and the cloud starts right
-     under that row, so the pill takes the row's free left end instead (2026-09-08 audit). */
-  .zoom-reset { top: calc(10px + var(--tap) + 8px); left: 12px; transform: none; }
+  /* One top row again: the mode switch moved into the rail's 词云模式 panel (2026-09-08), so the
+     round buttons take the row it used to own. */
+  .quick-cluster { top: 10px; }
+  /* The 「复位视图」 pill: the round buttons' row reaches the centre at 390px, so the pill takes that
+     row's free left end rather than a row of its own (2026-09-08 audit). */
+  .zoom-reset { top: 10px; left: 12px; transform: none; }
   .zoom-reset:hover { transform: scale(1.04); }
-  .notice-pop, .version-pop { top: calc(10px + var(--tap) * 2 + 16px); }
-  /* The community page starts below the mode switch and the round buttons */
-  .community-page { inset: 120px 8px 8px 8px; }
+  .notice-pop, .version-pop { top: calc(10px + var(--tap) + 8px); }
+  /* A full-page sheet (the community board; the export view above 640) starts below the round
+     buttons (the mode switch is a rail panel now). The `.app` prefix and `:not(.fullscreen)` are
+     load-bearing: it has to outrank `.app:has(.toast) .sheet` above, which would otherwise lift a
+     full-page sheet off its own bottom inset, and it must not touch the phone export page, which
+     owns its own box (`.sheet.fullscreen`, 38-export.css). */
+  .app .sheet.page:not(.fullscreen) { inset: calc(10px + var(--tap) + 8px) 8px 8px 8px; max-height: none; }
 
   /* Landing: single column, tighter rhythm */
   .land-top { padding: 10px 12px; gap: 10px; }

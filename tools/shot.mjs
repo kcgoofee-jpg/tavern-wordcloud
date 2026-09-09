@@ -194,7 +194,7 @@ const auditLayout = async (label) => {
     const vw = innerWidth;
     const vis = (el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'; };
     const nameOf = (el) => el.tagName.toLowerCase() + (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\\s+/).join('.') : '');
-    const containers = [...document.querySelectorAll('.sheet-body, .community-body, .community-head, .import-body, .import-foot, .import-head, .cardinfo-body, .toast, .legal-body, .land-hero, .land-feats, .foot')].filter(vis);
+    const containers = [...document.querySelectorAll('.sheet-body, .import-body, .import-foot, .import-head, .cardinfo-body, .toast, .legal-body, .land-hero, .land-feats, .foot')].filter(vis);
     for (const c of containers) {
       const cs = getComputedStyle(c); const cr = c.getBoundingClientRect();
       const left = cr.left + parseFloat(cs.paddingLeft), right = cr.right - parseFloat(cs.paddingRight);
@@ -292,7 +292,7 @@ const auditLayout = async (label) => {
       }
     }
     // 按钮断行：分段控件里的选项换了行——按钮文案太长，数字应该挪进小字或 ⓘ
-    for (const c of [...document.querySelectorAll('.seg, .ratio, .kinds, .cloudmode')].filter(vis)) {
+    for (const c of [...document.querySelectorAll('.seg, .ratio, .kinds')].filter(vis)) {
       for (const el of c.querySelectorAll('button')) {
         if (!vis(el)) continue;
         const lh = parseFloat(getComputedStyle(el).lineHeight) || 16;
@@ -330,7 +330,7 @@ const auditLayout = async (label) => {
     }
     // 面板透明或不能滚：一次错误的 CSS 编辑把 .sheet 规则从中间截断，背景、max-height、overflow 全丢，
     // 词云透过面板显示且面板内容撑出屏幕不能滑（2026-09-04 线上事故）。
-    for (const el of document.querySelectorAll('.sheet, .community-page, .import-card, .cardinfo-body')) {
+    for (const el of document.querySelectorAll('.sheet, .import-card, .cardinfo-body')) {
       if (!el.clientHeight) continue;
       const cs = getComputedStyle(el);
       const m = /rgba?\(([^)]+)\)/.exec(cs.backgroundColor);
@@ -338,7 +338,7 @@ const auditLayout = async (label) => {
       if (!m || alpha < 0.9) out.push('[面板透明] ' + nameOf(el) + ' 背景 ' + cs.backgroundColor);
       const r = el.getBoundingClientRect();
       if (r.bottom > innerHeight + 1 || r.top < -1) out.push('[面板出屏] ' + nameOf(el) + ' ' + r.top.toFixed(0) + '…' + r.bottom.toFixed(0) + ' / ' + innerHeight);
-      const body = el.querySelector('.sheet-body, .community-body, .import-body') || el;
+      const body = el.querySelector('.sheet-body, .import-body') || el;
       const bcs = getComputedStyle(body);
       if (body.scrollHeight > body.clientHeight + 2 && !/auto|scroll/.test(bcs.overflowY)) out.push('[面板不能滚] ' + nameOf(body) + ' 内容 ' + body.scrollHeight + ' > 可视 ' + body.clientHeight);
     }
@@ -351,8 +351,9 @@ const auditLayout = async (label) => {
     // 词云被挡：浮动控件压在词的外接框上（手机上圆按钮和角落数字曾经盖住词）
     const b = window.__cloudBounds;
     if (b && b.right > b.left) {
-      // Desktop (≥1024): a side panel must not sit on the words either — the cloud steps aside for it (plan B1).
-      const covers = '.cloudmode, .zoom-reset, .mode-quick, .lang-quick, .community-quick, .notice-quick, .version-quick, .quick-cluster > *, .dock, .dock-stats, .rail, .ratio span' + (innerWidth >= 1024 ? ', .sheet:not(.export-view)' : '');
+      // Desktop (≥1024): a side panel must not sit on the words either — the cloud steps aside for it
+      // (plan B1). A .sheet.page (export view, community board) is excluded: those cover the page by design.
+      const covers = '.zoom-reset, .mode-quick, .lang-quick, .community-quick, .notice-quick, .version-quick, .quick-cluster > *, .dock, .dock-stats, .rail, .ratio span' + (innerWidth >= 1024 ? ', .sheet:not(.page)' : '');
       for (const el of document.querySelectorAll(covers)) {
         if (!vis(el)) continue;
         const r = el.getBoundingClientRect();
@@ -365,8 +366,8 @@ const auditLayout = async (label) => {
     // 数字和 toast 同槽）。只看两两相交超过 1px 的；一个包着另一个的不算。铺满整页的层
     // （导出视图、社区页、手机全屏）本来就盖在导轨和 dock 上面，那是层叠决定，不是挤压。
     {
-      const page = (el) => el.matches('.export-view, .community-page, .fullscreen');
-      const ctrls = [...document.querySelectorAll('.cloudmode, .zoom-reset, .quick-cluster > *, .mode-quick, .lang-quick, .community-quick, .notice-quick, .version-quick, .rail, .dock, .ratio span, .toast, .sheet, .cardinfo-body')].filter(vis);
+      const page = (el) => el.matches('.sheet.page, .fullscreen');
+      const ctrls = [...document.querySelectorAll('.zoom-reset, .quick-cluster > *, .mode-quick, .lang-quick, .community-quick, .notice-quick, .version-quick, .rail, .dock, .ratio span, .toast, .sheet, .cardinfo-body')].filter(vis);
       for (let i = 0; i < ctrls.length; i++) for (let j = i + 1; j < ctrls.length; j++) {
         const a = ctrls[i], c = ctrls[j];
         if (a.contains(c) || c.contains(a) || page(a) || page(c)) continue;
@@ -529,7 +530,7 @@ async function auditClicks(label, scope, skip = /清空|Clear|添加|Add|导出|
       }
       return true;
     };
-    const list = () => [...document.querySelectorAll(scope + ' button')].filter((b) => !b.disabled && vis(b) && inScrollView(b) && !skip.test(b.title || b.textContent || '') && !b.closest('.export-chips') && !(b.classList.contains('on') && b.closest('.seg, .cloudmode, .review-tabs, .swatches, .fontlist')));
+    const list = () => [...document.querySelectorAll(scope + ' button')].filter((b) => !b.disabled && vis(b) && inScrollView(b) && !skip.test(b.title || b.textContent || '') && !b.closest('.export-chips') && !(b.classList.contains('on') && b.closest('.seg, .review-tabs, .swatches, .fontlist')));
     // A segmented control's selected item is inert by design — clicking the tab you are already
     // on must not change anything. '.review-tabs' is one of those (its 「全部」 is selected when the
     // panel opens), which is what the first audit of that panel reported as a dead button; the
@@ -588,6 +589,13 @@ for (const title of panels) {
     b.scrollTop=b.scrollHeight; await new Promise(r=>setTimeout(r,250)); return true;
   `);
   if (scrolls) { shots.push(await shot(`03-面板-${slug}-底`)); await auditLayout(`面板 ${title}（底部）`); }
+  // The 词云模式 panel's own click audit selects 关键词 and cannot put it back (clicking the option
+  // you are already on is inert by design), which would audit every later panel in keyword mode —
+  // an empty cloud. Restore frequency mode here; a no-op in every other panel.
+  await run(`
+    const b=[...document.querySelectorAll('.sheet .seg button')].find(x=>/^\\s*(词频|Frequency)/.test(x.textContent||''));
+    if (b && !b.classList.contains('on')) { b.click(); await new Promise(r=>setTimeout(r,600)); }
+  `);
   await run(`document.querySelector('.sheet-close')?.click(); await new Promise(r=>setTimeout(r,300));`);
 }
 
@@ -595,12 +603,13 @@ for (const title of panels) {
 await run(`document.querySelector('.community-quick')?.click(); await new Promise(r=>setTimeout(r,800));`);
 shots.push(await shot('03b-社区排行榜'));
 await auditLayout('社区排行榜');
-await auditClicks('社区排行榜', '.community-body');
-await run(`document.querySelector('.community-page .sheet-close')?.click(); await new Promise(r=>setTimeout(r,300));`);
+await auditClicks('社区排行榜', '.sheet.page.community .sheet-body');
+await run(`document.querySelector('.sheet.page.community .sheet-close')?.click(); await new Promise(r=>setTimeout(r,300));`);
 
-// Main screen last: it may switch modes, so restore frequency mode afterwards
-await auditClicks('主界面', '.app > :not(.sheet):not(.community-page)');
-await run(`[...document.querySelectorAll('.cloudmode button')].find(b=>/词频|Frequency/.test(b.innerText))?.click(); await new Promise(r=>setTimeout(r,400));`);
+// Main screen last. The mode switch is no longer on it (it is the 词云模式 panel), so nothing here
+// can change modes; any panel a click left open is closed before the dock buttons are audited.
+await auditClicks('主界面', '.app > :not(.sheet)');
+await run(`document.querySelector('.sheet-close')?.click(); await new Promise(r=>setTimeout(r,300));`);
 
 // Bottom-left buttons, found by data-panel rather than the Chinese title: under SHOT_LANG=en the
 // title match failed silently and both panels were reported clean without ever opening (2026-09-08).
@@ -626,9 +635,12 @@ await run(`document.querySelector('.cardinfo-head')?.click(); await new Promise(
 // Keyword mode running: stop button, log, speed
 if (process.env.SHOT_CURATE) {
   await run(`
-    [...document.querySelectorAll('.cloudmode button')].find(b=>/关键词|Keywords/.test(b.innerText))?.click();
+    // The mode switch and its run button both live in the 词云模式 panel now (2026-09-08)
+    document.querySelector('.rail .tool[data-mode]')?.click();
     await new Promise(r=>setTimeout(r,600));
-    document.querySelector('.cloudmode-run')?.click();
+    [...document.querySelectorAll('.sheet .seg button')].find(b=>/关键词|Keywords/.test(b.textContent||''))?.click();
+    await new Promise(r=>setTimeout(r,600));
+    [...document.querySelectorAll('.sheet .more')].find(b=>!b.disabled)?.click();
     await new Promise(r=>setTimeout(r,14000));
   `);
   shots.push(await shot('06-关键词跑起来'));

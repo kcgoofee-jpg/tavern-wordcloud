@@ -1,0 +1,33 @@
+/* ---------- Full-page sheets (plan B3, 2026-09-08) ----------
+   Two shells, not three. Every panel is a `.sheet` with a `.sheet-bar` and a `.sheet-body`;
+   a `.sheet.page` is the one that spans the window instead of standing in the 340px column —
+   the community board and the export view. The board used to be a third shell
+   (`.community-page`, with its own `.community-head` / `.community-body`), and every
+   mechanism that keys off a panel carried a special case for it: the outside-click list and
+   the focus shell in useOverlay, the focus-ring reset in 50-focus.css, four selectors in
+   tools/shot.mjs. Those are gone; the board is a sheet.
+
+   The insets are the same numbers the export view already used, and 38-export.css keeps them
+   as `--exp-*` literals because test/ui/export-layout.test.ts pins those to
+   src/ui/exportLayout.ts. Below 640 the export view is the whole viewport
+   (`.sheet.fullscreen`, 38-export.css) and this file loads after it, so an unqualified
+   `.sheet.page` would beat it on equal specificity — hence `:not(.fullscreen)` throughout.
+   Below 721 the board's box comes from 37-mobile-overrides.css, which is last. */
+.sheet.page:not(.fullscreen) {
+  width: auto; max-width: none; max-height: none; z-index: var(--z-page);
+}
+
+/* The rail is still on the left, so the box clears it — the same left edge every panel has. */
+@media (min-width: 721px) {
+  .sheet.page:not(.fullscreen) {
+    left: var(--inset-left); right: var(--edge); top: var(--inset-top); bottom: var(--edge);
+  }
+}
+/* 640–720: the rail has moved to the bottom and the round buttons have moved down, so the box
+   is inset by a hair on three sides and starts below them. */
+@media (min-width: 640px) and (max-width: 720px) {
+  .sheet.page:not(.fullscreen) {
+    left: var(--exp-mid-inset); right: var(--exp-mid-inset);
+    top: var(--exp-mid-top); bottom: var(--exp-mid-inset);
+  }
+}

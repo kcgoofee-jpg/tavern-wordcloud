@@ -87,6 +87,24 @@ describe('layout tokens', () => {
     // edge + rail + gap is what "clears the rail" means
     expect(px(tokens, '--inset-left')).toBe(px(tokens, '--edge') + px(tokens, '--rail-w') + px(tokens, '--rail-gap'));
   });
+
+  it('the 1024–1279 wide panel and the band of cloud it leaves spend one token', () => {
+    // A 520px table on a 1280px screen left the words less room than the panel took, so the
+    // wide panels are 440px in that range only (plan B3). The panel width and the canvas inset
+    // are two files; if they ever bind different numbers the cloud lays out against a column
+    // that is not there, which nothing on screen would explain.
+    const BAND = '@media (min-width: 1024px) and (max-width: 1279px)';
+    const after = (file: string) => {
+      const src = stripComments(css[file]);
+      expect(src, `${file} is missing the 1024–1279 band`).toContain(BAND);
+      return src.slice(src.indexOf(BAND));
+    };
+    expect(after('03-sheet.css')).toContain('var(--panel-w-wide-mid)');
+    expect(after('52-cloud-column.css')).toContain('var(--panel-w-wide-mid)');
+    // A step between the ordinary panel and the ≥1280 table, or it is not a middle band.
+    expect(px(tokens, '--panel-w-wide-mid')).toBeGreaterThan(px(tokens, '--panel-w'));
+    expect(px(tokens, '--panel-w-wide-mid')).toBeLessThan(px(tokens, '--panel-w-wide'));
+  });
 });
 
 describe('UI font stack', () => {

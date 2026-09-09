@@ -90,7 +90,9 @@ describe('useOverlay', () => {
 
   it('language, scheme and cloud-mode chrome are not outside clicks', () => {
     const { result } = renderHook(() => useOverlay<'theme'>());
-    const nodes = ['.lang-quick', '.mode-quick', '.cloudmode', '.land-top'].map((cls) => {
+    // The cloud-mode switch used to be its own chrome node (`.cloudmode`); it is a rail panel
+    // now (2026-09-08), and the rail is already in KEEP.
+    const nodes = ['.lang-quick', '.mode-quick', '.rail', '.land-top'].map((cls) => {
       const el = document.createElement('button');
       el.className = cls.slice(1);
       document.body.append(el);

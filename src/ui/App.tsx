@@ -52,6 +52,7 @@ import './styles/index.css';
 // Preloadable (ui/lazyPanel.ts): warmed on idle after the first paint so the first open of
 // any panel renders in one go instead of fallback → 300 ms throttle → content.
 const LegalPage = lazyPanel(() => import('./LegalPage'));
+const ModePanel = lazyPanel(() => import('./panels/ModePanel').then((m) => ({ default: m.ModePanel })));
 const ThemePanel = lazyPanel(() => import('./panels/ThemePanel').then((m) => ({ default: m.ThemePanel })));
 const FontPanel = lazyPanel(() => import('./panels/FontPanel').then((m) => ({ default: m.FontPanel })));
 const FilterPanel = lazyPanel(() => import('./panels/FilterPanel').then((m) => ({ default: m.FilterPanel })));
@@ -64,15 +65,16 @@ const ExportPanel = lazyPanel(() => import('./panels/ExportPanel').then((m) => (
 const AiPanel = lazyPanel(() => import('./panels/AiPanel').then((m) => ({ default: m.AiPanel })));
 const CommunityPanel = lazyPanel(() => import('./panels/CommunityPanel').then((m) => ({ default: m.CommunityPanel })));
 /** Everything behind a Suspense boundary; App warms these once the browser is idle. */
-const PRELOAD = [ThemePanel, FontPanel, FilterPanel, AdvancedPanel, PriorityPanel, WordsPanel, ReviewPanel, ExportPanel, AiPanel, CommunityPanel, LegalPage] as const;
+const PRELOAD = [ModePanel, ThemePanel, FontPanel, FilterPanel, AdvancedPanel, PriorityPanel, WordsPanel, ReviewPanel, ExportPanel, AiPanel, CommunityPanel, LegalPage] as const;
 
 /** Hand-edited word count as a coarse bucket: a number would be far more identifying. */
 export const overrideBucket = (n: number): '0' | '1-10' | '11+' => (n === 0 ? '0' : n <= 10 ? '1-10' : '11+');
 
-type PanelId = 'theme' | 'font' | 'filter' | 'advanced' | 'words' | 'review' | 'ai' | 'export' | 'community';
+type PanelId = 'mode' | 'theme' | 'font' | 'filter' | 'advanced' | 'words' | 'review' | 'ai' | 'export' | 'community';
 
 /** Panel -> title + reset scope. Panels without a scope have no reset button. A function of `t` so titles are literal `t('…')` calls. */
 const panelMeta = (t: (s: string) => string): Record<PanelId, { title: string; reset?: ResetScope; resetHint?: string }> => ({
+  mode: { title: t('词云模式') },
   theme: { title: t('风格与配色'), reset: 'theme', resetHint: t('主题、配色和深浅模式') },
   font: { title: t('词云字体'), reset: 'font', resetHint: t('字体设置') },
   filter: { title: t('筛选与分词'), reset: 'filter', resetHint: t('统计范围、词类、NSFW、清洗开关和竖排比例；不动接口和密钥') },
@@ -87,7 +89,17 @@ const panelMeta = (t: (s: string) => string): Record<PanelId, { title: string; r
 
 /** The rail holds functional tools; design tools (palette, font) live in the bottom-left dock. */
 /** Icon-only rail: the label is the tooltip and the accessible name, never printed under the icon. */
-const tools = (t: (s: string) => string): { id: PanelId; icon: IconName; label: string }[] => [
+/**
+ * The cloud-mode entry is first and is the only one whose icon and label depend on state: it
+ * shows the mode you are in (chart = 词频, chip = 关键词), which is what the top-centre switch
+ * used to say out loud before it moved in here (2026-09-08). `mode` is set on the button as
+ * `data-mode` so tests and the layout audit can read the current mode off the rail.
+ */
+const tools = (t: (s: string) => string, keywordMode: boolean): { id: PanelId; icon: IconName; label: string; mode?: 'freq' | 'keyword' }[] => [
+  {
+    id: 'mode', icon: keywordMode ? 'chip' : 'chart', mode: keywordMode ? 'keyword' : 'freq',
+    label: keywordMode ? t('词云模式：关键词') : t('词云模式：词频'),
+  },
   { id: 'filter', icon: 'sliders', label: t('筛选与分词') },
   { id: 'words', icon: 'list', label: t('词频表') },
   { id: 'review', icon: 'check', label: t('检查分类') },
@@ -932,7 +944,9 @@ export default function App() {
         highlight={hovered}
         onWordClick={(w) => (demoMode ? closeSample() : setHovered(w))}
         onWordHover={demoMode ? undefined : setHovered}
-        layoutKey={panel && panel !== 'community' && panel !== 'export' ? (panel === 'words' || panel === 'review' ? 'column-wide' : 'column') : 'free'}
+        layoutKey={panel && panel !== 'community' && panel !== 'export'
+          ? (panel === 'words' || panel === 'review' ? 'column-wide' : 'column')
+          : demoMode ? 'sample' : 'free'}
       />
 
       {/* Keyword mode with no curated words yet: the empty state is the run button itself. */}
@@ -994,30 +1008,8 @@ export default function App() {
         accept="application/json,text/plain,application/zip,application/x-zip-compressed,image/png,.jsonl,.json,.txt,.zip,.png" hidden
         onChange={(e) => { void ingest([...(e.target.files ?? [])]); e.target.value = ''; }} />
 
-      {/* Cloud mode switch: top-level, always visible. Keyword mode has its own run action; switching never sends a request. */}
-      {/* Shown when files are loaded, not when the canvas has content; keyword mode may be empty. */}
-      {hasFiles && (
-        <div className="cloudmode" role="group" aria-label={t('词云模式')}>
-          <button type="button" className={!keywordMode ? 'on' : ''}
-            title={t("统计出现最多的词。免费、半秒出结果")}
-            onClick={() => patch({ cloudMode: 'freq' })}>
-            <Icon name="chart" size={15} />{t('词频')}
-          </button>
-          <button type="button" className={keywordMode ? 'on' : ''}
-            title={localAiReady
-              ? t('让大模型读完整份聊天，挑出这个故事独有的词。整份正文会发给你配的接口')
-              : aiMissing === 'endpoint' ? t('还没填接口地址——点一下去配')
-                : aiMissing === 'model' ? t('还没选模型——点一下去配')
-                  : aiMissing === 'key' ? t('还没填密钥——点一下去配') : t('还没配接口——点一下去配')}
-            onClick={() => {
-              if (!localAiReady) { openPanel('ai'); return; }
-              patch({ cloudMode: 'keyword' });
-            }}>
-            <Icon name="chip" size={15} />{t('关键词')}
-            {/* The missing field is named in the tooltip, not printed next to the label. */}
-          </button>
-        </div>
-      )}
+      {/* The cloud-mode switch used to live here, pinned to the top centre of the canvas. It is a
+          rail panel now (panels/ModePanel.tsx, 2026-09-08) and the rail button carries the mode. */}
 
       {/* Share of the pointed word, centered below the cloud. Number only; empty when nothing is pointed at. */}
       {!empty && !share && (
@@ -1097,33 +1089,38 @@ export default function App() {
         </div>
       )}
 
+      {/* The board is a panel like any other, in the shell that spans the window
+          (`.sheet.page`, 53-sheet-page.css) rather than a third kind of layer. */}
       {panel === 'community' && (
-        <section className={`community-page${health?.ok ? '' : ' compact'}`} role="dialog" tabIndex={-1} aria-label={t('社区排行榜')}>
-          <div className="community-head">
-            <h2>{t('社区排行榜')}</h2>
+        <aside className={`sheet page community${health?.ok ? '' : ' compact'}`} role="dialog" tabIndex={-1} aria-label={t('社区排行榜')}>
+          <div className="sheet-bar">
+            <span className="sheet-title">{t('社区排行榜')}</span>
             <button type="button" className="sheet-close" title={t("关闭")} onClick={() => openPanel(null)}>
-              <Icon name="close" size={18} />
+              <Icon name="close" size={17} />
             </button>
           </div>
-          <div className="community-body">
+          <div className="sheet-body">
             <Suspense fallback={<p className="note">{t('正在载入…')}</p>}>
               <CommunityPanel stats={community} loading={communityLoading} offline={!health?.ok} contribute={settings.contribute} setContribute={(v) => patch({ contribute: v })} />
             </Suspense>
           </div>
-        </section>
+        </aside>
       )}
 
-      {/* The landing has its own upload entry; the rail appears once it is gone */}
-      {!showLanding && (
+      {/* The landing has its own upload entry; the rail appears once it is gone. The sample cloud
+          on the first screen has no rail either (2026-09-08): the only thing to do there is start,
+          so the picture gets the whole width and the dock plus the round buttons stay. */}
+      {!showLanding && !demoMode && (
       <nav className="rail" aria-label={t('工具')}>
         <button type="button" className="tool" title={t("添加聊天记录")}
           onClick={() => fileInputRef.current?.click()}><Icon name="plus" /></button>
         {/* Loop variable is `tool`, not `t` (the translation function) */}
-        {tools(t).map((tool, i) => (
+        {/* The mode entry appears once there are files, exactly when the old top-centre switch did */}
+        {tools(t, keywordMode).filter((tool) => tool.id !== 'mode' || hasFiles).map((tool, i) => (
           <button key={tool.id} type="button" className={`tool${panel === tool.id ? ' on' : ''}`}
-            title={tool.label} aria-pressed={panel === tool.id}
+            title={tool.label} aria-pressed={panel === tool.id} data-mode={tool.mode}
             style={{ animationDelay: `${60 + i * 45}ms` }}
-            disabled={tool.id !== 'theme' && tool.id !== 'ai' && !result}
+            disabled={tool.id !== 'theme' && tool.id !== 'ai' && tool.id !== 'mode' && !result}
             onClick={() => openPanel(panel === tool.id ? null : tool.id)}>
             <Icon name={tool.icon} />
           </button>
@@ -1151,7 +1148,7 @@ export default function App() {
       {/* The export panel has the most controls, so on a phone it takes the whole screen. */}
       {panel && panel !== 'community' && (
         <aside
-          className={`sheet${panel === 'words' || panel === 'review' ? ' wide' : ''}${panel === 'export' ? ' export-view' : ''}${narrow && panel === 'export' ? ' fullscreen' : ''}`}
+          className={`sheet${panel === 'words' || panel === 'review' ? ' wide' : ''}${panel === 'export' ? ' page export-view' : ''}${narrow && panel === 'export' ? ' fullscreen' : ''}`}
           role="dialog" tabIndex={-1} aria-label={panelTitle}
         >
           <div className="sheet-bar">
@@ -1176,6 +1173,18 @@ export default function App() {
           <div className="sheet-body">
             {/* One line, not a blank sheet: the chunk is a few kB off the same origin. */}
             <Suspense fallback={<p className="note">{t('正在载入…')}</p>}>
+            {panel === 'mode' && (
+              <ModePanel
+                keywordMode={keywordMode} aiReady={localAiReady} aiMissing={aiMissing}
+                model={curateModel} busy={busy} canRun={localAiReady && !!result}
+                onMode={(m) => {
+                  // Same rule as the old switch: no endpoint, no keyword mode — go configure one.
+                  if (m === 'keyword' && !localAiReady) { openPanel('ai'); return; }
+                  patch({ cloudMode: m });
+                }}
+                onRun={() => void runCurate()}
+              />
+            )}
             {panel === 'theme' && <ThemePanel settings={settings} patch={patch} />}
             {panel === 'font' && (
               <FontPanel

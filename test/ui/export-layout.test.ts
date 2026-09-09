@@ -138,6 +138,8 @@ describe('the export preview is contained by its stage in both axes', () => {
 
 describe('the arithmetic and the stylesheet use the same numbers', () => {
   const css = readFileSync(new URL('../../src/ui/styles/38-export.css', import.meta.url), 'utf8');
+  /** The box of a full-page sheet moved here in plan B3; the numbers it spends are the same. */
+  const page = readFileSync(new URL('../../src/ui/styles/53-sheet-page.css', import.meta.url), 'utf8');
   const px = (name: string): number => {
     const m = new RegExp(`--${name}:\\s*(-?[\\d.]+)px`).exec(css);
     expect(m, `--${name} is missing from 38-export.css`).toBeTruthy();
@@ -164,9 +166,28 @@ describe('the arithmetic and the stylesheet use the same numbers', () => {
     const frs = [...rows![1].matchAll(/([\d.]+)fr/g)].map((m) => Number(m[1]));
     expect(frs).toEqual([EXPORT_LAYOUT.stageFr, EXPORT_LAYOUT.controlsFr]);
     expect(css).toContain(`@media (min-width: ${EXPORT_LAYOUT.sideBySideAt}px)`);
-    // Below 640 the full-screen rule owns the box; at and above it, the two inset bands do.
-    expect(css).toContain(`@media (min-width: ${EXPORT_LAYOUT.fullscreenBelow}px) and (max-width: 720px)`);
-    expect(css).toContain('@media (min-width: 721px)');
+    // Below 640 the full-screen rule (still in 38-export.css) owns the box; at and above it the
+    // two inset bands do, and since plan B3 they live on `.sheet.page`, shared with the
+    // community board. The `--exp-*` literals above stay here, next to the arithmetic.
+    expect(css).toContain('.sheet.fullscreen');
+    expect(page).toContain(`@media (min-width: ${EXPORT_LAYOUT.fullscreenBelow}px) and (max-width: 720px)`);
+    expect(page).toContain('@media (min-width: 721px)');
+  });
+
+  it('side by side, the controls are the left column and the stage grows off its right edge', () => {
+    // Plan B2 (2026-09-08): every other panel is a column starting at --inset-left, so the
+    // export view is that same column with a stage beside it, not a window with its controls
+    // on the far side. exportLayout.ts is unchanged — the stage is still the panel minus one
+    // --exp-controls-w column, on the other side of it.
+    const wide = css.slice(css.indexOf(`@media (min-width: ${EXPORT_LAYOUT.sideBySideAt}px)`));
+    const cols = /grid-template-columns:\s*([^;]+);/.exec(wide);
+    expect(cols, 'the side-by-side band sets grid-template-columns').toBeTruthy();
+    expect(cols![1].trim()).toBe('var(--exp-controls-w) minmax(0, 1fr)');
+    expect(wide).toMatch(/\.export-stage\s*\{\s*grid-area:\s*1 \/ 2;/);
+    expect(wide).toMatch(/\.export-foot\s*\{\s*grid-area:\s*2 \/ 2;/);
+    expect(wide).toMatch(/\.export-controls\s*\{[^}]*grid-area:\s*1 \/ 1 \/ span 2/);
+    // The rule that separates the two panes moves to the other edge with them.
+    expect(wide).toMatch(/\.export-controls\s*\{[^}]*border-right:\s*1px solid var\(--line\)/);
   });
 
   it('the stage still clips, which is the backstop the layout audit can see', () => {

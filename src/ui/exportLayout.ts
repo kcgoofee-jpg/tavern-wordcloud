@@ -25,7 +25,7 @@
 
 export interface Box { w: number; h: number }
 
-/** One set of `.sheet.export-view` insets. */
+/** One set of `.sheet.page` insets (53-sheet-page.css). */
 export interface Inset { left: number; right: number; top: number; bottom: number }
 
 export const EXPORT_LAYOUT = {
@@ -35,7 +35,7 @@ export const EXPORT_LAYOUT = {
   sideBySideAt: 900,
   /** 721 px and up: the rail is still on the left, so the box clears it. */
   wide: { left: 76, right: 14, top: 72, bottom: 14 } as Inset,
-  /** 640–720: the rail has already moved to the bottom; same box as `.community-page`. */
+  /** 640–720: the rail has already moved to the bottom; the `.sheet.page` middle band. */
   mid: { left: 8, right: 8, top: 120, bottom: 8 } as Inset,
   /** `.sheet-bar`, pinned to a fixed height in the export view so this arithmetic is exact. */
   barH: 54,

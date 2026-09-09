@@ -38,7 +38,8 @@ export interface ImportSummary {
 /** A function of `t` so labels are literal `t('…')` calls. */
 const roleLabel = (t: (s: string) => string): Record<Role, string> =>
   ({ user: t('我说的'), char: t('角色说的'), system: '' });
-/** The `system` kind is not offered here: it is always 0 words in practice. It is still detected and filtered in core. */
+/** The `system` kind (persona/card names, ENTITY_LABEL: 角色名) has no toggle here — it is never in the cloud
+ *  and can carry real counts (a character's own name recurs often); it is still detected and filtered in core. */
 /** Import uses the ops buckets; the 44 fine kinds stay in the filter panel's 「详细」 view. */
 
 /** Rough tokenization time estimate: ~40k chars/s locally; with a model, ~3 s per chunk, `concurrency` chunks in parallel. */

@@ -47,7 +47,7 @@ export const ENTITY_LABEL: Record<EntityKind, string> = {
   person: zh('人物'),
   time: zh('时间'),
   place: zh('地点'),
-  system: zh('系统'),
+  system: zh('角色名'),
   plain: zh('其他'),
   generic: zh('常见词'),
   brand: zh('品牌'),

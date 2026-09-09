@@ -1,4 +1,5 @@
 /** One file per panel. New panels: add the file, export it here, register the id in App's PanelId. */
+export { ModePanel } from './ModePanel';
 export { ThemePanel } from './ThemePanel';
 export { FontPanel } from './FontPanel';
 export { FilterPanel } from './FilterPanel';

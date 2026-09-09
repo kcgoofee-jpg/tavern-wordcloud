@@ -7,10 +7,24 @@
 :root {
   --cloud-left-column: var(--inset-left);
   --cloud-left-column-wide: var(--inset-left);
+  /* ---------- The first screen (sample cloud) has no rail (2026-09-08) ----------
+     Only the bottom-left dock and the top-right cluster are drawn there, so the cloud runs
+     out to the viewport edge on the left and starts just under the round buttons. Both are
+     read by CloudCanvas through `layoutKey === 'sample'`; the narrow-screen path is
+     unaffected (it never reads these tokens). */
+  --cloud-left-sample: var(--edge);
+  --cloud-top-sample: var(--quick-bottom);
 }
 @media (min-width: 1024px) {
   :root {
     --cloud-left-column: calc(var(--inset-left) + var(--panel-w) + var(--panel-gap));
     --cloud-left-column-wide: calc(var(--inset-left) + var(--panel-w-wide) + var(--panel-gap));
+  }
+}
+/* The wide panels are 440px between 1024 and 1280 (03-sheet.css); the band the words get has
+   to follow, or the cloud lays out against a column that is not there. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  :root {
+    --cloud-left-column-wide: calc(var(--inset-left) + var(--panel-w-wide-mid) + var(--panel-gap));
   }
 }
