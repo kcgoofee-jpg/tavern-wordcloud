@@ -107,20 +107,20 @@ const EN: Record<string, string> = {
   '导出 · 分享': 'Export & share',
   '回到词云': 'Back to the cloud',
   '导出': 'Export',
-  '读到 {n} 条正则规则，会用来清洗这份记录': 'Loaded {n} regex rules; they will be used for cleaning',
+  '读到 {n} 条正则规则，会用来清洗这份记录': 'Loaded {n, plural, one {# regex rule} other {# regex rules}}; they will be used for cleaning',
   '认不出格式：需要 .jsonl / .json / .txt、整包 .zip、正则脚本 .json，或本站导出的词云 .png': 'Unrecognized format: expected .jsonl / .json / .txt, a full export .zip, a regex script .json, or a PNG exported from this site',
   '没有可用的样本：先导入角色说过话的记录': 'No samples: import a log with character messages first',
   '模型没有给出可用的规则': 'The model returned no usable rules',
-  '加了 {n} 条模型写的清洗规则': 'Added {n} model-written cleaning rules',
+  '加了 {n} 条模型写的清洗规则': 'Added {n, plural, one {# model-written cleaning rule} other {# model-written cleaning rules}}',
   '正在写规则…': 'Writing rules…',
   '让模型为这份记录写清洗规则': 'Have the model write cleaning rules for this log',
   '让模型分类': 'Have the model sort words into kinds',
   '正在分类…': 'Sorting…',
   '只把词表发给上面的接口，不发聊天正文': 'Sends only the word list to the endpoint above — never the chat text',
-  '将发送 {n} 个词，约 {m} 字符，不含聊天正文': 'Sending {n} words, about {m} characters — no chat text',
-  '已标注 {n} 个词，去「检查」面板可以逐个改': 'Sorted {n} words into kinds — open the Review panel to change any of them',
+  '将发送 {n} 个词，约 {m} 字符，不含聊天正文': 'Sending {n, plural, one {# word} other {# words}}, about {m, plural, one {# character} other {# characters}} — no chat text',
+  '已标注 {n} 个词，去「检查」面板可以逐个改': 'Sorted {n, plural, one {# word} other {# words}} into kinds — open the Review panel to change any of them',
   '从这份记录里挑最多 5 条原文，发给你在上面填的那个接口，请它写出正则来删掉状态栏、变量块这类非剧情内容。网页版为绕开跨域会经本站中转，中转不保存内容；单文件版直连。写回来的每条规则都先在样本上跑过，确认只删掉该删的才会加进来。': 'Takes up to 5 raw messages from this log and sends them to the endpoint you filled in above, asking for regexes that strip status bars, variable blocks and other non-story content. On the web edition they pass through this site\u2019s relay to get around CORS; the relay stores nothing. The single-file edition connects directly. Every rule that comes back is run against the samples first, and is kept only if it removes what it claims to.',
-  '已加载 {n} 条正则规则（来自导入的正则脚本、整包或模型）': '{n} regex rules loaded (from imported scripts, a full export, or the model)',
+  '已加载 {n} 条正则规则（来自导入的正则脚本、整包或模型）': '{n, plural, one {# regex rule} other {# regex rules}} loaded (from imported scripts, a full export, or the model)',
   '清除': 'Clear',
   '连不上站点接口': 'Cannot reach the site API',
   '这份记录要上传到服务器处理，但 /api 被拦截了，通常是浏览器扩展（广告拦截）或网络过滤。关掉拦截后会自动继续。': 'This log is processed on the server, but /api is blocked, usually by a browser extension (ad blocker) or a network filter. It continues automatically once the blocker is off.',
@@ -225,7 +225,7 @@ const EN: Record<string, string> = {
   '正常叙事里也常见，或只含一个敏感字，可能误判': 'Also common in ordinary narration, or contains just one sensitive character — may be a false positive',
   '露骨词类别。在「筛选」里决定这一类算不算露骨': 'Explicit-word category. Decide in “Filters” whether this category counts',
   '（被它们过滤掉的词会回到词云）': '(the words they removed come back)',
-  '禁词表过滤了 {n} 个词': 'Blocklist removed {n} words',
+  '禁词表过滤了 {n} 个词': 'Blocklist removed {n, plural, one {# word} other {# words}}',
   '社区排行榜只在网页版有：它要从服务器取所有人的统计。': 'The community board exists only on the web edition: it pulls everyone’s stats from the server.',
   '社区数据暂时取不到，稍后再试。': 'Community data is unavailable right now; try again later.',
   '匿名统计（高频词、条数字数，不含正文、不含角色卡名）会计入社区排行榜。请仅在您有权分享这份记录的统计时参与；不想参与，在「社区排行榜」面板里关掉。': 'Anonymous statistics (frequent words, message and character counts; no text, no card names) feed the community board. Take part only if you are entitled to share statistics of this log; opt out in the “Community board” panel.',
@@ -250,16 +250,16 @@ const EN: Record<string, string> = {
   '次打开': 'page views',
   '次分析': 'analyses',
   '人贡献了统计': 'people contributed stats',
-  '共 {n} 份 · {m} 万字': '{n} contributions · {m} characters',
+  '共 {n} 份 · {m} 万字': '{n, plural, one {# contribution} other {# contributions}} · {m, plural, one {# character} other {# characters}}',
   '总词云': 'Combined cloud',
-  '画布上暂时没有词：一个词要有至少 {n} 个不同的人都用过才会出现': 'Nothing on the canvas yet: a word appears only once at least {n} different people have used it',
-  '画布上是 {n} 个词，每个都至少 {m} 个人用过；字号是所有人加起来的次数': '{n} words on the canvas, each used by at least {m} people; size is everyone’s counts added up',
+  '画布上暂时没有词：一个词要有至少 {n} 个不同的人都用过才会出现': 'Nothing on the canvas yet: a word appears only once at least {n, plural, one {# different person has} other {# different people have}} used it',
+  '画布上是 {n} 个词，每个都至少 {m} 个人用过；字号是所有人加起来的次数': '{n, plural, one {# word} other {# words}} on the canvas, each used by at least {m, plural, one {# person} other {# people}}; size is everyone’s counts added up',
   '我的参与': 'My contribution',
   '模型榜': 'Model board',
-  '{n} 份': '{n} uses',
+  '{n} 份': '{n, plural, one {# use} other {# uses}}',
   '95% {a}–{b}%': '95% CI {a}–{b}%',
-  '还没有足够的人填过模型名：一个模型要有至少 {n} 个不同的人用过才会具名上榜，其余并进「其他」。': 'Not enough people have named a model yet: a model is listed by name only once at least {n} different people have used it; the rest are merged into “Other”.',
-  '按贡献份数排名；括号里是 95% 置信区间（Wilson）。少于 {n} 人用过的模型并进「其他」，不具名。': 'Ranked by number of contributions; the figures in brackets are 95% Wilson confidence intervals. Models used by fewer than {n} people are merged into “Other” and never named.',
+  '还没有足够的人填过模型名：一个模型要有至少 {n} 个不同的人用过才会具名上榜，其余并进「其他」。': 'Not enough people have named a model yet: a model is listed by name only once at least {n, plural, one {# different person has} other {# different people have}} used it; the rest are merged into “Other”.',
+  '按贡献份数排名；括号里是 95% 置信区间（Wilson）。少于 {n} 人用过的模型并进「其他」，不具名。': 'Ranked by number of contributions; the figures in brackets are 95% Wilson confidence intervals. Models used by fewer than {n, plural, one {# person} other {# people}} are merged into “Other” and never named.',
   '生成耗时中位数 {s} 秒': 'Median generation time {s}s',
   '接口类型': 'Endpoint type',
   '只记地址的粗类，不记地址本身。': 'Only the class of the address is recorded, never the address itself.',
@@ -284,8 +284,8 @@ const EN: Record<string, string> = {
   '带角色卡': 'with character cards',
   '带世界书': 'with world info',
   '带预设': 'with a preset',
-  '只统计数量，不记录任何卡名、预设名或世界书名。共 {n} 份。': 'Counts only; no card, preset or world-info name is recorded. {n} contributions.',
-  '平均每份 {c} 张卡 · {w} 本世界书': '{c} cards and {w} world-info books per contribution on average',
+  '只统计数量，不记录任何卡名、预设名或世界书名。共 {n} 份。': 'Counts only; no card, preset or world-info name is recorded. {n, plural, one {# contribution} other {# contributions}}.',
+  '平均每份 {c} 张卡 · {w} 本世界书': '{c, plural, one {# card} other {# cards}} and {w, plural, one {# world-info book} other {# world-info books}} per contribution on average',
   '作者自己提交、站长核对过的卡名；不显示链接，也不显示是谁提交的。': 'Card names submitted by their authors and checked by the operator. No links, no submitters.',
   '把我的匿名统计贡献给排行榜': 'Contribute my anonymous stats to the board',
   '只发前 100 个词及次数、条数和字数；不发正文、不发角色卡名、不存 IP。请仅在您有权分享这份记录的统计时参与。': 'Sends only the top 100 words with counts, message and character counts; no text, no card names, no IP. Take part only if you are entitled to share statistics of this log.',
@@ -313,7 +313,7 @@ const EN: Record<string, string> = {
   '没找到「{w}」的上下文': 'No context found for “{w}”',
   '提交反馈：这个词和下面的片段会发给站方，由 AI 处理后更新清洗规则。': 'Send feedback: this word and the snippets below go to the operator, and an AI uses them to update the cleaning rules.',
   '已发送，谢谢': 'Sent, thank you',
-  '你自己说的话只有 {n} 条，出不了几个词': 'You wrote only {n} messages — not enough for a cloud',
+  '你自己说的话只有 {n} 条，出不了几个词': 'You wrote only {n, plural, one {# message} other {# messages}} — not enough for a cloud',
   '现在只统计「我说的」。把角色说的也算进来，词云就有内容了。': 'Right now only your messages count. Include the character’s and the cloud fills in.',
   '加上角色说的': 'Include the character',
   '默认分词': 'Default tokenizer',
@@ -343,7 +343,7 @@ const EN: Record<string, string> = {
   '拆开的词': 'words you split apart, display names and forced rotations',
   '接口地址、模型、密钥和关键词个数': 'endpoint, model, key and keyword count',
   '提交反馈': 'Send feedback',
-  '将发送 {n} 字': 'Will send {n} characters',
+  '将发送 {n} 字': 'Will send {n, plural, one {# character} other {# characters}}',
   '模型为什么挑这些词': 'Why the model picked these words',
   '说明': 'What is this?',
   '收起说明': 'Hide',
@@ -381,8 +381,8 @@ const EN: Record<string, string> = {
   '万字': 'characters',
   '本世界书': 'world-info files',
   '其中的 {n} 个关键词将用作专名词典': '{n} of its keywords will be used as a proper-noun dictionary',
-  '这张卡有你之前保存的 {n} 条修正，已自动套用。': 'This card has {n} fixes you saved before — applied automatically.',
-  '有一张同名的卡保存过 {n} 条修正，已先套用；如果不是同一张卡，可以撤销。': 'A card with the same name has {n} saved fixes — applied for now; undo them if this is a different card.',
+  '这张卡有你之前保存的 {n} 条修正，已自动套用。': 'This card has {n, plural, one {# fix} other {# fixes}} you saved before — applied automatically.',
+  '有一张同名的卡保存过 {n} 条修正，已先套用；如果不是同一张卡，可以撤销。': 'A card with the same name has {n, plural, one {# saved fix} other {# saved fixes}} — applied for now; undo them if this is a different card.',
   '撤销本次套用': 'Undo this',
   '预设': 'Preset',
   '这个包里没有世界书': 'No world info in this export',
@@ -519,7 +519,7 @@ const EN: Record<string, string> = {
   '只挑出 {got} 个（要的是 {want}）': 'Only {got} of the {want} requested made it through',
   '模型编出来的词（原文里没有）已剔除。换个模型通常好些。': 'Words the model invented (absent from the text) were dropped. Another model usually does better.',
   '让 {model} 读完整份聊天挑词': 'Let {model} read the whole log and pick the words',
-  '{w} 万字 · 一次请求 · 大约要等 1~5 分钟': '{w} characters · one request · roughly 1–5 minutes',
+  '{w} 万字 · 一次请求 · 大约要等 1~5 分钟': '{w, plural, one {# character} other {# characters}} · one request · roughly 1–5 minutes',
   '词云二维码.png': 'wordcloud-qr.png',
   '词云模式': 'Cloud mode',
   '接口与密钥': 'Endpoint & key',
@@ -528,14 +528,14 @@ const EN: Record<string, string> = {
   '关键词模式：让大模型读完整份聊天挑词': 'Keyword mode: a model reads the whole log and picks the words',
   '词频模式：本地统计词频': 'Frequency mode: counted locally',
   '（来自整包 .zip）': ' (from a full .zip export)',
-  '，{msgs} 条消息、{w} 万字': ', {msgs} messages, {w} characters',
+  '，{msgs} 条消息、{w} 万字': ', {msgs, plural, one {# message} other {# messages}}, {w, plural, one {# character} other {# characters}}',
   '（没填）': '(not set)',
   '已填': ' set',
   '没填': ' not set',
   '【原始信息】': '[RAW]',
   '用 {name} 的地址填上面': 'Fill in {name}’s address above',
   '还没有带角色卡或世界书的记录。': 'No contribution has included a character card or world info yet.',
-  '这一小时已经分析了 {n} 次，约 {m} 分钟后可以继续；本地版没有次数限制。': 'That is {n} analyses this hour; the limit frees up in about {m} minutes. The local edition has no limit.',
+  '这一小时已经分析了 {n} 次，约 {m} 分钟后可以继续；本地版没有次数限制。': 'That is {n, plural, one {# analysis} other {# analyses}} this hour; the limit frees up in about {m, plural, one {# minute} other {# minutes}}. The local edition has no limit.',
   '下载本地版可以立刻继续，而且不用上传。': 'The local edition works right away and uploads nothing.',
   '还没填接口地址——点一下去配': 'No endpoint URL yet — click to set it up',
   '还没选模型——点一下去配': 'No model chosen yet — click to set it up',
@@ -551,7 +551,7 @@ const EN: Record<string, string> = {
   '成人向文本会被有审核的模型拒收，接口本身没坏。换一家不做内容审核的接口（如 DeepSeek 直连、OpenRouter 上的开源模型、本地 Ollama），或只用不需要发正文的功能。': 'Adult text is refused by moderated models; the endpoint itself works. Use an unmoderated endpoint (DeepSeek directly, an open model on OpenRouter, a local Ollama), or stick to features that do not send the text.',
   '（没有更多信息）': '(nothing further)',
   '【在做什么】{what}': '[DOING] {what}',
-  '【读入】{n} 个文件{zip}{stat}': '[LOADED] {n} file(s){zip}{stat}',
+  '【读入】{n} 个文件{zip}{stat}': '[LOADED] {n, plural, one {# file} other {# files}}{zip}{stat}',
   '【接口】{host} · 模型 {model} · 密钥{key}': '[ENDPOINT] {host} · model {model} · key{key}',
   '【环境】{ua}': '[ENV] {ua}',
   '【页面】{url}': '[PAGE] {url}',
@@ -559,33 +559,33 @@ const EN: Record<string, string> = {
   '【背景】酒馆词云（tavern-wordcloud）：读 SillyTavern 导出的聊天记录，分词后画词云。网页版正文上传到服务器处理、处理完即丢；「大模型分词/关键词」走用户自己填的接口。':
     'Background: Tavern WordCloud reads SillyTavern chat exports, tokenizes them and draws a word cloud. The web edition uploads the text to the server for processing and discards it afterwards; model tokenizing / keywords call the endpoint the user configured.',
   '还是默认值': 'Already at defaults',
-  '统计了 {kept} 条消息，共 {all} 条': '{kept} of {all} messages counted',
+  '统计了 {kept} 条消息，共 {all} 条': '{kept} of {all, plural, one {# message} other {# messages}} counted',
   '清洗掉的插件内容占原文的比例': 'Share of the raw text removed as plugin output',
-  '{n} 个不重复词': '{n} distinct words',
+  '{n} 个不重复词': '{n, plural, one {# distinct word} other {# distinct words}}',
   '清洗 {p}%': '{p}% cleaned',
-  '{u} 词': '{u} words',
-  '二维码带了 {n} 个词，扫码即得同一张图': 'The QR code carries {n} words; scanning opens the same cloud',
+  '{u} 词': '{u, plural, one {# word} other {# words}}',
+  '二维码带了 {n} 个词，扫码即得同一张图': 'The QR code carries {n, plural, one {# word} other {# words}}; scanning opens the same cloud',
   '词太多，二维码只编了网址': 'Too many words; the QR code holds only the URL',
   '二维码只带了高频词': 'The QR code carries only the top words',
-  '{books} 本 · {words} 个词已用作词典': '{books} books · {words} words used as a dictionary',
+  '{books} 本 · {words} 个词已用作词典': '{books, plural, one {# book} other {# books}} · {words, plural, one {# word} other {# words}} used as a dictionary',
   '本聊天用的': 'Used by this chat',
   '{all} 条（我 {mine} · 角色 {theirs}）': '{all} ({mine} mine · {theirs} character)',
   '{raw}k → 清洗后 {clean}k': '{raw}k → {clean}k after cleaning',
   '{pct}% 的回复': '{pct}% of replies',
   '{sec} 秒': '{sec} s',
-  '{name} · {msgs} 条 · {files} 个聊天': '{name} · {msgs} messages · {files} chats',
-  '{msgs} 条 · {files} 个': '{msgs} msgs · {files} files',
+  '{name} · {msgs} 条 · {files} 个聊天': '{name} · {msgs, plural, one {# message} other {# messages}} · {files, plural, one {# chat} other {# chats}}',
+  '{msgs} 条 · {files} 个': '{msgs, plural, one {# msg} other {# msgs}} · {files, plural, one {# file} other {# files}}',
   '各聊天文件的消息数': 'Messages per chat file',
-  '{n} 条': '{n} msgs',
-  '原文 {raw} 字，清洗后 {clean} 字': '{raw} characters raw, {clean} after cleaning',
-  '约 {n} 分钟（{c} 次请求）': 'about {n} min ({c} requests)',
-  '约 {n} 秒（{c} 次请求）': 'about {n} s ({c} requests)',
+  '{n} 条': '{n, plural, one {# msg} other {# msgs}}',
+  '原文 {raw} 字，清洗后 {clean} 字': '{raw, plural, one {# character} other {# characters}} raw, {clean} after cleaning',
+  '约 {n} 分钟（{c} 次请求）': 'about {n} min ({c, plural, one {# request} other {# requests}})',
+  '约 {n} 秒（{c} 次请求）': 'about {n} s ({c, plural, one {# request} other {# requests}})',
   '约 {n} 秒': 'about {n} s',
   '人名频率远高于其他词，嫌挤就关掉': 'Names dwarf every other word; turn them off if the cloud feels crowded',
   '实验，可能有误判': 'Experimental; may be wrong',
   '大模型（{model}）': 'A model ({model})',
   '⚠ 正文会分成 {times} 块发到 {host}（每块 {chunk} 字）。仅用于分词，本站不留存。':
-    '⚠ The text goes to {host} in {times} chunks of {chunk} characters. Tokenizing only — this site keeps nothing.',
+    '⚠ The text goes to {host} in {times, plural, one {# chunk} other {# chunks}} of {chunk, plural, one {# character} other {# characters}}. Tokenizing only — this site keeps nothing.',
   '挑一个颜色': 'Pick a color',
   '词': 'Words',
   '最少几个字': 'Minimum length',
@@ -733,7 +733,7 @@ const EN: Record<string, string> = {
   '更多类别': 'More kinds',
   '(未知)': '(unknown)',
   '(未知角色卡)': '(unknown card)',
-  '{n} 张角色卡': '{n} character cards',
+  '{n} 张角色卡': '{n, plural, one {# character card} other {# character cards}}',
 
   // Theme names and one-line notes
   '彩色': 'Colorful',
@@ -759,7 +759,7 @@ const EN: Record<string, string> = {
   // Parse / bundle warnings and progress
   '文件是空的': 'The file is empty',
   '认不出格式，既不是 JSON 也不是 JSONL。确认这是聊天记录文件？': 'Unrecognized format — neither JSON nor JSONL. Is this a chat log?',
-  '有 {n} 行不是合法 JSON，已跳过': '{n} lines were not valid JSON and were skipped',
+  '有 {n} 行不是合法 JSON，已跳过': '{n, plural, one {# line was not valid JSON and was skipped} other {# lines were not valid JSON and were skipped}}',
   '解析成功但一条消息都没有（确认这是聊天记录，不是角色卡或世界书？）': 'Parsed, but no messages inside — is this a chat log, not a character card or world info?',
   '认不出纯文本聊天记录的格式（应该是「说话人: 正文」）': 'Unrecognized plain-text chat format (expected “speaker: text”)',
   '这是纯文本导出，只有正文——没有时间、模型、重生记录，发言人身份是猜的。想要完整统计请导出 .jsonl': 'Plain-text export: text only — no timestamps, models or rerolls, and speakers are guessed. Export .jsonl for full stats',
@@ -767,12 +767,12 @@ const EN: Record<string, string> = {
   '读取完成': 'Read',
   '已用 {s} 秒': '{s} s elapsed',
   '开始解压 {mb} MB': 'Unzipping {mb} MB',
-  '解压出 {n} 个文件': 'Unzipped {n} files',
+  '解压出 {n} 个文件': 'Unzipped {n, plural, one {# file} other {# files}}',
   '单个文件超过 64 MB，跳过': 'a file exceeds 64 MB — skipped',
   '包里的文件加起来超过 256 MB，后面的跳过': 'the archive exceeds 256 MB in total — the rest was skipped',
   '解压失败：{msg}': 'Unzip failed: {msg}',
   'settings.json 解析失败，拿不到预设名': 'settings.json failed to parse; the preset name is unavailable',
-  '{chats} 份聊天 · {worlds} 本世界书 · {cards} 张角色卡': '{chats} chats · {worlds} world-info files · {cards} character cards',
+  '{chats} 份聊天 · {worlds} 本世界书 · {cards} 张角色卡': '{chats, plural, one {# chat} other {# chats}} · {worlds, plural, one {# world-info file} other {# world-info files}} · {cards, plural, one {# character card} other {# character cards}}',
   '这个压缩包里没找到聊天记录（应该在 chats/<角色卡名>/ 下）': 'No chat logs found in this archive (expected under chats/<card name>/)',
 
   // Worker / server progress
@@ -783,12 +783,12 @@ const EN: Record<string, string> = {
   '已用 {t} · {rate} 块/秒 · 约剩 {left}': '{t} elapsed · {rate} chunks/s · about {left} left',
   '先做一遍本地统计': 'Counting locally first',
   '字号要用真实频次，所以先在本地数一遍——模型不数数': 'Font sizes need real frequencies, so a local count runs first — the model does not count',
-  '本地统计好了：{n} 个不重复词': 'Local count done: {n} distinct words',
+  '本地统计好了：{n} 个不重复词': 'Local count done: {n, plural, one {# distinct word} other {# distinct words}}',
   '正在让 {model} 读完整份聊天': '{model} is reading the whole log',
-  '开始：{model} · 送出 {w} 万字 · 要 {n} 个词': 'Started: {model} · sending {w} characters · asking for {n} words',
+  '开始：{model} · 送出 {w} 万字 · 要 {n} 个词': 'Started: {model} · sending {w, plural, one {# character} other {# characters}} · asking for {n, plural, one {# word} other {# words}}',
   '模型开始思考': 'The model started thinking',
   '模型开始吐词': 'The model started answering',
-  '已用 {t} · 模型在思考（{n} 字）': '{t} elapsed · model thinking ({n} chars)',
+  '已用 {t} · 模型在思考（{n} 字）': '{t} elapsed · model thinking ({n, plural, one {# char} other {# chars}})',
   '已用 {t} · 等模型开口': '{t} elapsed · waiting for the model',
   '已停止': 'Stopped',
   '挑词失败': 'Keyword picking failed',
@@ -796,17 +796,17 @@ const EN: Record<string, string> = {
   '失败：{msg}': 'Failed: {msg}',
   '挑词失败：{msg}': 'Keyword picking failed: {msg}',
   '挑词完成': 'Keywords picked',
-  '拿到 {n} 个词 · 用时 {t} · 送出 {tok} token': 'Got {n} words · took {t} · sent {tok} tokens',
-  '拿到 {n} 个词 · 用时 {t}': 'Got {n} words · took {t}',
+  '拿到 {n} 个词 · 用时 {t} · 送出 {tok} token': 'Got {n, plural, one {# word} other {# words}} · took {t} · sent {tok, plural, one {# token} other {# tokens}}',
+  '拿到 {n} 个词 · 用时 {t}': 'Got {n, plural, one {# word} other {# words}} · took {t}',
   '大模型分词 {done}/{total} 块': 'Model tokenizing, chunk {done}/{total}',
   '正在发出第一批请求…': 'Sending the first requests…',
-  '开始：{model} · 共 {n} 块 · 同时发 {c} 个': 'Started: {model} · {n} chunks · {c} at a time',
+  '开始：{model} · 共 {n} 块 · 同时发 {c} 个': 'Started: {model} · {n, plural, one {# chunk} other {# chunks}} · {c} at a time',
   '第 {n} 块退回本地：{err}': 'Chunk {n} fell back to local: {err}',
   '未知原因': 'unknown reason',
   '第 {n} 条整条退回本地：{err}': 'Message {n} fell back to local entirely: {err}',
   '大模型分词完成': 'Model tokenizing done',
-  '共 {f}/{n} 块退回了本地分词': '{f} of {n} chunks fell back to local tokenizing',
-  '开始解析 {n} 个文件': 'Parsing {n} files',
+  '共 {f}/{n} 块退回了本地分词': '{f} of {n, plural, one {# chunk} other {# chunks}} fell back to local tokenizing',
+  '开始解析 {n} 个文件': 'Parsing {n, plural, one {# file} other {# files}}',
   '正在分词 {done}/{total} 千字': 'Tokenizing {done}k/{total}k characters',
   '正在汇总': 'Summarizing',
   '正在分词 {done}/{total} 条': 'Tokenizing message {done} of {total}',
@@ -815,7 +815,7 @@ const EN: Record<string, string> = {
   '服务器收到了，正在解析': 'The server has it — parsing',
   '大文件要多等一会儿，进度会一直走': 'Big files take a while — the progress bar keeps moving',
   '完成': 'Done',
-  '{msgs} 条消息 · {w} 万字 · {u} 个不重复词 · 用时 {ms} ms': '{msgs} messages · {w} characters · {u} distinct words · {ms} ms',
+  '{msgs} 条消息 · {w} 万字 · {u} 个不重复词 · 用时 {ms} ms': '{msgs, plural, one {# message} other {# messages}} · {w, plural, one {# character} other {# characters}} · {u, plural, one {# distinct word} other {# distinct words}} · {ms} ms',
 
   // Error classification (core/errors.ts)
   '这个文件不像酒馆的聊天记录': 'This file does not look like a SillyTavern chat log',
@@ -884,9 +884,9 @@ const EN: Record<string, string> = {
   '分词和挑词都走这个接口': 'Use this endpoint for tokenizing and keyword picking',
   '把「{w}」改到别的类': 'Move “{w}” to another kind',
   '取消改动': 'Undo',
-  '恢复 {n} 个词的原分类': 'Restore the original kind of {n} words',
+  '恢复 {n} 个词的原分类': 'Restore the original kind of {n, plural, one {# word} other {# words}}',
   '导出多少词': 'Words to export',
-  '{n} 个': '{n} words',
+  '{n} 个': '{n, plural, one {# word} other {# words}}',
   '按次数从高到低，最多 {n} 个（统计到 {all} 个）': 'Most frequent first, up to {n} of the {all} counted',
   '网站正在维护，服务器暂时不能分析。下载本地版可以在自己电脑上算，功能一样。': 'The site is under maintenance, so the server cannot analyze anything right now. The local edition does the same work on your own machine.',
   '网页版上限 {cap} MB，这份传上去有 {size} MB。上限按序列化后真正发出去的字节算，不是文件在硬盘上显示的大小。下载本地版可以在你自己的电脑上算，多大都行。': 'The web edition accepts {cap} MB and this one would upload as {size} MB. The limit counts the bytes actually sent after serialization, not the file size shown on disk. The local edition runs on your own computer with no size limit.',
@@ -923,11 +923,36 @@ export function detectLang(): Lang {
 }
 
 /**
+ * `{n, plural, one {# chat log} other {# chat logs}}` — the whole plural syntax
+ * the dictionary may use. Only `one` and `other`; a branch may hold `{name}`
+ * placeholders, which `fill()` resolves afterwards.
+ */
+const PLURAL = /\{(\w+),\s*plural,\s*one\s*\{((?:[^{}]|\{\w+\})*)\}\s*other\s*\{((?:[^{}]|\{\w+\})*)\}\s*\}/g;
+
+/**
+ * Expand the plural blocks of a template. Chinese has no plural, so only the
+ * English table carries them; `#` becomes the count. The count is 1 → `one`,
+ * anything else → `other`, zero included ("0 chat logs"). A count that is not a
+ * number (a formatted "52k") takes `other` and prints as it was passed; an
+ * unknown one leaves the block alone, the way fill() leaves `{x}` alone.
+ */
+function plural(tpl: string, vars?: Record<string, string | number>): string {
+  return tpl.replace(PLURAL, (m, name: string, one: string, other: string) => {
+    const v = vars?.[name];
+    if (v === undefined) return m;
+    return (Number(v) === 1 ? one : other).replace(/#/g, String(v));
+  });
+}
+
+/**
  * Translate. Unknown keys return the Chinese text. Placeholders use `{name}`;
- * the key must be a string literal so the i18n test can find it.
+ * the key must be a string literal so the i18n test can find it. English values
+ * that count something also use the plural form above, so "1 chat log" and
+ * "2 chat logs" both read right; test/i18n-english.test.ts scans for the ones
+ * that forgot.
  */
 export function translate(lang: Lang, zh: string, vars?: Record<string, string | number>): string {
-  return fill(TABLES[lang][zh] ?? zh, vars);
+  return fill(plural(TABLES[lang][zh] ?? zh, vars), vars);
 }
 
 /** Keys of the English table, for tests. */

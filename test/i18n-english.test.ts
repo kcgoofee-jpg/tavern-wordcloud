@@ -20,7 +20,16 @@ const ENTRIES: [string, string][] = englishKeys().map((k) => [k, translate('en',
 /** Keys with no Chinese in them are proper nouns or format names; English may equal the key. */
 const hasChinese = (s: string) => /[一-鿿]/.test(s);
 
-const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
+/**
+ * `{n, plural, one {…} other {…}}` — the ICU subset translate() understands —
+ * counts as the placeholder `{n}`, and its `other` branch may carry more.
+ */
+const PLURAL = /\{(\w+),\s*plural,\s*one\s*\{((?:[^{}]|\{\w+\})*)\}\s*other\s*\{((?:[^{}]|\{\w+\})*)\}\s*\}/g;
+
+const placeholders = (s: string) => [
+  ...[...s.matchAll(PLURAL)].map((m) => m[1]),
+  ...[...s.replace(PLURAL, (_m, _n, _one, other: string) => other).matchAll(/\{(\w+)\}/g)].map((m) => m[1]),
+].sort();
 
 describe('English copy', () => {
   it('has an entry for every key', () => {
@@ -129,5 +138,96 @@ describe('English copy', () => {
       .toContain('5.2 万字');
     expect(translate('en', '{w} 万字 · 一次请求 · 大约要等 1~5 分钟', { w: '52k' }))
       .toBe('52k characters · one request · roughly 1–5 minutes');
+  });
+
+  /**
+   * Number agreement. Chinese has no plural, so an entry translated by filling in
+   * the English words reads "1 chat logs" the moment the count is one — the whole
+   * table said that until 2026-09-09. English entries whose noun follows a number
+   * therefore write the count with the ICU subset translate() understands:
+   * `{n, plural, one {# chat log} other {# chat logs}}`.
+   *
+   * Every entry that takes a placeholder is rendered twice, with 1 and with 2, and
+   * the two failure shapes are scanned for: a plural noun after "1", and a
+   * singular one after "2".
+   */
+  it('agrees in number with the count it shows', () => {
+    /** Unit abbreviations and rates: "1 ms" is right, "1 m" is not. */
+    const UNITS_AFTER_1 = /\b1 (ms|s|px|vs|min|chunks\/s|k)\b/g;
+    /**
+     * "1 words", and with the adjectives that come between: "1 regex rules".
+     * A preposition or conjunction ends the phrase the number governs — in
+     * "1 of its keywords" or "Sorted 1 word into kinds" the plural belongs to
+     * something else, not to the 1.
+     */
+    const BREAK = 'of|in|into|to|for|on|by|at|from|with|and|or';
+    const PLURAL_AFTER_1 = new RegExp(`\\b1 (?:(?!(?:${BREAK})\\b)[a-z][a-z-]* ){0,2}?([a-z][a-z-]*s|people)\\b`);
+    /** Words ending in -s that are not plurals — "1 changed this session", "1 analysis". */
+    const NOT_A_PLURAL = new Set([
+      'this', 'its', 'is', 'was', 'has', 'does', 'as', 'us', 'less', 'always', 'else', 'analysis',
+    ]);
+    /**
+     * The other direction — "2 chat log" — is only decidable for words the table
+     * itself inflects, so the singular forms come from the plural entries: the
+     * words a one/other pair disagrees on ("rule"/"rules", "person"/"people",
+     * "was"/"were"). Everything else after a number is a unit, an ordinal or a
+     * verb ("2 min", "Chunk 2 fell back", "2 elapsed") and is left alone.
+     */
+    const SINGULARS = new Set<string>();
+    for (const [, v] of ENTRIES) {
+      for (const m of v.matchAll(PLURAL)) {
+        const [one, other] = [m[2].split(' '), m[3].split(' ')];
+        if (one.length !== other.length) continue;
+        one.forEach((w, i) => { if (w !== other[i] && /^[a-z][a-z-]*$/.test(w)) SINGULARS.add(w); });
+      }
+    }
+    // The singular has to end the phrase: in "2 character cards" the head noun is
+    // "cards" and "character" only modifies it.
+    const SINGULAR_AFTER_2 = new RegExp(
+      `\\b2 (?:(?!(?:${BREAK})\\b)[a-z][a-z-]* ){0,2}?(${[...SINGULARS].join('|')})\\b(?![ -][a-z])`,
+    );
+    /** Entries where a singular after the number is deliberate. */
+    const EXEMPT = new Map([
+      ['{all} 条（我 {mine} · 角色 {theirs}）', '“28 character” labels the sender, the way “20 mine” does'],
+    ]);
+
+    const render = (key: string, n: number) =>
+      translate('en', key, Object.fromEntries(placeholders(key).map((p) => [p, n])));
+
+    const pluralAfterOne: string[] = [];
+    const singularAfterTwo: string[] = [];
+    for (const [key] of ENTRIES) {
+      if (!placeholders(key).length) continue;
+      const one = render(key, 1);
+      const hit = PLURAL_AFTER_1.exec(one.replace(UNITS_AFTER_1, ''));
+      if (hit && !NOT_A_PLURAL.has(hit[1])) pluralAfterOne.push(`${key} → ${one}`);
+      const two = render(key, 2);
+      const singular = EXEMPT.has(key) ? null : SINGULAR_AFTER_2.exec(two);
+      if (singular) singularAfterTwo.push(`${key} → ${two}   (2 ${singular[1]})`);
+    }
+    expect(pluralAfterOne).toEqual([]);
+    expect(singularAfterTwo).toEqual([]);
+  });
+
+  it('expands the plural forms translate() accepts', () => {
+    const T = '{n, plural, one {# chat log} other {# chat logs}}';
+    const en = (vars: Record<string, string | number>) => translate('en', T, vars);
+    expect(en({ n: 1 })).toBe('1 chat log');
+    expect(en({ n: 2 })).toBe('2 chat logs');
+    expect(en({ n: 0 })).toBe('0 chat logs');
+    // A formatted count is not 1, so it takes `other` and prints as it was passed.
+    expect(en({ n: '52k' })).toBe('52k chat logs');
+    expect(en({ n: '1' })).toBe('1 chat log');
+    // Several plural blocks in one entry, each on its own count.
+    expect(translate(
+      'en',
+      '{a, plural, one {# card} other {# cards}} and {b, plural, one {# book} other {# books}}',
+      { a: 1, b: 3 },
+    )).toBe('1 card and 3 books');
+    // A placeholder inside a branch is filled afterwards, like any other.
+    expect(translate('en', '{n, plural, one {# fix by {who}} other {# fixes by {who}}}', { n: 2, who: 'Mia' }))
+      .toBe('2 fixes by Mia');
+    // An unknown count leaves the block alone, the way fill() leaves {x} alone.
+    expect(translate('en', T)).toBe(T);
   });
 });
