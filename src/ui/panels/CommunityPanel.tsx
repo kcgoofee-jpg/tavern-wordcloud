@@ -1,8 +1,5 @@
-import { useState } from 'react';
-import { classifyError } from '../../core/errors';
-import { copyText } from '../clipboard';
 import { BUCKET_ORDER, foldCommunityKind } from '../../core/kindBuckets';
-import { tenK, useT, txv } from '../i18n';
+import { tenK, useT } from '../i18n';
 
 /** One leaderboard row: count, share, and the 95% Wilson bounds the server computed. */
 export interface BoardRow { name: string; n: number; share: number; low: number; high: number }
@@ -28,8 +25,6 @@ export interface CommunityStats {
    * the operator publishes it; counts only, never a card / preset / world-book name.
    */
   cardStats?: { reports: number; withCards: number; withWorlds: number; withPreset: number; avgCards: number; avgWorlds: number };
-  /** Card names an approved author claim vouched for. Names only — no links, no submitter. */
-  claimedCards?: string[];
   updated: number;
 }
 
@@ -160,106 +155,6 @@ function Board({ rows, label }: { rows: BoardRow[]; label?: (name: string) => st
   );
 }
 
-/** 16 hex characters, stable for the session so a reopened form keeps the same string. */
-function claimToken(): string {
-  try {
-    const cached = sessionStorage.getItem('wc-claim-token');
-    if (cached && /^[0-9a-f]{16}$/.test(cached)) return cached;
-  } catch { /* storage can be blocked; fall through to a fresh one */ }
-  const bytes = new Uint8Array(8);
-  if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);
-  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
-  const tok = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
-  try { sessionStorage.setItem('wc-claim-token', tok); } catch { /* ignore */ }
-  return tok;
-}
-
-/**
- * Author claim: card name, a public link that proves authorship, and the challenge
- * string this site hands out. No e-mail, no identity — the operator opens the link.
- * The payload is shown before it is sent, like the cleaning-feedback dialog.
- */
-function ClaimForm() {
-  const t = useT();
-  const [open, setOpen] = useState(false);
-  const [token, setToken] = useState('');
-  const [card, setCard] = useState('');
-  const [url, setUrl] = useState('');
-  const [confirming, setConfirming] = useState(false);
-  const [state, setState] = useState<'idle' | 'sent' | 'failed'>('idle');
-  const [failure, setFailure] = useState('');
-  const [copied, setCopied] = useState(false);
-  const toggle = () => {
-    setOpen((v) => {
-      if (!v) setToken(claimToken());
-      return !v;
-    });
-  };
-  /** Translate a rejection through the shared classifier, so a server `code` is worded once. */
-  const fail = (raw: unknown) => {
-    const e = classifyError(raw);
-    setFailure(e.titleTpl ? txv(e.titleTpl) : txv(e.title));
-    setState('failed');
-  };
-  const send = () => {
-    setConfirming(false);
-    fetch('/api/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ card: card.trim(), url: url.trim(), token }) })
-      .then(async (r) => {
-        if (r.ok) { setState('sent'); return; }
-        const body = await r.json().catch(() => ({})) as { code?: string; error?: string };
-        fail(Object.assign(new Error(body.error ?? 'claim failed'), { code: body.code }));
-      })
-      .catch((e: unknown) => fail(e));
-  };
-  return (
-    <div className="claim">
-      <button type="button" className="claim-toggle" aria-expanded={open} title={t('认领我的角色卡')} onClick={toggle}>
-        {t('认领我的角色卡')}
-      </button>
-      {open && (
-        <div className="claim-body">
-          <p className="note">{t('只需要一个公开链接：在您公开发布这张卡的页面里临时加一行下面的校验串，再把该页面链接填进来。不要发邮箱、身份证件、聊天记录或卡文件。')}</p>
-          <label className="claim-field"><span>{t('卡名')}</span>
-            <input type="text" value={card} maxLength={60} onChange={(e) => { setCard(e.target.value); setState('idle'); }} />
-          </label>
-          <label className="claim-field"><span>{t('公开链接')}</span>
-            <input type="url" value={url} maxLength={300} placeholder="https://" onChange={(e) => { setUrl(e.target.value); setState('idle'); }} />
-          </label>
-          {/* The copy button sits outside the label: a label wrapping two controls
-              makes the field ambiguous to assistive tech and to getByLabelText. */}
-          <div className="claim-field">
-            <label htmlFor="claim-token">{t('校验串')}</label>
-            <input id="claim-token" type="text" readOnly value={token} onFocus={(e) => e.currentTarget.select()} />
-            <button type="button" className="claim-copy" title={t('复制')} onClick={() => { void copyText(token).then(setCopied); }}>
-              {copied ? t('已复制') : t('复制')}
-            </button>
-          </div>
-          {confirming ? (
-            <div className="claim-confirm">
-              <p className="note">{t('将发送这三项，别的什么都不发：')}</p>
-              <ul className="claim-preview">
-                <li>{t('卡名')}：{card.trim()}</li>
-                <li>{t('公开链接')}：{url.trim()}</li>
-                <li>{t('校验串')}：{token}</li>
-              </ul>
-              <div className="claim-actions">
-                <button type="button" className="claim-btn" onClick={() => setConfirming(false)}>{t('取消')}</button>
-                <button type="button" className="claim-btn primary" onClick={send}>{t('发送')}</button>
-              </div>
-            </div>
-          ) : (
-            <div className="claim-actions">
-              <button type="button" className="claim-btn primary" disabled={!card.trim() || !url.trim()} onClick={() => setConfirming(true)}>{t('提交认领')}</button>
-            </div>
-          )}
-          {state === 'sent' && <p className="stat-line">{t('已收到，站长核对后加入榜单')}</p>}
-          {state === 'failed' && <p className="note">{failure || t('没发出去，检查一下链接是不是完整的 https 网址')}</p>}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /** Community board: aggregate cloud on the canvas; counts and trend. Words only, each shared by >= N contributors; card names are not collected. */
 export function CommunityPanel({ stats, contribute, setContribute, loading, offline }: {
   stats: CommunityStats | null; contribute: boolean; setContribute: (v: boolean) => void; loading: boolean;
@@ -280,7 +175,6 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
   const median = medianBucket(stats.sizes);
   // A server one deploy behind returns none of the leaderboard fields; render the rest.
   const models = stats.models ?? [], endpoints = stats.endpoints ?? [], kinds = foldKinds(stats.kinds ?? []);
-  const claimed = stats.claimedCards ?? [];
   const cardStats = stats.cardStats;
   return (
     <>
@@ -358,23 +252,12 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
       <p className="note">{t('还没有带角色卡或世界书的记录。')}</p>
       </section>
       ))}
-      {claimed.length > 0 && (
-      <section className="community-sec">
-      <div className="group-label">{t('已认领的角色卡')}</div>
-      <ul className="claimed-cards">
-        {claimed.map((name) => <li key={name}>{name}</li>)}
-      </ul>
-      <p className="note">{t('作者自己提交、站长核对过的卡名；不显示链接，也不显示是谁提交的。')}</p>
-      </section>
-      )}
       <section className="community-sec community-sec-wide">
       <div className="group-label">{t('我的参与')}</div>
       <label className="check">
         <input type="checkbox" checked={contribute} onChange={(e) => setContribute(e.target.checked)} />
         <span>{t('把我的匿名统计贡献给排行榜')}<em>{t('只发前 100 个词及次数、条数和字数；不发正文、不发角色卡名、不存 IP。请仅在您有权分享这份记录的统计时参与。')} <a href="#/privacy">{t('详见《隐私政策》')}</a></em></span>
       </label>
-      <p className="note">{t('榜单只统计词，不显示角色卡名。若您是某张卡的作者、希望它出现在榜单上：请在您公开发布这张卡的页面（角色卡站、频道帖）里临时加一行本站给的校验串，再把该页面链接贴到 issue。只需要公开链接，不要发身份证件、聊天记录或卡文件。')} <a href="https://github.com/kcgoofee-jpg/tavern-wordcloud/issues" target="_blank" rel="noopener noreferrer">{t('GitHub Issues')}</a></p>
-      <ClaimForm />
       </section>
     </>
   );

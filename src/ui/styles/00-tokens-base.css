@@ -54,7 +54,7 @@
   --fg-dim: #6b5c48;
   --accent: #8c6344;
   --r: 16px;
-  --r-sm: 8px;     /* chips and inline buttons; was referenced by 47-claim / 50-kind-groups
+  --r-sm: 8px;     /* chips and inline buttons; was referenced by 50-kind-groups
                       without ever being defined, so those corners resolved to 0 */
   /* One height / radius / border / resting fill for every panel control (input, select,
      button), so the endpoint panel and the filter panel read as the same window.

@@ -37,8 +37,6 @@ You must not submit or generate:
 
 4.2 Cleaning-feedback snippets you expressly confirm may contain fragments of your chat text. Do not submit feedback containing other persons' personal information or unlawful content.
 
-4.3 **Author claims.** By submitting an author claim for a character card, you represent that you are the author of that card or are authorised to act for its author, and that the link you supply is already public and is yours to point at. A claim confers no right: the Operator decides claims at its sole discretion, is under no obligation to decide one or to give reasons, and may reverse an approval at any time. Submitting a false or bad-faith claim is a breach of this Policy. Do not include identity documents, chat logs, or card files in a claim.
-
 ## 5. Enforcement and Complaints
 
 5.1 The Operator may, at its sole discretion, refuse to process any content, block IP addresses, or remove feedback and community data, without prior notice and without stating a reason.

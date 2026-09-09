@@ -2,8 +2,8 @@
  *
  * Every surface the user types into or picks from — the endpoint panel's address and
  * key, the word table's search box, the priority-words textarea, the advanced panel's
- * stop-word and wrong-word boxes, the export sizes and file-name template, the claim
- * form — is drawn here, from the --ctl-* tokens in 00-tokens-base.css. Panels may still
+ * stop-word and wrong-word boxes, the export sizes and file-name template — is drawn
+ * here, from the --ctl-* tokens in 00-tokens-base.css. Panels may still
  * set width / flex / margin / a counter's extra padding; they must NOT restate radius,
  * border, background, height or font-size. A panel that needs a different step of the
  * rhythm re-binds a token on the element (`.word-edit` sets --ctl-h) so there is still

@@ -124,12 +124,10 @@ function Panels() {
   );
 }
 
-/** Renders everything, then opens the two surfaces that only exist after a click. */
+/** Renders everything, then opens the one surface that only exists after a click. */
 async function renderAll() {
   const user = userEvent.setup();
   const view = render(<Panels />);
-  // The claim form (three inputs) is behind its own toggle.
-  await user.click(screen.getByRole('button', { name: '认领我的角色卡' }));
   // The word table's in-place rename editor only exists while a row is being renamed.
   await user.click(screen.getAllByTitle(/在云上显示的字/)[0]);
   return view.container;
@@ -234,10 +232,9 @@ describe('input surfaces', () => {
     for (const kind of ['text', 'url', 'password', 'number', 'color', 'range', 'checkbox', 'search', 'textarea', 'select']) {
       expect([...types], kind).toContain(kind);
     }
-    // More than one panel's worth, and the claim form / rename editor opened.
+    // More than one panel's worth, and the rename editor opened.
     expect(c.querySelectorAll(PAINTED).length).toBeGreaterThan(15);
     expect(c.querySelector('.ai-url')).not.toBeNull();
-    expect(c.querySelector('.claim-field input')).not.toBeNull();
     expect(c.querySelector('.word-edit')).not.toBeNull();
     expect(c.querySelector('.priority-input')).not.toBeNull();
     expect(c.querySelector('.search')).not.toBeNull();

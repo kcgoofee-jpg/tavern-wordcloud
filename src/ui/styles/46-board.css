@@ -1,4 +1,4 @@
-/* ---------- Leaderboards (model board, endpoint mix) and the author-claim form ---------- */
+/* ---------- Leaderboards (model board, endpoint mix) ---------- */
 .board { list-style: none; margin: 4px 0 0; padding: 0; }
 .board-row {
   display: grid; align-items: center; gap: 8px;
@@ -12,4 +12,3 @@
 .board-n { color: var(--fg); white-space: nowrap; }
 .board-n em { font-style: normal; color: var(--fg-dim); margin-left: 6px; }
 .board-ci { color: var(--fg-dim); font-size: var(--t-xs); white-space: nowrap; }
-/* The author-claim form is styled in 47-claim.css (its older duplicate here was deleted, plan A8). */

@@ -14,7 +14,7 @@ Effective date: September 4, 2026 · Last updated: September 5, 2026
 
 1.2 The "Operator" means the individual developer who maintains the Service. The Operator provides the Service in a personal, non-commercial capacity and does not constitute a company, partnership, or other business entity.
 
-1.3 The Service is a **free, non-commercial personal hobby project** that converts chat-log files supplied by the user into word-cloud images and offers optional features including text cleaning, tokenisation, large-language-model (LLM) keyword extraction, anonymous community statistics, a voluntary author-claim procedure for the community board, and export of results.
+1.3 The Service is a **free, non-commercial personal hobby project** that converts chat-log files supplied by the user into word-cloud images and offers optional features including text cleaning, tokenisation, large-language-model (LLM) keyword extraction, anonymous community statistics, and export of results.
 
 1.4 The Service is not commercially registered, licensed, or filed in any jurisdiction and is not directed at users in any particular country or region. **You access the Service entirely on your own initiative** and are solely responsible for determining and bearing the consequences of the lawfulness of your use in your jurisdiction. If the law of your jurisdiction prohibits or restricts the use of such a service, you must not use it.
 

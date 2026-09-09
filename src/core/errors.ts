@@ -108,10 +108,6 @@ const SERVER_CODES: Record<string, { title: string; hint?: string }> = {
   relay_failed: { title: zh('中转失败：{msg}') },
   feedback_limited: { title: zh('今天反馈得够多了，谢谢。') },
   stats_down: { title: zh('统计后台没起来') },
-  claim_limited: { title: zh('今天提交得够多了，明天再来。') },
-  claim_bad_card: { title: zh('卡名不对（最多 60 字）') },
-  claim_bad_url: { title: zh('链接要是完整的 https 网址') },
-  claim_bad_token: { title: zh('校验串不对，回表单里重新取一个') },
 };
 
 /** An error carrying a server code; net/server.ts throws these for coded responses. */

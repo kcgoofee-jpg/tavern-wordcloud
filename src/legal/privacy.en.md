@@ -75,10 +75,6 @@ Your requests necessarily pass through the hosting provider and [Cloudflare](htt
 
 Exported PNG images embed the word list and colour settings; CSV files contain the full word list. Share-link data resides in the URL fragment (after "#") and is never sent to the server. None of these files contain user names, card names, or chat text. **The default file name, however, is built from the character-card name**; the export panel's file-name template lets you change it before saving. Once exported, such files are entirely in your custody.
 
-### 2.10 Author claims (only when you submit one)
-
-If you ask for a character card you wrote to be recognised on the community board, the form sends the card name, the public URL you offer as proof of authorship, the challenge string the site generated for you, and a salted, irreversible hash of your IP address. This record is stored on the server until the Operator decides the claim and is not deleted automatically. Nothing is published while a claim is pending; if the Operator approves it, **the card name is published** on the community board as a claimed card. The URL you supply is a page you have already made public. Do not submit identity documents, chat logs, or card files.
-
 ## 3. What the Operator Does Not Do
 
 - Sell, rent, or otherwise commercialise any data. The Service carries no advertising and connects to no advertising network.
