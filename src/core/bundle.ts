@@ -45,17 +45,30 @@ export interface DataBundle {
   activeCharacter?: string;
   /** Main API type, e.g. openai. */
   mainApi?: string;
-  /** Number of character-card PNGs. */
+  /** Number of character-card PNGs, whether or not the `chara` block inside them could be read. */
   characterCards: number;
+  /**
+   * Of `characterCards`, how many actually had a parseable `chara` block (base64 decoded and
+   * `JSON.parse`d without throwing). The import dialog's "N character cards" is this number,
+   * not `characterCards` — a PNG that decoded to nothing is not a card the tool can use.
+   */
+  readableCards: number;
   /** Regex scripts from settings.json and character cards, as cleaning rules. */
   regexScripts: CleanRule[];
   /**
-   * Where `chats` came from. `backups` means `chats/` held no .jsonl at all and the
-   * rolling snapshots under `backups/` were used instead — the UI says so, because
-   * a snapshot can be older than the live chat.
+   * Where `chats` came from, per character:
+   *   'chats'   every character's chats came from chats/<character>/*.jsonl
+   *   'backups' chats/ held no .jsonl at all; every character's chats are its newest
+   *             backups/ snapshot
+   *   'mixed'   some characters had live .jsonl, others (present only in backups/) were
+   *             filled in from their newest snapshot there
+   * The UI says so, because a snapshot can be older than the live chat it stands in for.
    */
-  source: 'chats' | 'backups';
-  /** Only meaningful for `source: 'backups'`: snapshots kept (one per chat) and older ones dropped. */
+  source: 'chats' | 'backups' | 'mixed';
+  /**
+   * Snapshots kept (one per character pulled from backups/) and older snapshots of the
+   * same characters dropped. Zero/zero when `source` is `'chats'`.
+   */
   backupsDeduped: { kept: number; dropped: number };
   warnings: UserText[];
 }
@@ -93,6 +106,8 @@ const norm = (p: string) => p.replace(/\\/g, '/');
 
 /** A chat where SillyTavern normally writes it. Same shape the reading loop below matches. */
 const CHAT_RE = /(?:^|\/)chats\/[^/]+\/[^/]+\.jsonl$/i;
+/** Same as CHAT_RE, capturing the character folder name — used to find which characters have live chats. */
+const CHAT_DIR_RE = /(?:^|\/)chats\/([^/]+)\/[^/]+\.jsonl$/i;
 const GROUP_CHAT_RE = /(?:^|\/)group chats\/[^/]+\.jsonl$/i;
 const BACKUP_RE = /(?:^|\/)backups\/(?:[^/]+\/)*[^/]+\.jsonl$/i;
 const WORLD_RE = /(?:^|\/)worlds\/[^/]+\.json$/i;
@@ -131,6 +146,12 @@ const BACKUP_NAME = /^chat_(.+)_(\d{8}-\d{6})\.jsonl$/i;
 /** The transform SillyTavern applies to a folder name before putting it in a backup file name. */
 const sanitizeCardName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
+/** A backup file's group key: the sanitized character name, or the whole base name for one that does not follow the naming scheme. */
+const backupGroupKey = (base: string): string => {
+  const m = BACKUP_NAME.exec(base);
+  return m ? m[1].toLowerCase() : base;
+};
+
 /** World-info keys contain prompt fragments; keep only plausible proper nouns. */
 function usableKeyword(k: string): boolean {
   const t = k.trim();
@@ -161,7 +182,7 @@ export function readDataBundle(
   onCard?: (card: CardIdentity) => void,
 ): DataBundle {
   const out: DataBundle = {
-    chats: [], worldKeywords: [], worlds: [], characterCards: 0, regexScripts: [],
+    chats: [], worldKeywords: [], worlds: [], characterCards: 0, readableCards: 0, regexScripts: [],
     source: 'chats', backupsDeduped: { kept: 0, dropped: 0 }, warnings: [],
   };
 
@@ -174,12 +195,10 @@ export function readDataBundle(
     note: { key: zh('开始解压 {mb} MB'), params: { mb: (data.length / 1048576).toFixed(1) } },
   });
   let files: Record<string, Uint8Array>;
-  /** True when the archive holds real chats, so `backups/` is not needed. Decided before inflating. */
-  let hasLiveChats = false;
   try {
     /*
      * Pass 1 lists the archive without decompressing anything (the filter always says no):
-     * only then is it known whether `chats/` has content, and only then can the budget be
+     * only then is it known which characters have live chats, and only then can the budget be
      * spent on files that will actually be read. Deciding while inflating — what this used
      * to do — let 250 MB of unrelated JSON eat the budget before the chats were reached.
      */
@@ -190,7 +209,16 @@ export function readDataBundle(
         return false;
       },
     });
-    hasLiveChats = entries.some((e) => CHAT_RE.test(norm(e.name)) || GROUP_CHAT_RE.test(norm(e.name)));
+    /**
+     * Characters with at least one live .jsonl under chats/<character>/, sanitized the same way
+     * SillyTavern names their backups/ snapshots — so a snapshot can be matched back to a
+     * character that already has live chats and skipped, per character rather than archive-wide.
+     */
+    const liveChatChars = new Set<string>();
+    for (const e of entries) {
+      const m = CHAT_DIR_RE.exec(norm(e.name));
+      if (m) liveChatChars.add(sanitizeCardName(m[1]));
+    }
 
     let total = 0;
     let oversized = 0;
@@ -198,9 +226,13 @@ export function readDataBundle(
     let skippedBytes = 0;
     const pick = new Set<string>();
     for (const e of entries) {
-      // The rolling snapshots are only read when there is nothing live to read; skipping
-      // them here keeps 250 MB out of memory in the common case.
-      if (hasLiveChats && BACKUP_RE.test(norm(e.name))) continue;
+      // A rolling snapshot is only read when its own character has nothing live to read;
+      // skipping it here (rather than after inflating) keeps 250 MB out of memory in the
+      // common case where every character already has live chats.
+      if (BACKUP_RE.test(norm(e.name))) {
+        const base = norm(e.name).split('/').pop() ?? e.name;
+        if (liveChatChars.has(backupGroupKey(base))) continue;
+      }
       if (e.size > MAX_FILE_BYTES) { oversized++; continue; }
       if (total + e.size > MAX_TOTAL_BYTES) { skipped++; skippedBytes += e.size; continue; }
       total += e.size;
@@ -252,6 +284,7 @@ export function readDataBundle(
           const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
           type CardFields = { name?: string; first_mes?: string; description?: string };
           const card = JSON.parse(new TextDecoder().decode(bytes)) as CardFields & { data?: CardFields & { character_book?: { entries?: { keys?: string[]; key?: string[] }[] }; extensions?: { regex_scripts?: unknown } } };
+          out.readableCards++;
           const d = card.data;
           if (onCard) {
             // V2 cards keep everything under `data`; V1 cards have it at the top level.
@@ -289,11 +322,11 @@ export function readDataBundle(
       continue;
     }
 
-    // Rolling snapshots: only read after the loop, and only if nothing live was found.
+    // Rolling snapshots: only read after the loop, for characters with nothing live (see picking above).
     if (BACKUP_RE.test(n)) {
       const m = BACKUP_NAME.exec(base);
       // A file that does not follow the naming scheme is its own group and has no timestamp.
-      backups.push({ path, base, key: m ? m[1].toLowerCase() : base, ts: m ? m[2] : '' });
+      backups.push({ path, base, key: backupGroupKey(base), ts: m ? m[2] : '' });
       continue;
     }
 
@@ -333,11 +366,16 @@ export function readDataBundle(
   }
 
   /*
-   * Fallback: an export whose `chats/` holds only folders (the site owner's, 2026-09-09)
-   * still has every conversation under `backups/`. One group is one chat folder, so keep
-   * the newest timestamp per group and drop the older snapshots of the same chat.
+   * Fallback, per character: `backups` here holds only characters that had nothing live in
+   * chats/ (the picking step above already dropped every snapshot for a character that did).
+   * A character can show up several times — SillyTavern's rolling cap keeps up to 50 snapshots
+   * per character — so keep the newest timestamp per character and drop the older ones. Covers
+   * both the whole-archive case (the site owner's 119 MB export, 2026-09-09: chats/ held only
+   * empty folders) and a single character whose chats/ folder is missing or empty while its
+   * siblings have live chats.
    */
-  if (out.chats.length === 0 && backups.length) {
+  if (backups.length) {
+    const hadLiveChats = out.chats.length > 0;
     const newest = new Map<string, typeof backups[number]>();
     for (const b of backups) {
       const prev = newest.get(b.key);
@@ -348,11 +386,11 @@ export function readDataBundle(
     for (const b of newest.values()) {
       out.chats.push({ name: b.base, character: bySanitized.get(b.key) ?? b.key, content: strFromU8(files[b.path]) });
     }
-    out.source = 'backups';
+    out.source = hadLiveChats ? 'mixed' : 'backups';
     out.backupsDeduped = { kept: newest.size, dropped: backups.length - newest.size };
     out.warnings.push({
-      key: zh('chats/ 里没有聊天记录，改用 backups/ 里最新的 {kept} 份快照（去掉了 {dropped} 份旧快照）'),
-      params: out.backupsDeduped,
+      key: zh('chats/ 里没有的 {n} 个角色改用 backups/ 最新快照（去掉了 {m} 份旧快照）'),
+      params: { n: newest.size, m: backups.length - newest.size },
     });
   }
 

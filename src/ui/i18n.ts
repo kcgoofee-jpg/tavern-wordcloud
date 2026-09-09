@@ -376,6 +376,8 @@ const EN: Record<string, string> = {
   '预设': 'Preset',
   '这个包里没有世界书': 'No world info in this export',
   '（来自备份）': '(from backups)',
+  '（部分来自备份）': '(partly from backups)',
+  '另有 {n} 个 PNG 读不出角色卡数据': 'Plus {n, plural, one {# PNG that could not be read as a character card} other {# PNGs that could not be read as character cards}}',
   '还有 {n} 条': '{n, plural, one {# more} other {# more}}',
   '没读到聊天记录，不能开始：{why}': 'No chat logs were read, so there is nothing to start: {why}',
   '没读到聊天记录，不能开始。': 'No chat logs were read, so there is nothing to start.',
@@ -387,7 +389,7 @@ const EN: Record<string, string> = {
   '简洁': 'Compact',
   '开始': 'Start',
   '处理中': 'Working',
-  '不到 1 秒': 'under a second',
+  '不到 3 秒': 'under 3 seconds',
 
   // ── Character card ──
   '看详情': 'Details',
@@ -761,7 +763,7 @@ const EN: Record<string, string> = {
   '解压出 {n} 个文件': 'Unzipped {n, plural, one {# file} other {# files}}',
   '有 {n} 个文件单个超过 64 MB，跳过': 'Skipped {n, plural, one {# file} other {# files}} larger than 64 MB',
   '要读的文件加起来超过 512 MB：跳过了 {n} 个文件、共 {mb} MB': 'The files to read add up to more than 512 MB: {n, plural, one {# file} other {# files}} skipped, {mb} MB in total',
-  'chats/ 里没有聊天记录，改用 backups/ 里最新的 {kept} 份快照（去掉了 {dropped} 份旧快照）': 'No chats under chats/ — using the newest {kept, plural, one {# snapshot} other {# snapshots}} from backups/ instead ({dropped, plural, one {# older snapshot} other {# older snapshots}} dropped)',
+  'chats/ 里没有的 {n} 个角色改用 backups/ 最新快照（去掉了 {m} 份旧快照）': 'For {n, plural, one {# character} other {# characters}} not in chats/, using the newest snapshot from backups/ instead ({m, plural, one {# older snapshot} other {# older snapshots}} dropped)',
   '解压失败：{msg}': 'Unzip failed: {msg}',
   'settings.json 解析失败，拿不到预设名': 'settings.json failed to parse; the preset name is unavailable',
   '{chats} 份聊天 · {worlds} 本世界书 · {cards} 张角色卡': '{chats, plural, one {# chat} other {# chats}} · {worlds, plural, one {# world-info file} other {# world-info files}} · {cards, plural, one {# character card} other {# character cards}}',

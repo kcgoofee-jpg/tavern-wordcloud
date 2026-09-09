@@ -110,7 +110,7 @@ describe('backups/ fallback when chats/ has no .jsonl', () => {
 
   it('says so in one warning with both counts, instead of "no chats found"', () => {
     expect(warns(readDataBundle(zip()))).toEqual([
-      'chats/ 里没有聊天记录，改用 backups/ 里最新的 2 份快照（去掉了 2 份旧快照）',
+      'chats/ 里没有的 2 个角色改用 backups/ 最新快照（去掉了 2 份旧快照）',
     ]);
   });
 
@@ -123,20 +123,40 @@ describe('backups/ fallback when chats/ has no .jsonl', () => {
   });
 });
 
-describe('chats/ wins over backups/', () => {
+describe('chats/ wins over backups/, per character', () => {
+  // The chats/ folder name and the backups/ group key must sanitize to the same string
+  // (BACKUP_NAME) for the picker to recognize this character already has live chats.
   const zip = () => zipSync({
-    'default-user/chats/小雨/聊天 - 2026-01-01@00h00m00s000ms.jsonl': strToU8(chatLine('小雨')),
+    'default-user/chats/xiao_yu/聊天 - 2026-01-01@00h00m00s000ms.jsonl': strToU8(chatLine('小雨')),
     'default-user/backups/chat_xiao_yu_20260903-081200.jsonl': strToU8(chatLine('小雨')),
     'default-user/backups/chat_xiao_yu_20260901-101500.jsonl': strToU8(chatLine('小雨')),
   });
 
-  it('reads the live chat only, and does not even decompress the snapshots', () => {
+  it('reads the live chat only, and does not even decompress that character’s snapshots', () => {
     const { bundle, unzipped } = readCounting(zip());
     expect(bundle.source).toBe('chats');
     expect(bundle.backupsDeduped).toEqual({ kept: 0, dropped: 0 });
     expect(bundle.chats).toHaveLength(1);
-    expect(bundle.chats[0].character).toBe('小雨');
+    expect(bundle.chats[0].character).toBe('xiao_yu');
     expect(unzipped).toBe(1);
+  });
+
+  it('one character in chats/, another only in backups/: both come in, source is ’mixed’', () => {
+    const b = readDataBundle(zipSync({
+      'default-user/chats/xiao_yu/聊天 - 2026-01-01@00h00m00s000ms.jsonl': strToU8(chatLine('小雨')),
+      'default-user/backups/chat_xiao_yu_20260901-101500.jsonl': strToU8(chatLine('小雨')),
+      'default-user/backups/chat_lin_20260820-090000.jsonl': strToU8(chatLine('林')),
+      'default-user/backups/chat_lin_20260810-090000.jsonl': strToU8(chatLine('林')),
+    }));
+    expect(b.source).toBe('mixed');
+    // xiao_yu's backups are untouched (its chats/ folder already has a .jsonl); lin has none,
+    // so its newest snapshot is pulled in and the older one dropped.
+    expect(b.backupsDeduped).toEqual({ kept: 1, dropped: 1 });
+    expect(b.chats.map((c) => c.character).sort()).toEqual(['lin', 'xiao_yu']);
+    expect(b.chats.map((c) => c.name).sort()).toEqual([
+      'chat_lin_20260820-090000.jsonl',
+      '聊天 - 2026-01-01@00h00m00s000ms.jsonl',
+    ]);
   });
 });
 

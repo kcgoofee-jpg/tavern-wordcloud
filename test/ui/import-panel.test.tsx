@@ -153,7 +153,7 @@ describe('ImportPanel: the disclaimer names the path this import actually takes'
  * 「开始」 button that did nothing, and no reason anywhere (2026-09-09).
  */
 const bundleOf = (over: Partial<Omit<DataBundle, 'chats'>> = {}): Omit<DataBundle, 'chats'> => ({
-  worldKeywords: [], worlds: [], characterCards: 0, regexScripts: [],
+  worldKeywords: [], worlds: [], characterCards: 0, readableCards: 0, regexScripts: [],
   source: 'chats', backupsDeduped: { kept: 0, dropped: 0 }, warnings: [], ...over,
 });
 
@@ -198,6 +198,43 @@ describe('ImportPanel: the archive reader\u2019s warnings are in the dialog, not
     cleanup();
     panel({ summary: zipSummary(bundleOf(), 4) });
     expect(screen.queryByText('（来自备份）')).toBeNull();
+  });
+
+  it('marks the count as partly from backups when some characters came from chats/ and others from backups/', () => {
+    panel({ summary: zipSummary(bundleOf({ source: 'mixed', backupsDeduped: { kept: 1, dropped: 1 } }), 2) });
+    expect(screen.getByText('（部分来自备份）')).toBeTruthy();
+    expect(screen.queryByText('（来自备份）')).toBeNull();
+  });
+});
+
+/**
+ * The "N character cards" count used to be the number of distinct characters found among the
+ * read chats (`summary.characters.length`) — a different thing from the archive's PNG cards,
+ * and on the site owner's real export it showed 4 while `readDataBundle().characterCards` was
+ * 6 (two characters had card PNGs but no chat logs at all; all six PNGs decoded fine). The
+ * dialog now shows how many PNGs actually decoded (`readableCards`), with a separate line for
+ * ones that did not.
+ */
+describe('ImportPanel: the card count is readable cards, not chat-derived character names', () => {
+  const zipSummary = (bundle: Omit<DataBundle, 'chats'>, fileCount = 1): ImportSummary =>
+    ({ ...summary, fileCount, characters: ['小雨'], bundle, fromZip: true });
+
+  it('shows the number of PNGs that actually decoded, not the number of chat characters', () => {
+    panel({ summary: zipSummary(bundleOf({ characterCards: 6, readableCards: 6 })) });
+    expect(screen.getByText('6')).toBeTruthy();
+    expect(screen.queryByText(/读不出角色卡数据/)).toBeNull();
+  });
+
+  it('adds a line for PNGs that could not be read as a character card', () => {
+    panel({ summary: zipSummary(bundleOf({ characterCards: 6, readableCards: 4 })) });
+    expect(screen.getByText('4')).toBeTruthy();
+    expect(screen.getByText('另有 2 个 PNG 读不出角色卡数据')).toBeTruthy();
+  });
+
+  it('falls back to the chat-derived character count for a plain (non-zip) import', () => {
+    panel({ summary: { ...summary, characters: ['小雨', '林'], bundle: null, fromZip: false } });
+    expect(screen.getByText('2')).toBeTruthy();
+    expect(screen.queryByText(/读不出角色卡数据/)).toBeNull();
   });
 });
 

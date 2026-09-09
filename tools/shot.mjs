@@ -274,7 +274,7 @@ const auditLayout = async (label) => {
     }
 
     // 间距异常：同一容器里相邻的同类控件，间距突然是中位数的两倍以上——多半是一个残留的空占位
-    for (const c of [...document.querySelectorAll('.rail, .dock, .sheet-body, .seg, .kinds, .ai-line, .sheet-acts')].filter(vis)) {
+    for (const c of [...document.querySelectorAll('.rail, .dock, .sheet-body, .import-body, .seg, .kinds, .ai-line, .sheet-acts')].filter(vis)) {
       const kids = [...c.children].filter(vis);
       if (kids.length < 3) continue;
       const col = getComputedStyle(c).flexDirection === 'column';
@@ -291,6 +291,29 @@ const auditLayout = async (label) => {
         if (gaps[i] === null) continue;
         if (med >= 1 && gaps[i] > med * 2 + 2) out.push('[间距异常] ' + nameOf(c) + ' 第 ' + i + '/' + (i + 1) + ' 个之间 ' + gaps[i].toFixed(0) + 'px，中位数 ' + med.toFixed(0) + 'px');
         else if (med < 1 && gaps[i] > 6) out.push('[间距异常] ' + nameOf(c) + ' 第 ' + i + '/' + (i + 1) + ' 个之间 ' + gaps[i].toFixed(0) + 'px，其余贴合');
+      }
+    }
+    // 贴合：.import-body / .sheet-body 里相邻但不同类的顶层块紧贴在一起，没有任何间距。
+    // [间距异常] 只比较标签相同的兄弟（tagName 不同直接跳过），「.kinds → details → .seg」这种
+    // 一步一换标签的链路正好落进它的盲区——2026-09-09 站长截图里贴成一坨的三块就是这样漏过的。
+    {
+      const kindOf = (el) => {
+        if (el.classList.contains('kinds')) return 'kinds';
+        if (el.tagName === 'DETAILS') return 'details';
+        if (el.classList.contains('seg')) return 'seg';
+        if (el.classList.contains('group-label')) return 'group-label';
+        if (el.classList.contains('field')) return 'field';
+        if (el.tagName === 'P' && el.classList.contains('note')) return 'note';
+        return null;
+      };
+      for (const c of [...document.querySelectorAll('.import-body, .sheet-body')].filter(vis)) {
+        const kids = [...c.children].filter(vis).map((el) => ({ el, k: kindOf(el) })).filter((x) => x.k);
+        for (let i = 1; i < kids.length; i++) {
+          if (kids[i].k === kids[i - 1].k) continue; // same kind: [间距异常] already covers this run
+          const a = kids[i - 1].el.getBoundingClientRect(), b = kids[i].el.getBoundingClientRect();
+          const gap = b.top - a.bottom;
+          if (gap >= 0 && gap < 4) out.push('[贴合] ' + nameOf(c) + ' 里 ' + nameOf(kids[i - 1].el) + ' 与 ' + nameOf(kids[i].el) + ' 只隔 ' + gap.toFixed(1) + 'px');
+        }
       }
     }
     // 说明段落：面板里超过 60 字的正文。长解释归 ⓘ（.note-pop），不占版面

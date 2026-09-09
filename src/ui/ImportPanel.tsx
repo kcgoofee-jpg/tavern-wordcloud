@@ -55,7 +55,9 @@ const roleLabel = (t: (s: string) => string): Record<Role, string> =>
  *  and can carry real counts (a character's own name recurs often); it is still detected and filtered in core. */
 /** Import uses the ops buckets; the 44 fine kinds stay in the filter panel's 「详细」 view. */
 
-/** Rough tokenization time estimate: ~40k chars/s locally; with a model, ~3 s per chunk, `concurrency` chunks in parallel. */
+/** Rough tokenization time estimate. Local: ~1M raw chars/s — the 40k figure from the first build said
+ *  「约 43 秒」 for a 1.7M-char export that finished in 0.6 s (2026-09-09, real archive); anything under
+ *  3 s is just 「不到 3 秒」. With a model: ~3 s per chunk, `concurrency` chunks in parallel. */
 function estimate(chars: number, ai: AnalyzeOptions['ai'] | null, t: (s: string, v?: Record<string, string | number>) => string): string {
   if (ai) {
     const chunks = Math.ceil(chars / ai.chunkChars);
@@ -64,8 +66,8 @@ function estimate(chars: number, ai: AnalyzeOptions['ai'] | null, t: (s: string,
       ? t('约 {n} 分钟（{c} 次请求）', { n: Math.round(sec / 60), c: chunks })
       : t('约 {n} 秒（{c} 次请求）', { n: sec, c: chunks });
   }
-  const sec = chars / 40000;
-  return sec < 1 ? t('不到 1 秒') : t('约 {n} 秒', { n: sec.toFixed(1) });
+  const sec = chars / 1_000_000;
+  return sec < 3 ? t('不到 3 秒') : t('约 {n} 秒', { n: sec.toFixed(0) });
 }
 
 export default function ImportPanel({
@@ -138,12 +140,23 @@ export default function ImportPanel({
             <li>
               <Icon name="files" size={15} /><b>{summary.fileCount}</b> {t('份聊天记录')}
               {summary.bundle?.source === 'backups' ? <em>{t('（来自备份）')}</em> : null}
+              {summary.bundle?.source === 'mixed' ? <em>{t('（部分来自备份）')}</em> : null}
             </li>
             <li>
               <Icon name="card" size={15} />
-              <b>{summary.characters.length}</b> {t('张角色卡')}
+              {/* A zip's card count is how many PNGs actually decoded (`readableCards`), not the
+                  number of distinct characters found among the chats — those can differ (a card
+                  with no chats, or vice versa). A plain multi-file import has no card data at
+                  all, so it falls back to the chat-derived character names. */}
+              <b>{summary.bundle ? summary.bundle.readableCards : summary.characters.length}</b> {t('张角色卡')}
               <em>{summary.characters.slice(0, 3).join(' · ')}{summary.characters.length > 3 ? ' …' : ''}</em>
             </li>
+            {summary.bundle && summary.bundle.characterCards > summary.bundle.readableCards ? (
+              <li className="dim">
+                <Icon name="alert" size={15} />
+                {t('另有 {n} 个 PNG 读不出角色卡数据', { n: summary.bundle.characterCards - summary.bundle.readableCards })}
+              </li>
+            ) : null}
             <li><Icon name="list" size={15} /><b>{tenK(summary.chars)}</b> {t('万字')}</li>
             {summary.bundle?.worlds.length ? (
               <li>

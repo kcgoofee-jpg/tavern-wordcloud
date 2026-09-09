@@ -26,10 +26,29 @@
 .import-body { overflow-y: auto; padding: 14px 18px 18px; }
 .import-foot { flex: none; padding: 0 18px 18px; }
 
+/* Two blocks unique to this panel sit bare between .group-label/.seg, which already carry the
+   shared sp-2/sp-3 rhythm (05-controls.css) — but that rhythm only reaches classes it names, and
+   neither the bare kind pills (.kinds, not wrapped in .kind-groups the way the filter panel does
+   it) nor the 「更多类别」 details has a margin rule of its own. Both sat flush against their
+   neighbours: the pills against the details, the details against the segmented control below
+   (site owner screenshot, 2026-09-09 — "黏在一起了"). Scoped to a direct child of .import-body so
+   the .kinds/.kind-group nested *inside* 「更多类别」 (which already get their own inset from
+   50-kind-groups.css) are untouched. */
+.import-body > .kinds { margin-top: 0; margin-bottom: var(--sp-3); }
+.import-body > .import-more-kinds { margin-top: 0; margin-bottom: var(--sp-3); }
+
 .found { list-style: none; margin: 0 0 4px; padding: 0; display: flex; flex-direction: column; gap: 7px; }
 .found li {
   display: flex; align-items: baseline; gap: 8px; font-size: var(--t-sm); color: var(--fg-dim);
   animation: row-in .3s var(--ease) backwards;
+  /* The unit phrase ("张角色卡", "本世界书", …) is a bare text node between <b> and <em>, with no
+     element of its own to pin a width to. As a flex item it has no forbidden break points, so a
+     long trailing <em> (card names, world count) squeezed it down toward its min-content width —
+     and CJK allows a line break between any two characters, splitting "张角色" from "卡" onto two
+     lines (site owner screenshot, 2026-09-09). nowrap removes those break points from every text
+     run in the row; the <em> below keeps its own overflow/ellipsis and absorbs the missing width
+     instead of the unit phrase. */
+  white-space: nowrap;
 }
 .found li svg { color: var(--accent); flex: none; align-self: center; }
 .found li b { color: var(--fg); font-variant-numeric: tabular-nums; font-size: var(--t-md); }
