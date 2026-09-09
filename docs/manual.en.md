@@ -2,7 +2,7 @@
 
 # User manual
 
-How it works (parsing, cleaning, tokenization, and what is sent when you use an API key) is in the repository [README](../README.md). This page covers the interface.
+How it works (parsing, cleaning, tokenization, privacy, and what is sent when you use an API key) is in [How it works](how-it-works.md). This page covers the interface.
 
 Two ways to use it. **The only difference is whether your chat text goes to a server.**
 
