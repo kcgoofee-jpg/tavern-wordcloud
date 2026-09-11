@@ -1,5 +1,5 @@
-import { BUCKET_ORDER, foldCommunityKind } from '../../core/kindBuckets';
-import { tenK, useT } from '../i18n';
+import { ENTITY_LABEL, type EntityKind } from '../../core/entities';
+import { tenK, tx, useT } from '../i18n';
 
 /** One leaderboard row: count, share, and the 95% Wilson bounds the server computed. */
 export interface BoardRow { name: string; n: number; share: number; low: number; high: number }
@@ -9,14 +9,18 @@ export interface CommunityStats {
   views30d: number; analyses30d: number; minContributors: number;
   words: { text: string; count: number; people: number }[];
   trend: { day: string; contributions: number; analyses: number; views: number }[];
-  hours: number[];
-  sizes: { label: string; n: number }[];
+  /** Turn-count (对话楼层数) distribution, over c.messages. */
+  turns: { label: string; n: number }[];
   zhRatio: number | null;
   /** Model leaderboard; only models >= minContributors people used are named. */
   models: BoardRow[];
-  /** Endpoint classes, same k-anonymity rule. */
+  /**
+   * Endpoint classes, same k-anonymity rule. Still computed and returned by the server (a
+   * dedicated test exercises the k-anonymity gate through it), but no longer shown here —
+   * `接口类型` was removed from this panel (community redesign, 2026-09-11).
+   */
   endpoints: BoardRow[];
-  /** Word counts per entity kind, over everyone. */
+  /** Word counts per entity kind, over everyone; no k-anonymity gate (an aggregate share, not a named row). */
   kinds: { kind: string; words: number; share: number }[];
   /** Median generation time in ms, when logs carried timings. */
   genMs: number | null;
@@ -30,8 +34,8 @@ export interface CommunityStats {
 
 /**
  * Inline mini bar chart with a two-tick y axis (max and 0) and an x baseline.
- * `ticks` marks which bars get an x label — sparse by design, so 30 days or 24 hours
- * stay readable at this size. Text is `currentColor` so both themes work.
+ * `ticks` marks which bars get an x label — sparse by design, so 30 days or a handful of
+ * buckets stay readable at this size. Text is `currentColor` so both themes work.
  */
 function Bars({ values, labels, ticks, color = 'var(--accent)' }: {
   values: number[]; labels?: string[]; ticks?: (string | null)[]; color?: string;
@@ -85,49 +89,37 @@ function dayTicks(days: string[]): (string | null)[] {
   return days.map((d, i) => (marks.has(i) ? shortDay(d) : null));
 }
 
-/** Hours: 0 / 6 / 12 / 18 only. */
-const HOUR_TICKS = Array.from({ length: 24 }, (_, i) => (i % 6 === 0 ? String(i) : null));
-
 /** The bucket label holding the median contribution, from bucket counts in order. */
-function medianBucket(sizes: { label: string; n: number }[]): string | null {
-  const total = sizes.reduce((s, b) => s + b.n, 0);
+function medianBucket(buckets: { label: string; n: number }[]): string | null {
+  const total = buckets.reduce((s, b) => s + b.n, 0);
   if (total === 0) return null;
   let seen = 0;
-  for (const b of sizes) {
+  for (const b of buckets) {
     seen += b.n;
     if (seen >= total / 2) return b.label;
   }
-  return sizes[sizes.length - 1]?.label ?? null;
+  return buckets[buckets.length - 1]?.label ?? null;
 }
 
-type T = ReturnType<typeof useT>;
-/** Endpoint classes and entity kinds arrive as stable machine strings; translate for display. */
-function endpointLabel(t: T, kind: string): string {
-  switch (kind) {
-    case 'official': return t('厂商官方');
-    case 'openrouter': return t('OpenRouter');
-    case 'relay': return t('第三方中转');
-    case 'local': return t('本机 / 局域网');
-    default: return t('其他');
-  }
-}
-/** Same five ops buckets as the compact filter; flags already collapsed by foldCommunityKind. */
-function foldKinds(kinds: { kind: string; share: number }[]): { kind: string; share: number }[] {
-  return BUCKET_ORDER
-    .map((k) => ({
-      kind: k,
-      share: kinds.filter((x) => foldCommunityKind(x.kind) === k).reduce((a, b) => a + b.share, 0),
-    }))
-    .filter((r) => r.share > 0);
-}
-function kindLabel(t: T, kind: string): string {
-  switch (kind) {
-    case 'person': return t('人物');
-    case 'place': return t('地点');
-    case 'time': return t('时间');
-    case 'social': return t('文书与组织');
-    default: return t('其他');
-  }
+/** How many fine kinds to name before folding the tail into 其他 (spec range 8–10; 8 keeps the list scannable). */
+const TOP_KIND_COUNT = 8;
+
+/**
+ * Fine-kind shares for "词都是些什么": unlike the five-bucket compact filter buttons
+ * (`kindBuckets.ts` — a different, deliberately coarse scheme built for a different purpose,
+ * out of scope here), this shows the real per-`EntityKind` breakdown `server/admin.ts`
+ * already sums with no k-anonymity gate (an aggregate share across everyone, not a named
+ * leaderboard row). `plain` (ENTITY_LABEL: 其他) always folds into the tail alongside
+ * anything past the top N, rather than surfacing as an ordinary named row that also reads
+ * "其他" — one catch-all row, not two.
+ */
+function topFineKinds(kinds: { kind: string; share: number }[], topN = TOP_KIND_COUNT):
+  { top: { kind: EntityKind; share: number }[]; restShare: number } {
+  const plainShare = kinds.find((k) => k.kind === 'plain')?.share ?? 0;
+  const named = kinds.filter((k) => k.kind !== 'plain').sort((a, b) => b.share - a.share);
+  const top = named.slice(0, topN) as { kind: EntityKind; share: number }[];
+  const restShare = named.slice(topN).reduce((a, k) => a + k.share, 0) + plainShare;
+  return { top, restShare };
 }
 
 /** A share as a percentage; one decimal below 10% so small rows are not all "0%". */
@@ -156,25 +148,31 @@ function Board({ rows, label }: { rows: BoardRow[]; label?: (name: string) => st
 }
 
 /** Community board: aggregate cloud on the canvas; counts and trend. Words only, each shared by >= N contributors; card names are not collected. */
-export function CommunityPanel({ stats, contribute, setContribute, loading, offline }: {
+export function CommunityPanel({ stats, contribute, setContribute, loading, offline, onExpandCloud }: {
   stats: CommunityStats | null; contribute: boolean; setContribute: (v: boolean) => void; loading: boolean;
   /** No server in the single-file / local version. */
   offline: boolean;
+  /**
+   * Expand the aggregate community cloud to fill the canvas. Wired to `useOverlay.cycleCommunity`
+   * at the call site: calling it while this panel is open (panel === 'community') closes the panel
+   * and turns on `communityCloud`, the exact state the top-right button's second click already
+   * reaches — the same overlay-mutex state and the same cloud-rendering pipeline, just a second
+   * entry point into it, not a separate ad-hoc flag.
+   */
+  onExpandCloud: () => void;
 }) {
   const t = useT();
   if (offline) return <p className="note">{t('社区排行榜只在网页版有：它要从服务器取所有人的统计。')}</p>;
   if (loading) return <p className="note">{t('正在取社区数据…')}</p>;
   if (!stats) return <p className="note">{t('社区数据暂时取不到，稍后再试。')}</p>;
   const empty = stats.words.length === 0;
-  const hourTotal = stats.hours.reduce((a, b) => a + b, 0);
-  const peak = hourTotal > 0 ? stats.hours.indexOf(Math.max(...stats.hours)) : null;
-  const peakShare = peak === null ? 0 : Math.round((stats.hours[peak] / hourTotal) * 100);
   const views = stats.trend.map((d) => d.views);
   const today = views.length ? views[views.length - 1] : 0;
   const avg = views.length ? Math.round(views.reduce((a, b) => a + b, 0) / views.length) : 0;
-  const median = medianBucket(stats.sizes);
+  const median = medianBucket(stats.turns);
   // A server one deploy behind returns none of the leaderboard fields; render the rest.
-  const models = stats.models ?? [], endpoints = stats.endpoints ?? [], kinds = foldKinds(stats.kinds ?? []);
+  const models = stats.models ?? [];
+  const { top: topKinds, restShare } = topFineKinds(stats.kinds ?? []);
   const cardStats = stats.cardStats;
   return (
     <>
@@ -191,11 +189,16 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
       </section>
       <section className="community-sec">
       <div className="group-label">{t('总词云')}</div>
-      <p className="note">{empty
-        ? t('画布上暂时没有词：一个词要有至少 {n} 个不同的人都用过才会出现', { n: stats.minContributors })
-        : t('画布上是 {n} 个词，每个都至少 {m} 个人用过；字号是所有人加起来的次数', { n: stats.words.length, m: stats.minContributors })}</p>
+      {empty ? (
+        <p className="note">{t('画布上暂时没有词：一个词要有至少 {n} 个不同的人都用过才会出现', { n: stats.minContributors })}</p>
+      ) : (
+        <button type="button" className="community-cloud-card" onClick={onExpandCloud}>
+          <span className="note">{t('画布上是 {n} 个词，每个都至少 {m} 个人用过；字号是所有人加起来的次数', { n: stats.words.length, m: stats.minContributors })}</span>
+          <span className="community-cloud-cta">{t('点开看整张词云')}</span>
+        </button>
+      )}
       </section>
-      <section className="community-sec community-sec-wide">
+      <section className="community-sec">
       <div className="group-label">{t('模型榜')}</div>
       {models.length === 0
         ? <p className="note">{t('还没有足够的人填过模型名：一个模型要有至少 {n} 个不同的人用过才会具名上榜，其余并进「其他」。', { n: stats.minContributors })}</p>
@@ -204,34 +207,6 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
           <p className="note">{t('按贡献份数排名；括号里是 95% 置信区间（Wilson）。少于 {n} 人用过的模型并进「其他」，不具名。', { n: stats.minContributors })}</p>
           {stats.genMs != null && <p className="stat-line">{t('生成耗时中位数 {s} 秒', { s: (stats.genMs / 1000).toFixed(1) })}</p>}
         </>}
-      </section>
-      {endpoints.length > 0 && (
-      <section className="community-sec">
-      <div className="group-label">{t('接口类型')}</div>
-      <Board rows={endpoints} label={(n) => endpointLabel(t, n)} />
-      <p className="note">{t('只记地址的粗类，不记地址本身。')}</p>
-      </section>
-      )}
-      {kinds.length > 0 && (
-      <section className="community-sec">
-      <div className="group-label">{t('词都是些什么')}</div>
-      <ul className="found">
-        {kinds.map((k) => <li key={k.kind}><b>{pct(k.share)}%</b> {kindLabel(t, k.kind)}</li>)}
-      </ul>
-      <p className="note">{t('所有人加起来的词类占比。')}</p>
-      </section>
-      )}
-      <section className="community-sec">
-      <div className="group-label">{t('大家写多长')}</div>
-      <Bars values={stats.sizes.map((s) => s.n)} labels={stats.sizes.map((s) => s.label)} />
-      <p className="note">{t('每份聊天的字数分布。{zh}', { zh: stats.zhRatio === null ? '' : t('中文词占 {p}%', { p: Math.round(stats.zhRatio * 100) }) })}</p>
-      <p className="stat-line">{median === null ? t('还没有数据') : t('中位数落在 {b}', { b: median })}</p>
-      </section>
-      <section className="community-sec">
-      <div className="group-label">{t('什么时候有人在用')}</div>
-      <Bars values={stats.hours} ticks={HOUR_TICKS} labels={stats.hours.map((_, h) => `${h}:00`)} color="var(--fg-dim)" />
-      <p className="note">{peak === null ? t('还没有数据') : t('按小时（北京时间），最活跃是 {h} 点', { h: peak })}</p>
-      <p className="stat-line">{peak === null ? t('还没有数据') : t('{h} 点最热闹，占全天 {p}%', { h: peak, p: peakShare })}</p>
       </section>
       {/* Every share at 0 means no contribution has carried these fields yet: three 0.0% rows
           read as a broken panel, so say so instead (seen live 2026-09-05). */}
@@ -252,7 +227,23 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
       <p className="note">{t('还没有带角色卡或世界书的记录。')}</p>
       </section>
       ))}
-      <section className="community-sec community-sec-wide">
+      {(topKinds.length > 0 || restShare > 0) && (
+      <section className="community-sec">
+      <div className="group-label">{t('词都是些什么')}</div>
+      <ul className="found">
+        {topKinds.map((k) => <li key={k.kind}><b>{pct(k.share)}%</b> {tx(ENTITY_LABEL[k.kind] ?? ENTITY_LABEL.plain)}</li>)}
+        {restShare > 0 && <li key="__rest"><b>{pct(restShare)}%</b> {t('其他')}</li>}
+      </ul>
+      <p className="note">{t('所有人加起来的词类占比。')}</p>
+      </section>
+      )}
+      <section className="community-sec">
+      <div className="group-label">{t('大家聊了多少层')}</div>
+      <Bars values={stats.turns.map((s) => s.n)} labels={stats.turns.map((s) => s.label)} />
+      <p className="note">{t('每份聊天的对话楼层数分布。{zh}', { zh: stats.zhRatio === null ? '' : t('中文词占 {p}%', { p: Math.round(stats.zhRatio * 100) }) })}</p>
+      <p className="stat-line">{median === null ? t('还没有数据') : t('中位数落在 {b} 层', { b: median })}</p>
+      </section>
+      <section className="community-sec">
       <div className="group-label">{t('我的参与')}</div>
       <label className="check">
         <input type="checkbox" checked={contribute} onChange={(e) => setContribute(e.target.checked)} />

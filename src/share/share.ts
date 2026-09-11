@@ -37,6 +37,16 @@ function fromBase64Url(s: string): Uint8Array {
 
 const hasCompression = () => typeof CompressionStream !== 'undefined';
 
+/**
+ * A legitimate embed tops out around 500 words (FilterPanel's `maxWords` slider max) at a
+ * few bytes each — nowhere near this. Both caps exist because a crafted `#c=…` link or PNG
+ * has no such ceiling on its own: a small, highly-repetitive compressed payload can inflate
+ * to an arbitrarily large string, and even a merely-large string can still decode into an
+ * unbounded word array that freezes the tab in `layoutCloud`/canvas rendering (2026-09-11).
+ */
+const MAX_INFLATED_BYTES = 2 * 1024 * 1024;
+const MAX_SHARE_WORDS = 2000;
+
 async function deflate(text: string): Promise<Uint8Array> {
   const raw = new TextEncoder().encode(text);
   if (!hasCompression()) return raw;
@@ -48,8 +58,20 @@ async function deflate(text: string): Promise<Uint8Array> {
 async function inflate(bytes: Uint8Array): Promise<string> {
   if (!hasCompression()) return new TextDecoder().decode(bytes);
   const ds = new DecompressionStream('deflate-raw');
-  const stream = new Blob([bytes as BlobPart]).stream().pipeThrough(ds);
-  return new TextDecoder().decode(await new Response(stream).arrayBuffer());
+  const reader = new Blob([bytes as BlobPart]).stream().pipeThrough(ds).getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_INFLATED_BYTES) { await reader.cancel(); throw new Error('share payload exceeds the decompressed-size limit'); }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) { out.set(c, offset); offset += c.byteLength; }
+  return new TextDecoder().decode(out);
 }
 
 /** Compact text format: first line palette JSON, then one `word count` per line. */
@@ -68,7 +90,7 @@ function deserialize(text: string): SharePayload | null {
     if (head && typeof head === 'object') { theme = head.t ?? ''; themeConf = head.c; }
   } catch { /* legacy: first line is a theme id */ }
   const words: WordCount[] = [];
-  for (const line of lines.slice(1)) {
+  for (const line of lines.slice(1, 1 + MAX_SHARE_WORDS)) {
     const i = line.lastIndexOf(' ');
     if (i <= 0) continue;
     const count = Number(line.slice(i + 1));

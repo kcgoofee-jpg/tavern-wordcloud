@@ -67,8 +67,7 @@ const STATS: CommunityStats = {
   views30d: 300, analyses30d: 40, minContributors: 3,
   words: [{ text: '西德妮', count: 9, people: 4 }],
   trend: [{ day: '2026-08-01', contributions: 0, analyses: 0, views: 10 }],
-  hours: Array.from({ length: 24 }, () => 1),
-  sizes: [{ label: '<1万', n: 2 }],
+  turns: [{ label: '<50', n: 2 }],
   zhRatio: 0.8, models: [], endpoints: [], kinds: [], genMs: null, updated: 0,
 };
 
@@ -118,7 +117,7 @@ function Panels() {
         <ReviewPanel words={WORDS} overrides={{}} setOverrides={noop} extraStopwords={[]} setExtraStopwords={noop} />
       </div></div>
       <div className="sheet page community"><div className="sheet-body">
-        <CommunityPanel stats={STATS} contribute={false} setContribute={noop} loading={false} offline={false} />
+        <CommunityPanel stats={STATS} contribute={false} setContribute={noop} loading={false} offline={false} onExpandCloud={noop} />
       </div></div>
     </div>
   );

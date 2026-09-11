@@ -4,17 +4,26 @@
    every other panel, only the full-window box instead of the 340px column (plan B3,
    2026-09-08). Everything below is what goes *inside* that body. */
 .sheet.page.community .sheet-body {
-  /* One grid cell per section. CSS multi-column (the previous approach) flowed a chart into
-     the next column away from its caption on wide screens. */
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px 32px; align-content: start;
+  /* One section per row, top to bottom (2026-09-11 redesign): the previous side-by-side grid
+     (first CSS multi-column, then a two-up auto-fill grid) always paired two unrelated
+     categories on a wide screen, reading as one confusing block instead of a sequence. */
+  display: flex; flex-direction: column; gap: 20px;
 }
 .community-sec { min-width: 0; }
 .community-sec .group-label:first-child { margin-top: 0; }
 .community-sec .mini-bars { width: 100%; max-width: 360px; height: auto; display: block; }
 
-/* "My participation" is a wide checkbox row, not a chart cell: it spans the grid. */
-.community-sec-wide { grid-column: 1 / -1; }
+/* "总词云": the collapsed summary becomes a click target once there is a cloud to show
+   (empty stays a plain .note, not a button — nothing to expand into). */
+.community-cloud-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  width: 100%; margin-top: 10px; padding: 10px 12px; border: none; border-radius: var(--r-sm);
+  background: var(--ctl-bg); color: inherit; text-align: left; cursor: pointer;
+  transition: background .15s;
+}
+.community-cloud-card .note { margin: 0; }
+.community-cloud-card:hover { background: var(--ctl-bg-hover); }
+.community-cloud-cta { font-size: var(--t-sm); color: var(--accent); font-weight: 500; }
 
 /* One key number under each chart, so a cell is never just axes. */
 .community-sec .stat-line {

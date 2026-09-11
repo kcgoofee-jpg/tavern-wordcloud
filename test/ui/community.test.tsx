@@ -1,10 +1,15 @@
 // @vitest-environment happy-dom
 /** Community board: chart axes and the one key number under each chart. */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { setCurrentLang } from '../../src/ui/i18n';
 import { CommunityPanel, type CommunityStats } from '../../src/ui/panels';
 
-/** Only the button-cycle describe below mounts the whole App; the panel describes do not. */
+// `tx()` (the fine-kind labels, via ENTITY_LABEL) reads a module-level language, not
+// LangContext; happy-dom's navigator would otherwise make it English (test/ui/review.test.tsx).
+setCurrentLang('zh');
+
+/** Only the button-cycle / integration describes below mount the whole App; the panel describes do not. */
 class StubWorker {
   onmessage: ((e: MessageEvent) => void) | null = null;
   postMessage() {}
@@ -20,7 +25,7 @@ if (!('ResizeObserver' in globalThis)) {
 
 afterEach(cleanup);
 
-/** 30 days of views; the last day is today. Hours peak at 21:00. */
+/** 30 days of views; the last day is today. */
 const STATS: CommunityStats = {
   contributors: 7, contributions: 12, messages: 900, chars: 123456,
   views30d: 300, analyses30d: 40, minContributors: 3,
@@ -29,9 +34,8 @@ const STATS: CommunityStats = {
     day: `2026-08-${String(i + 1).padStart(2, '0')}`,
     contributions: 0, analyses: 0, views: i === 29 ? 40 : 10,
   })),
-  // 100 samples total; 21:00 holds 50 of them.
-  hours: Array.from({ length: 24 }, (_, h) => (h === 21 ? 50 : h < 10 ? 5 : 0)),
-  sizes: [{ label: '<1万', n: 2 }, { label: '1-5万', n: 8 }, { label: '>5万', n: 2 }],
+  // 12 contributions: 2 under 50 turns, 8 in 50-200, 2 in 200-500 — median falls in the middle bucket.
+  turns: [{ label: '<50', n: 2 }, { label: '50-200', n: 8 }, { label: '200-500', n: 2 }],
   zhRatio: 0.8,
   models: [
     { name: 'gemini-2.5-pro', n: 6, share: 0.5, low: 0.25, high: 0.75 },
@@ -43,14 +47,15 @@ const STATS: CommunityStats = {
   updated: 0,
 };
 
-const view = (s: CommunityStats = STATS) =>
-  render(<CommunityPanel stats={s} contribute={false} setContribute={() => {}} loading={false} offline={false} />);
+const view = (s: CommunityStats = STATS, onExpandCloud: () => void = () => {}) =>
+  render(<CommunityPanel stats={s} contribute={false} setContribute={() => {}} loading={false} offline={false} onExpandCloud={onExpandCloud} />);
 
 describe('CommunityPanel charts', () => {
   it('every chart carries a y axis with the max and 0 ticks', () => {
     const { container } = view();
+    // Views trend + turn-count distribution; hours was removed (2026-09-11 redesign).
     const charts = container.querySelectorAll('svg.mini-bars');
-    expect(charts.length).toBe(3);
+    expect(charts.length).toBe(2);
     for (const svg of charts) {
       const texts = [...svg.querySelectorAll('text')].map((n) => n.textContent);
       expect(texts).toContain('0');
@@ -69,28 +74,17 @@ describe('CommunityPanel charts', () => {
     expect(texts).toContain('08-30');
   });
 
-  it('the hour chart labels 0/6/12/18 and nothing else', () => {
-    const { container } = view();
-    const svg = container.querySelectorAll('svg.mini-bars')[2];
-    const texts = [...svg.querySelectorAll('text')].map((n) => n.textContent);
-    for (const h of ['0', '6', '12', '18']) expect(texts).toContain(h);
-    expect(texts).not.toContain('7');
-    expect(texts).not.toContain('21');
-  });
-
   it('each section states a key number', () => {
     view();
     // Trend: today 40, daily average (29*10 + 40) / 30 = 11.
     expect(screen.getByText('今日 40 次 · 日均 11 次')).toBeTruthy();
-    // Hours: 21:00 holds 50 of 100 samples.
-    expect(screen.getByText('21 点最热闹，占全天 50%')).toBeTruthy();
-    // Sizes: the median of 12 contributions falls in the middle bucket.
-    expect(screen.getByText('中位数落在 1-5万')).toBeTruthy();
+    // Turns: the median of 12 contributions falls in the middle bucket.
+    expect(screen.getByText('中位数落在 50-200 层')).toBeTruthy();
   });
 
-  it('with no data the hour and size lines say so instead of showing NaN', () => {
-    view({ ...STATS, hours: new Array(24).fill(0), sizes: [{ label: '<1万', n: 0 }] });
-    expect(screen.getAllByText('还没有数据').length).toBeGreaterThanOrEqual(2);
+  it('with no data the turn-count line says so instead of showing NaN', () => {
+    view({ ...STATS, turns: [{ label: '<50', n: 0 }] });
+    expect(screen.getByText('还没有数据')).toBeTruthy();
   });
 });
 
@@ -98,8 +92,9 @@ describe('CommunityPanel model board', () => {
   it('ranks models with share, count and the confidence interval', () => {
     const { container } = view();
     expect(screen.getByText('模型榜')).toBeTruthy();
+    // 接口类型 was removed (2026-09-11): only the model board renders `.board-row`s now.
     const rows = container.querySelectorAll('.board-row');
-    expect(rows.length).toBe(3);   // two models + one endpoint row
+    expect(rows.length).toBe(2);
     expect(rows[0].textContent).toContain('gemini-2.5-pro');
     expect(rows[0].textContent).toContain('50%');
     expect(rows[0].textContent).toContain('6 份');
@@ -113,27 +108,66 @@ describe('CommunityPanel model board', () => {
     view({ ...STATS, models: [] });
     expect(screen.getByText(/一个模型要有至少 3 个不同的人用过/)).toBeTruthy();
   });
+});
 
-  it('shows the endpoint class and the word-kind split, folding the rest into 其他', () => {
+describe('CommunityPanel removed sections', () => {
+  it('no longer shows 接口类型 or 什么时候有人在用', () => {
     view();
-    expect(screen.getByText('第三方中转')).toBeTruthy();
-    expect(screen.getByText('人物')).toBeTruthy();
-    // plain is not a public kind; it lands in the catch-all row (as does the merged model row)
-    expect(screen.getAllByText('其他').length).toBe(2);
+    expect(screen.queryByText('接口类型')).toBeNull();
+    expect(screen.queryByText('什么时候有人在用')).toBeNull();
+    expect(screen.queryByText('第三方中转')).toBeNull();
   });
+});
 
-  it('folds org and document into 文书与组织', () => {
+describe('CommunityPanel 词都是些什么: fine kinds, not the five-bucket filter scheme', () => {
+  it('names each fine kind by its own label and folds "plain" into 其他 regardless of its rank', () => {
     view({
       ...STATS,
       kinds: [
-        { kind: 'person', words: 2, share: 0.2 },
-        { kind: 'org', words: 3, share: 0.3 },
-        { kind: 'document', words: 1, share: 0.05 },
-        { kind: 'plain', words: 4, share: 0.45 },
+        { kind: 'person', words: 30, share: 0.30 },
+        { kind: 'place', words: 20, share: 0.20 },
+        { kind: 'org', words: 15, share: 0.15 },
+        { kind: 'document', words: 10, share: 0.10 },
+        // The highest share of all, but `plain` (ENTITY_LABEL: 其他) still folds into the
+        // catch-all tail rather than becoming a normal named row that also reads "其他".
+        { kind: 'plain', words: 25, share: 0.25 },
       ],
     });
-    const row = screen.getByText('文书与组织').closest('li');
-    expect(row?.textContent).toContain('35%');
+    const section = screen.getByText('词都是些什么').closest('section')!;
+    expect(within(section).getByText('人物')).toBeTruthy();
+    expect(within(section).getByText('地点')).toBeTruthy();
+    expect(within(section).getByText('机构')).toBeTruthy();
+    expect(within(section).getByText('文书')).toBeTruthy();
+    // The models board also has a raw (untranslated) "其他" catch-all row elsewhere on the
+    // page — scope to this section so the two do not collide.
+    const other = within(section).getByText('其他').closest('li');
+    expect(other?.textContent).toContain('25%');
+  });
+
+  it('shows at most the top 8 named kinds and sums the tail into one 其他 row', () => {
+    view({
+      ...STATS,
+      kinds: [
+        { kind: 'person', words: 30, share: 0.30 },
+        { kind: 'place', words: 15, share: 0.15 },
+        { kind: 'time', words: 12, share: 0.12 },
+        { kind: 'org', words: 10, share: 0.10 },
+        { kind: 'document', words: 8, share: 0.08 },
+        { kind: 'money', words: 7, share: 0.07 },
+        { kind: 'festival', words: 6, share: 0.06 },
+        { kind: 'building', words: 5, share: 0.05 },
+        // Past the top 8: folded into 其他 together, not shown by name.
+        { kind: 'room', words: 4, share: 0.04 },
+        { kind: 'path', words: 3, share: 0.03 },
+      ],
+    });
+    const section = screen.getByText('词都是些什么').closest('section')!;
+    const rows = section.querySelectorAll('.found li');
+    expect(rows.length).toBe(9); // 8 named + 1 folded tail
+    expect(within(section).queryByText('室内空间')).toBeNull();
+    expect(within(section).queryByText('道路与交通设施')).toBeNull();
+    const other = within(section).getByText('其他').closest('li');
+    expect(other?.textContent).toContain('7.0%'); // 0.04 + 0.03; pct() keeps one decimal below 10%
   });
 });
 
@@ -152,6 +186,42 @@ describe('CommunityPanel import composition', () => {
     expect(screen.getByText('60%')).toBeTruthy();
     expect(screen.getByText('只统计数量，不记录任何卡名、预设名或世界书名。共 20 份。')).toBeTruthy();
     expect(screen.getByText('平均每份 1.5 张卡 · 0.4 本世界书')).toBeTruthy();
+  });
+});
+
+/** The new top-to-bottom order (2026-09-11 redesign), read straight off the DOM. */
+describe('CommunityPanel section order', () => {
+  it('lists 这30天 / 总词云 / 模型榜 / 大家导入了什么 / 词都是些什么 / 大家聊了多少层 / 我的参与 in that order', () => {
+    const { container } = view({ ...STATS, cardStats: { reports: 1, withCards: 0, withWorlds: 0, withPreset: 0, avgCards: 0, avgWorlds: 0 } });
+    const labels = [...container.querySelectorAll('.group-label')].map((n) => n.textContent);
+    expect(labels).toEqual(['这 30 天', '总词云', '模型榜', '大家导入了什么', '词都是些什么', '大家聊了多少层', '我的参与']);
+  });
+
+  it('every section is stacked full width, one per row (no side-by-side pairing)', () => {
+    const { container } = view();
+    for (const sec of container.querySelectorAll('.community-sec')) {
+      expect(sec.className).not.toContain('community-sec-wide');
+    }
+  });
+});
+
+describe('CommunityPanel 总词云: collapses to a card that expands the aggregate cloud', () => {
+  it('is a click target that calls onExpandCloud when there is a cloud to show', () => {
+    const onExpandCloud = vi.fn();
+    view(STATS, onExpandCloud);
+    const card = screen.getByText('点开看整张词云').closest('button')!;
+    expect(card).toBeTruthy();
+    fireEvent.click(card);
+    expect(onExpandCloud).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no click target when there are no words yet', () => {
+    const onExpandCloud = vi.fn();
+    view({ ...STATS, words: [] }, onExpandCloud);
+    // Same empty-state copy as before; not a button, so nothing to click.
+    expect(screen.getByText(/一个词要有至少 3 个不同的人都用过才会出现/)).toBeTruthy();
+    expect(screen.queryByText('点开看整张词云')).toBeNull();
+    expect(document.querySelector('.community-cloud-card')).toBeNull();
   });
 });
 
@@ -210,16 +280,50 @@ describe('the community button cycles through three states', () => {
     fireEvent.click(container.querySelector('.community-quick')!);
     await waitFor(() => expect(screen.getByRole('dialog', { name: '社区排行榜' })).toBeTruthy());
     fireEvent.click(container.querySelector('.community-quick')!);
-    // Entering the aggregate-cloud-only state drops `sampleOpen`, which brings the landing
-    // view's own top bar back and replaces the quick-cluster's community button with the
-    // canvas hint — that hint is the third click's real target (cycleCommunity is wired to
-    // both), not the original button, which is no longer in the DOM.
+    // `showLanding` now excludes `communityCloud` (2026-09-11 fix — it used to omit this and
+    // the Landing hero would silently cover the aggregate cloud for anyone with no file
+    // imported yet), so the main toolbar — and the community-quick button on it — stays
+    // mounted the whole time; the canvas hint is an additional click target, not a replacement.
     await waitFor(() => expect(screen.getByText('社区词云 · 点这里回到自己的词云')).toBeTruthy());
-    expect(container.querySelector('.community-quick')).toBeNull();
+    expect(screen.queryByText('把酒馆的聊天记录，变成一张词云')).toBeNull();
+    const button = container.querySelector('.community-quick')!;
+    expect(button).toBeTruthy();
+    expect(button.getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(screen.getByText('社区词云 · 点这里回到自己的词云'));
     await waitFor(() => expect(screen.queryByText('社区词云 · 点这里回到自己的词云')).toBeNull());
     expect(screen.queryByRole('dialog', { name: '社区排行榜' })).toBeNull();
     await waitFor(() => expect(container.querySelector('.community-quick')?.getAttribute('aria-pressed')).toBe('false'));
+  });
+});
+
+/**
+ * The compact 总词云 card is a second entry point into the exact same aggregate-cloud state
+ * the top button's second click reaches (useOverlay.cycleCommunity) — not a separate overlay.
+ * This drives the whole pipeline for real: a successful health check and a `/api/community`
+ * response with words, opened through the button, then expanded through the card.
+ */
+describe('the 总词云 card reaches the same fullscreen aggregate cloud as the button cycle', () => {
+  afterEach(() => { cleanup(); vi.unstubAllGlobals(); localStorage.clear(); });
+
+  it('closes the leaderboard dialog and shows the canvas hint when clicked', async () => {
+    localStorage.setItem('tw-settings', JSON.stringify({ lang: 'zh' }));
+    vi.stubGlobal('fetch', vi.fn((input: unknown) => {
+      const url = String(input);
+      if (url === '/api/health') return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) } as Response);
+      if (url === '/api/community') return Promise.resolve({ ok: true, json: () => Promise.resolve(STATS) } as Response);
+      return Promise.reject(new TypeError('offline'));
+    }));
+    const { default: App } = await import('../../src/ui/App');
+    const { container } = render(<App />);
+    await waitFor(() => expect(container.querySelector('.community-quick')).toBeTruthy());
+    fireEvent.click(container.querySelector('.community-quick')!);
+    const card = await screen.findByText('点开看整张词云');
+    fireEvent.click(card.closest('button')!);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '社区排行榜' })).toBeNull());
+    expect(screen.getByText('社区词云 · 点这里回到自己的词云')).toBeTruthy();
+    // Regression guard: on a fresh visit (no file ever imported), `showLanding` used to stay
+    // true through this whole flow and the Landing hero silently covered the cloud (2026-09-11).
+    expect(screen.queryByText('把酒馆的聊天记录，变成一张词云')).toBeNull();
   });
 });
 

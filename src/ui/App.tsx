@@ -155,7 +155,7 @@ export default function App() {
   /** Sample cloud: entered from the landing's "sample" button; any click returns to the landing. */
   const demoMode = !hasFiles && !sharedWords && !result && sampleOpen;
   /** Landing page: no data, no share link, not in the sample view, nothing loading. */
-  const showLanding = !hasFiles && !sharedWords && !result && !sampleOpen && !busy && !importAsk;
+  const showLanding = !hasFiles && !sharedWords && !result && !sampleOpen && !busy && !importAsk && !communityCloud;
 
   /** Community board: while the panel is open the canvas shows the aggregate cloud. */
   const [community, setCommunity] = useState<CommunityStats | null>(null);
@@ -1057,7 +1057,7 @@ export default function App() {
           </div>
           <div className="sheet-body">
             <Suspense fallback={<p className="note">{t('正在载入…')}</p>}>
-              <CommunityPanel stats={community} loading={communityLoading} offline={!health?.ok} contribute={settings.contribute} setContribute={(v) => patch({ contribute: v })} />
+              <CommunityPanel stats={community} loading={communityLoading} offline={!health?.ok} contribute={settings.contribute} setContribute={(v) => patch({ contribute: v })} onExpandCloud={cycleCommunity} />
             </Suspense>
           </div>
         </aside>
