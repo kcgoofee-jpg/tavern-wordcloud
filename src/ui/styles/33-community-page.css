@@ -4,26 +4,29 @@
    every other panel, only the full-window box instead of the 340px column (plan B3,
    2026-09-08). Everything below is what goes *inside* that body. */
 .sheet.page.community .sheet-body {
-  /* One section per row, top to bottom (2026-09-11 redesign): the previous side-by-side grid
-     (first CSS multi-column, then a two-up auto-fill grid) always paired two unrelated
-     categories on a wide screen, reading as one confusing block instead of a sequence. */
+  /* Sections stack top to bottom (2026-09-11 redesign; the previous side-by-side grid always
+     paired two unrelated categories on a wide screen). Deliberately-matched pairs (a section
+     that carries a `.community-row` wrapper) go back to side-by-side on request (2026-09-12) —
+     the earlier confusion was random pairing by available width, not pairing itself. */
   display: flex; flex-direction: column; gap: 20px;
 }
 .community-sec { min-width: 0; }
 .community-sec .group-label:first-child { margin-top: 0; }
 .community-sec .mini-bars { width: 100%; max-width: 360px; height: auto; display: block; }
 
-/* "总词云": the collapsed summary becomes a click target once there is a cloud to show
-   (empty stays a plain .note, not a button — nothing to expand into). */
-.community-cloud-card {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
-  width: 100%; margin-top: 10px; padding: 10px 12px; border: none; border-radius: var(--r-sm);
-  background: var(--ctl-bg); color: inherit; text-align: left; cursor: pointer;
-  transition: background .15s;
+/* A deliberately-matched pair of sections (same rough shape: two charts, or two
+   what-people-brought lists) — collapses to one column on a phone, 37-mobile-overrides.css. */
+.community-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 32px; }
+.community-row .community-sec { min-width: 0; }
+
+/* "总词云": a single compact link above everything else, not its own section — there is
+   nothing to caption once it is one line (empty stays a plain .note, no click target). */
+.community-cloud-link {
+  display: inline-block; margin: 0 0 4px; padding: 0; border: none; background: none;
+  color: var(--accent); font-size: var(--t-sm); font-weight: 500; cursor: pointer;
 }
-.community-cloud-card .note { margin: 0; }
-.community-cloud-card:hover { background: var(--ctl-bg-hover); }
-.community-cloud-cta { font-size: var(--t-sm); color: var(--accent); font-weight: 500; }
+.community-cloud-link:hover { text-decoration: underline; }
+.community-cloud-empty { margin: 0 0 4px; }
 
 /* One key number under each chart, so a cell is never just axes. */
 .community-sec .stat-line {

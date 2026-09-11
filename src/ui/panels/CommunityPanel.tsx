@@ -174,8 +174,48 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
   const models = stats.models ?? [];
   const { top: topKinds, restShare } = topFineKinds(stats.kinds ?? []);
   const cardStats = stats.cardStats;
+  // "大家导入了什么" only exists while the operator publishes cardStats; when it does not,
+  // 模型榜 pairs with nothing and renders full width instead of an empty half-row.
+  const modelSection = (
+    <section className="community-sec">
+    <div className="group-label">{t('模型榜')}</div>
+    {models.length === 0
+      ? <p className="note">{t('还没有足够的人填过模型名：一个模型要有至少 {n} 个不同的人用过才会具名上榜，其余并进「其他」。', { n: stats.minContributors })}</p>
+      : <>
+        <Board rows={models} />
+        <p className="note">{t('按贡献份数排名；括号里是 95% 置信区间（Wilson）。少于 {n} 人用过的模型并进「其他」，不具名。', { n: stats.minContributors })}</p>
+        {stats.genMs != null && <p className="stat-line">{t('生成耗时中位数 {s} 秒', { s: (stats.genMs / 1000).toFixed(1) })}</p>}
+      </>}
+    </section>
+  );
+  // Every share at 0 means no contribution has carried these fields yet: three 0.0% rows
+  // read as a broken panel, so say so instead (seen live 2026-09-05).
+  const cardSection = cardStats ? (
+    <section className="community-sec">
+    <div className="group-label">{t('大家导入了什么')}</div>
+    {cardStats.withCards + cardStats.withWorlds + cardStats.withPreset > 0 ? (
+      <>
+        <ul className="found">
+          <li><b>{pct(cardStats.withCards)}%</b> {t('带角色卡')}</li>
+          <li><b>{pct(cardStats.withWorlds)}%</b> {t('带世界书')}</li>
+          <li><b>{pct(cardStats.withPreset)}%</b> {t('带预设')}</li>
+        </ul>
+        <p className="note">{t('只统计数量，不记录任何卡名、预设名或世界书名。共 {n} 份。', { n: cardStats.reports })}</p>
+        <p className="stat-line">{t('平均每份 {c} 张卡 · {w} 本世界书', { c: cardStats.avgCards.toFixed(1), w: cardStats.avgWorlds.toFixed(1) })}</p>
+      </>
+    ) : <p className="note">{t('还没有带角色卡或世界书的记录。')}</p>}
+    </section>
+  ) : null;
   return (
     <>
+      {empty ? (
+        <p className="note community-cloud-empty">{t('画布上暂时没有词：一个词要有至少 {n} 个不同的人都用过才会出现', { n: stats.minContributors })}</p>
+      ) : (
+        <button type="button" className="community-cloud-link" onClick={onExpandCloud}>
+          {t('查看社区词云（{n} 个词）', { n: stats.words.length })}
+        </button>
+      )}
+      <div className="community-row">
       <section className="community-sec">
       <div className="group-label">{t('这 30 天')}</div>
       <ul className="found">
@@ -188,45 +228,13 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
       <p className="stat-line">{t('今日 {n} 次 · 日均 {m} 次', { n: today, m: avg })}</p>
       </section>
       <section className="community-sec">
-      <div className="group-label">{t('总词云')}</div>
-      {empty ? (
-        <p className="note">{t('画布上暂时没有词：一个词要有至少 {n} 个不同的人都用过才会出现', { n: stats.minContributors })}</p>
-      ) : (
-        <button type="button" className="community-cloud-card" onClick={onExpandCloud}>
-          <span className="note">{t('画布上是 {n} 个词，每个都至少 {m} 个人用过；字号是所有人加起来的次数', { n: stats.words.length, m: stats.minContributors })}</span>
-          <span className="community-cloud-cta">{t('点开看整张词云')}</span>
-        </button>
-      )}
+      <div className="group-label">{t('大家聊了多少层')}</div>
+      <Bars values={stats.turns.map((s) => s.n)} labels={stats.turns.map((s) => s.label)} />
+      <p className="note">{t('每份聊天的对话楼层数分布。{zh}', { zh: stats.zhRatio === null ? '' : t('中文词占 {p}%', { p: Math.round(stats.zhRatio * 100) }) })}</p>
+      <p className="stat-line">{median === null ? t('还没有数据') : t('中位数落在 {b} 层', { b: median })}</p>
       </section>
-      <section className="community-sec">
-      <div className="group-label">{t('模型榜')}</div>
-      {models.length === 0
-        ? <p className="note">{t('还没有足够的人填过模型名：一个模型要有至少 {n} 个不同的人用过才会具名上榜，其余并进「其他」。', { n: stats.minContributors })}</p>
-        : <>
-          <Board rows={models} />
-          <p className="note">{t('按贡献份数排名；括号里是 95% 置信区间（Wilson）。少于 {n} 人用过的模型并进「其他」，不具名。', { n: stats.minContributors })}</p>
-          {stats.genMs != null && <p className="stat-line">{t('生成耗时中位数 {s} 秒', { s: (stats.genMs / 1000).toFixed(1) })}</p>}
-        </>}
-      </section>
-      {/* Every share at 0 means no contribution has carried these fields yet: three 0.0% rows
-          read as a broken panel, so say so instead (seen live 2026-09-05). */}
-      {cardStats && (cardStats.withCards + cardStats.withWorlds + cardStats.withPreset > 0 ? (
-      <section className="community-sec">
-      <div className="group-label">{t('大家导入了什么')}</div>
-      <ul className="found">
-        <li><b>{pct(cardStats.withCards)}%</b> {t('带角色卡')}</li>
-        <li><b>{pct(cardStats.withWorlds)}%</b> {t('带世界书')}</li>
-        <li><b>{pct(cardStats.withPreset)}%</b> {t('带预设')}</li>
-      </ul>
-      <p className="note">{t('只统计数量，不记录任何卡名、预设名或世界书名。共 {n} 份。', { n: cardStats.reports })}</p>
-      <p className="stat-line">{t('平均每份 {c} 张卡 · {w} 本世界书', { c: cardStats.avgCards.toFixed(1), w: cardStats.avgWorlds.toFixed(1) })}</p>
-      </section>
-      ) : (
-      <section className="community-sec">
-      <div className="group-label">{t('大家导入了什么')}</div>
-      <p className="note">{t('还没有带角色卡或世界书的记录。')}</p>
-      </section>
-      ))}
+      </div>
+      {cardSection ? <div className="community-row">{modelSection}{cardSection}</div> : modelSection}
       {(topKinds.length > 0 || restShare > 0) && (
       <section className="community-sec">
       <div className="group-label">{t('词都是些什么')}</div>
@@ -237,12 +245,6 @@ export function CommunityPanel({ stats, contribute, setContribute, loading, offl
       <p className="note">{t('所有人加起来的词类占比。')}</p>
       </section>
       )}
-      <section className="community-sec">
-      <div className="group-label">{t('大家聊了多少层')}</div>
-      <Bars values={stats.turns.map((s) => s.n)} labels={stats.turns.map((s) => s.label)} />
-      <p className="note">{t('每份聊天的对话楼层数分布。{zh}', { zh: stats.zhRatio === null ? '' : t('中文词占 {p}%', { p: Math.round(stats.zhRatio * 100) }) })}</p>
-      <p className="stat-line">{median === null ? t('还没有数据') : t('中位数落在 {b} 层', { b: median })}</p>
-      </section>
       <section className="community-sec">
       <div className="group-label">{t('我的参与')}</div>
       <label className="check">

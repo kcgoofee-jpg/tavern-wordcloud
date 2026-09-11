@@ -100,6 +100,9 @@
     background: var(--surface2); box-shadow: 0 12px 32px -14px rgb(0 0 0 / .5);
   }
 
+  /* Community board: a deliberately-paired row goes back to one column on a phone. */
+  .community-row { grid-template-columns: 1fr; gap: 20px; }
+
   /* Leaderboards: one column on a phone — the bar and the interval do not fit beside the name. */
   .board-row {
     grid-template-columns: 1.4em 1fr auto;

@@ -189,15 +189,29 @@ describe('CommunityPanel import composition', () => {
   });
 });
 
-/** The new top-to-bottom order (2026-09-11 redesign), read straight off the DOM. */
+/** The current order (2026-09-12 redesign: 总词云 is a compact link, not a section; 这30天 /
+ * 大家聊了多少层 and 模型榜 / 大家导入了什么 are deliberately-paired rows), read straight off the DOM. */
 describe('CommunityPanel section order', () => {
-  it('lists 这30天 / 总词云 / 模型榜 / 大家导入了什么 / 词都是些什么 / 大家聊了多少层 / 我的参与 in that order', () => {
+  it('lists 这30天 / 大家聊了多少层 / 模型榜 / 大家导入了什么 / 词都是些什么 / 我的参与 in that order', () => {
     const { container } = view({ ...STATS, cardStats: { reports: 1, withCards: 0, withWorlds: 0, withPreset: 0, avgCards: 0, avgWorlds: 0 } });
     const labels = [...container.querySelectorAll('.group-label')].map((n) => n.textContent);
-    expect(labels).toEqual(['这 30 天', '总词云', '模型榜', '大家导入了什么', '词都是些什么', '大家聊了多少层', '我的参与']);
+    expect(labels).toEqual(['这 30 天', '大家聊了多少层', '模型榜', '大家导入了什么', '词都是些什么', '我的参与']);
   });
 
-  it('every section is stacked full width, one per row (no side-by-side pairing)', () => {
+  it('pairs 这30天 with 大家聊了多少层, and 模型榜 with 大家导入了什么, in one .community-row each', () => {
+    const { container } = view({ ...STATS, cardStats: { reports: 1, withCards: 0, withWorlds: 0, withPreset: 0, avgCards: 0, avgWorlds: 0 } });
+    const rows = container.querySelectorAll('.community-row');
+    expect(rows.length).toBe(2);
+    for (const row of rows) expect(row.querySelectorAll('.community-sec').length).toBe(2);
+  });
+
+  it('renders 模型榜 full width, not paired, when cardStats is absent', () => {
+    const { container } = view({ ...STATS, cardStats: undefined });
+    expect(container.querySelectorAll('.community-row').length).toBe(1);   // only the 这30天/turns pair
+    expect(screen.getByText('模型榜').closest('.community-row')).toBeNull();
+  });
+
+  it('every section is full width outside a .community-row pair', () => {
     const { container } = view();
     for (const sec of container.querySelectorAll('.community-sec')) {
       expect(sec.className).not.toContain('community-sec-wide');
@@ -205,13 +219,13 @@ describe('CommunityPanel section order', () => {
   });
 });
 
-describe('CommunityPanel 总词云: collapses to a card that expands the aggregate cloud', () => {
+describe('CommunityPanel 总词云: a compact link that expands the aggregate cloud', () => {
   it('is a click target that calls onExpandCloud when there is a cloud to show', () => {
     const onExpandCloud = vi.fn();
     view(STATS, onExpandCloud);
-    const card = screen.getByText('点开看整张词云').closest('button')!;
-    expect(card).toBeTruthy();
-    fireEvent.click(card);
+    const link = screen.getByText('查看社区词云（1 个词）').closest('button')!;
+    expect(link).toBeTruthy();
+    fireEvent.click(link);
     expect(onExpandCloud).toHaveBeenCalledTimes(1);
   });
 
@@ -220,8 +234,7 @@ describe('CommunityPanel 总词云: collapses to a card that expands the aggrega
     view({ ...STATS, words: [] }, onExpandCloud);
     // Same empty-state copy as before; not a button, so nothing to click.
     expect(screen.getByText(/一个词要有至少 3 个不同的人都用过才会出现/)).toBeTruthy();
-    expect(screen.queryByText('点开看整张词云')).toBeNull();
-    expect(document.querySelector('.community-cloud-card')).toBeNull();
+    expect(document.querySelector('.community-cloud-link')).toBeNull();
   });
 });
 
@@ -297,12 +310,12 @@ describe('the community button cycles through three states', () => {
 });
 
 /**
- * The compact 总词云 card is a second entry point into the exact same aggregate-cloud state
+ * The compact 总词云 link is a second entry point into the exact same aggregate-cloud state
  * the top button's second click reaches (useOverlay.cycleCommunity) — not a separate overlay.
  * This drives the whole pipeline for real: a successful health check and a `/api/community`
- * response with words, opened through the button, then expanded through the card.
+ * response with words, opened through the button, then expanded through the link.
  */
-describe('the 总词云 card reaches the same fullscreen aggregate cloud as the button cycle', () => {
+describe('the 总词云 link reaches the same fullscreen aggregate cloud as the button cycle', () => {
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); localStorage.clear(); });
 
   it('closes the leaderboard dialog and shows the canvas hint when clicked', async () => {
@@ -317,7 +330,7 @@ describe('the 总词云 card reaches the same fullscreen aggregate cloud as the 
     const { container } = render(<App />);
     await waitFor(() => expect(container.querySelector('.community-quick')).toBeTruthy());
     fireEvent.click(container.querySelector('.community-quick')!);
-    const card = await screen.findByText('点开看整张词云');
+    const card = await screen.findByText('查看社区词云（1 个词）');
     fireEvent.click(card.closest('button')!);
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '社区排行榜' })).toBeNull());
     expect(screen.getByText('社区词云 · 点这里回到自己的词云')).toBeTruthy();
